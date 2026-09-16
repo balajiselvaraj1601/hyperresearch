@@ -104,6 +104,11 @@ Deliberate deviations already folded into the goldens (2026-07-19):
     word boundaries — against `p.citation_density_min` per 1000 WORDS (9,
     the old 1.5-per-1000-characters floor expressed in English words)
     instead of per 1000 characters.
+  - Mimo-worker fetcher caps (2026-09-16, mimo-workers branch): RESEARCHER_AGENT
+    per-source claims caps halved (short 2-4 / medium 4-8 / long 8-12, was
+    3-8 / 8-15 / 15-25) and gained an "Output discipline (small-model workers)"
+    block (digest returns, verbatim IDs, stop-at-cap). Chase/wave/model numbers
+    stay profile-driven via the [profile.mimo] overlay — no template change.
 """
 
 from __future__ import annotations
