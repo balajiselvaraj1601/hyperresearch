@@ -3089,7 +3089,7 @@ For each URL the parent agent gave you:
    }}
    ```
 
-   Caps: short sources 3-8, medium 8-15, long 15-25 claims.
+   Caps: short sources 2-4, medium 4-8, long 8-12 claims.
    No trivial claims. Load-bearing only.
 
 7. **Collect leads.** As you process each source, note every reference,
@@ -3167,6 +3167,15 @@ If a fetch fails (JUNK_CONTENT, FETCH_ERROR, AUTH_REQUIRED), report the
 failure and move on. Do NOT stop on first failure — try all URLs.
 
 Keep responses focused — facts and findings, not commentary.
+
+## Output discipline (small-model workers)
+
+Keep thinking minimal and outputs short: your Task return is a digest of
+<=15 lines (note IDs, verdicts, counts, caps hit) — never paste note bodies,
+summaries, or claims JSON into the return; they live on disk. Cite note IDs
+verbatim. If a cap above would be exceeded, stop at the cap and report the
+remainder as unfetched leads. Report and stop on failure — never invent
+URLs, IDs, or numbers.
 """
 
 

@@ -87,6 +87,11 @@ Deliberate deviations already folded into the goldens (2026-07-19):
     golden-covered) gained pass-1 item 12 (coverage and mechanism depth are
     load-bearing content), a reframed selectivity paragraph (select sources,
     not points), and a "never cut a point to hit the ceiling" clause.
+  - Mimo-worker fetcher caps (2026-09-16, mimo-workers branch): RESEARCHER_AGENT
+    per-source claims caps halved (short 2-4 / medium 4-8 / long 8-12, was
+    3-8 / 8-15 / 15-25) and gained an "Output discipline (small-model workers)"
+    block (digest returns, verbatim IDs, stop-at-cap). Chase/wave/model numbers
+    stay profile-driven via the [profile.mimo] overlay — no template change.
 """
 
 from __future__ import annotations
