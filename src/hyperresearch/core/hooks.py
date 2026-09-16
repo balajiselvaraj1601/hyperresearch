@@ -2489,6 +2489,18 @@ When done, tell the orchestrator:
 - Top 3 voice fixes you made in pass 2
 - Any sections you flagged as still weak (so the orchestrator knows
   what to escalate to the patcher)
+
+## Workspace lint gate — write clean the first time
+
+Some workspaces lint every Write/Edit on `.md` files with a strict
+PostToolUse hook (for example vale: no em/en dashes, acronyms defined at
+first use, no semicolon splices, heading-case rules). Fixing violations
+reactively on a long report spirals into dozens of blocked retries with no
+forward progress. So comply from the first draft: define every acronym at
+first use, punctuate with commas and periods instead of dashes, and
+reproduce section headings EXACTLY as the scaffold capitalizes them. When
+you report word count or completion status, state only what you verified
+by reading the file you wrote — never an estimate.
 """
 
 
@@ -3138,8 +3150,13 @@ those primaries gives the pipeline higher-authority sources to cite.
      PYTHONIOENCODING=utf-8 {hpr_path} sources check "<url>" -j
      PYTHONIOENCODING=utf-8 {hpr_path} fetch "<url>" --tag <topic> --suggested-by <note-id-that-cited-it> --suggested-by-reason "cited as primary source" -j
      ```
-   - If you only have author + title (no URL), use WebSearch to locate it:
-     search for `"<author> <title> <year>"` or `"<title> filetype:pdf"`
+   - If you only have author + title (no URL), locate it:
+     - Prefer WebSearch when the tool is present.
+     - On LiteLLM/gateway sessions WebSearch is disabled — use the SearXNG
+       provider instead:
+       `PYTHONIOENCODING=utf-8 {hpr_path} research --provider searxng "<author> <title> <year>" -m 5 -j`
+     - Do NOT invent scrapers (`ddgs`, Google HTML) or MCP search
+       workarounds.
    - For academic papers: try these URL patterns directly:
      - arXiv: `https://arxiv.org/abs/<id>` or search arXiv
      - DOI: `https://doi.org/<doi>` — fetch the DOI URL directly
@@ -3767,6 +3784,21 @@ def _install_claude_hook(vault_root: Path, hpr_path: str) -> str | None:
     return "Claude Code: .claude/settings.json (PreToolUse hook)"
 
 
+WORKER_SAFETY_GUARD = """\
+## Infrastructure errors — never self-remediate destructively
+
+If a tool, CLI, or database call fails (for example "database is locked",
+a lock timeout, or contention from parallel siblings), NEVER run
+destructive system-level commands to self-resolve: no `kill`, no `kill -9`,
+no `pkill`, no recursive force-delete, and no deleting database, WAL, or
+lock files. Retry the failing command at most twice with a short `sleep`
+between attempts. If it still fails, note the blocker in your final reply
+and stop that line of work. The orchestrator has broader context and safer
+recovery options (for example a WAL checkpoint). Destructive self-recovery
+is a security incident, not a fix.
+"""
+
+
 def _write_agent_file(
     vault_root: Path,
     filename: str,
@@ -3779,6 +3811,11 @@ def _write_agent_file(
     agent_path = agents_dir / filename
 
     content = _render_installed(content)
+
+    if "never self-remediate destructively" not in content:
+        content = content.rstrip("\n") + "\n\n" + WORKER_SAFETY_GUARD.rstrip("\n") + "\n"
+    if "\neffort:" not in content:
+        content = content.replace("\nmodel: ", "\neffort: low\nmodel: ", 1)
 
     if agent_path.exists():
         existing = agent_path.read_text(encoding="utf-8")
