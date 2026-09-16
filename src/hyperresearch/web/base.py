@@ -194,7 +194,7 @@ def get_provider(
     if name is None or name == "builtin":
         from hyperresearch.web.builtin import BuiltinProvider
 
-        return BuiltinProvider()
+        return BuiltinProvider(settings=settings)
 
     if name == "crawl4ai":
         try:
@@ -223,4 +223,20 @@ def get_provider(
         except ImportError:
             raise ImportError("tavily provider requires: pip install \"hyperresearch[tavily]\"")
 
-    raise ValueError(f"Unknown web provider: {name!r}. Available: builtin, crawl4ai, exa, tavily")
+    if name == "parallel":
+        try:
+            from hyperresearch.web.parallel_provider import ParallelProvider
+
+            return ParallelProvider(settings=settings)
+        except ImportError:
+            raise ImportError('parallel provider requires: pip install "hyperresearch[parallel]"')
+
+    if name == "serply":
+        from hyperresearch.web.serply_provider import SerplyProvider
+
+        return SerplyProvider()
+
+    raise ValueError(
+        f"Unknown web provider: {name!r}. "
+        "Available: builtin, crawl4ai, exa, tavily, parallel, serply"
+    )

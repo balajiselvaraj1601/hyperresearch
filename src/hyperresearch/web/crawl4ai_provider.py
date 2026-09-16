@@ -13,6 +13,7 @@ import logging
 import os
 import pathlib
 import sys
+import threading
 from datetime import UTC, datetime
 
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, DefaultMarkdownGenerator
@@ -22,6 +23,13 @@ from crawl4ai.content_filter_strategy import PruningContentFilter
 
 from hyperresearch.core.config import FetchSettings, JunkGates
 from hyperresearch.web.base import WebResult, is_binary_garbage
+from hyperresearch.web.pdf import PDF_FAILURE_KEY
+from hyperresearch.web.pdf import failure_reason as _pdf_failure_reason
+from hyperresearch.web.pdf import fetch_pdf as _fetch_pdf
+from hyperresearch.web.pdf import is_pdf_url as _is_pdf_url
+from hyperresearch.web.pdf import (
+    safe_get_pdf as _safe_get_pdf,  # noqa: F401  # kept for callers that import it here
+)
 
 # Fix Windows encoding before crawl4ai's managed browser tries to log Unicode
 if sys.platform == "win32":
@@ -35,20 +43,31 @@ if sys.platform == "win32":
                 pass
 
 
-def _is_pdf_url(url: str) -> bool:
-    """Check if URL likely points to a PDF."""
-    from urllib.parse import urlparse
+def _run_coro(coro):
+    """Run ``coro`` to completion, whether or not this thread already has a running
+    event loop (the MCP server dispatches sync tools on its own loop's thread; the
+    CLI does not). A plain ``asyncio.run(coro)`` only works in the second case, so
+    fall back to a dedicated thread, which has no running loop of its own.
+    """
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
 
-    parsed = urlparse(url.lower())
-    path = parsed.path
-    # Direct .pdf links
-    if path.endswith(".pdf"):
-        return True
-    # Common academic PDF patterns
-    if "/pdf/" in path or "/pdfs/" in path:
-        return True
-    # arXiv PDF links
-    return "arxiv.org" in parsed.netloc and ("/pdf/" in path or "/abs/" in path)
+    box: dict = {}
+
+    def _target() -> None:
+        try:
+            box["result"] = asyncio.run(coro)
+        except BaseException as exc:  # re-raised on the caller's thread below
+            box["error"] = exc
+
+    thread = threading.Thread(target=_target)
+    thread.start()
+    thread.join()
+    if "error" in box:
+        raise box["error"]
+    return box["result"]
 
 
 def _looks_like_binary(text: str, gates: JunkGates | None = None) -> bool:
@@ -91,130 +110,32 @@ def _smart_wait_js(settings: FetchSettings) -> str:
     )
 
 
-_PYMUPDF_MISSING_LOGGED = False
+def _check_final_url(entry_url: str, final_url: str | None, settings: FetchSettings) -> None:
+    """Re-validate the URL the browser actually ended up on.
 
-
-def _pdf_log() -> logging.Logger:
-    return logging.getLogger("hyperresearch.pdf")
-
-
-def _import_pymupdf():
-    """Import pymupdf, warning loudly (once) if it is unavailable.
-
-    Without this warning a missing/broken pymupdf is invisible: every PDF falls
-    through to the browser lane, arrives as binary, and is discarded as junk —
-    across every domain at once, with nothing explaining why.
+    The browser follows redirects internally, so the entry-point gate only
+    vouches for where navigation STARTED. Refusing after the fact cannot
+    stop a request that already fired (blind SSRF survives), but it keeps
+    private-network content out of the vault. Skipped when the final host
+    equals the entry host — the entry gate already vouched for it, and the
+    extra ``getaddrinfo`` would be pure cost on the no-redirect common case.
     """
-    global _PYMUPDF_MISSING_LOGGED
+    from urllib.parse import urlparse
+
+    from hyperresearch.web.safe_http import SafeHTTPError, check_url
+
+    if not final_url or final_url == entry_url:
+        return
+    entry_host = urlparse(entry_url).hostname
+    parsed_final = urlparse(final_url)
+    if parsed_final.hostname == entry_host and parsed_final.scheme.lower() in ("http", "https"):
+        return
     try:
-        import pymupdf
-
-        return pymupdf
-    except ImportError as exc:
-        if not _PYMUPDF_MISSING_LOGGED:
-            _PYMUPDF_MISSING_LOGGED = True
-            _pdf_log().error(
-                "pymupdf could not be imported (%s) — PDF text extraction is disabled, "
-                "so every PDF will be discarded as junk content. Reinstall it with "
-                "`pip install --force-reinstall pymupdf`.",
-                exc,
-            )
-        return None
-
-
-def _fetch_pdf(url: str, settings: FetchSettings | None = None) -> WebResult | None:
-    """Download a PDF and extract text using pymupdf. Returns None if extraction fails.
-
-    Every failure path logs its reason. A silent None here is indistinguishable
-    from "this URL is not a PDF", which is what made missing-PDF failures so hard
-    to diagnose.
-    """
-    pymupdf = _import_pymupdf()
-    if pymupdf is None:
-        return None
-
-    settings = settings or FetchSettings()
-
-    import httpx
-
-    try:
-        # Convert arXiv abs links to PDF links
-        if "arxiv.org/abs/" in url:
-            url = url.replace("/abs/", "/pdf/")
-            if not url.endswith(".pdf"):
-                url += ".pdf"
-
-        resp = httpx.get(url, follow_redirects=True, timeout=settings.pdf_timeout_s,
-                         verify=settings.pdf_verify_tls, headers={
-            "User-Agent": (
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            ),
-            "Accept": "application/pdf,application/octet-stream;q=0.9,*/*;q=0.8",
-        })
-        if resp.status_code != 200:
-            _pdf_log().warning("PDF fetch for %s returned HTTP %s", url, resp.status_code)
-            return None
-
-        pdf_bytes = resp.content
-        content_type = resp.headers.get("content-type", "")
-
-        # Magic bytes are authoritative. Servers mislabel PDFs as octet-stream,
-        # and plenty of PDF URLs carry no .pdf suffix, so trusting the header or
-        # the URL shape alone silently drops real PDFs.
-        if not pdf_bytes.startswith(b"%PDF-"):
-            _pdf_log().warning(
-                "PDF fetch for %s did not return PDF data (content-type=%r, first bytes=%r)",
-                url, content_type, pdf_bytes[:8],
-            )
-            return None
-
-        if len(pdf_bytes) < settings.min_pdf_bytes:
-            _pdf_log().warning("PDF fetch for %s returned only %d bytes", url, len(pdf_bytes))
-            return None
-
-        doc = pymupdf.open(stream=pdf_bytes, filetype="pdf")
-
-        # Extract text from all pages
-        pages = []
-        for page in doc:
-            text = page.get_text("text")
-            if text.strip():
-                pages.append(text)
-
-        page_count = doc.page_count
-        doc.close()
-
-        if not pages:
-            _pdf_log().warning(
-                "PDF at %s has %d page(s) but no extractable text layer — "
-                "likely a scanned document requiring OCR.", url, page_count,
-            )
-            return None
-
-        # Build markdown from extracted text
-        full_text = "\n\n---\n\n".join(pages)
-        title = ""
-        # Try to get title from first page (first non-empty line)
-        for line in pages[0].split("\n"):
-            line = line.strip()
-            if len(line) > 10:
-                title = line
-                break
-
-        return WebResult(
-            url=url,
-            title=title or f"PDF: {url.split('/')[-1]}",
-            content=full_text,
-            fetched_at=datetime.now(UTC),
-            metadata={"content_type": "application/pdf", "pages": len(pages)},
-            raw_bytes=pdf_bytes,
-            raw_content_type="application/pdf",
-        )
-
-    except Exception as e:
-        _pdf_log().warning("PDF extraction failed for %s: %s", url, e)
-        return None
+        check_url(final_url, settings.allow_private_hosts)
+    except SafeHTTPError as exc:
+        raise SafeHTTPError(
+            f"browser navigation for {entry_url!r} ended at refused URL: {exc}"
+        ) from exc
 
 
 class Crawl4AIProvider:
@@ -283,26 +204,42 @@ class Crawl4AIProvider:
         return AsyncWebCrawler(crawler_strategy=strategy, config=self._browser_config)
 
     def fetch(self, url: str) -> WebResult:
+        # SSRF gate: reject private/loopback/etc. before any browser or http
+        # call. PDF redirects are re-checked hop by hop via safe_get; the
+        # browser lanes drive their own navigation, so they get the
+        # entry-point check here plus a final-URL recheck after the fact
+        # (_check_final_url).
+        from hyperresearch.web.safe_http import check_url
+
+        check_url(url, self._settings.allow_private_hosts)
+
         # PDF detection: fetch directly with httpx, extract text with pymupdf
+        pdf_failure: str | None = None
         if _is_pdf_url(url):
             result = _fetch_pdf(url, self._settings)
             if result is not None:
                 return result
             # Fallback to browser if PDF fetch failed (might be a landing page, not actual PDF)
+            pdf_failure = _pdf_failure_reason(url)
 
         # When visible + profile: use Playwright directly (crawl4ai managed browser ignores headless=False)
         if not self._headless and self._data_dir:
-            return asyncio.run(self._fetch_visible(url))
+            result = _run_coro(self._fetch_visible(url))
+        else:
+            result = _run_coro(self._fetch_async(url))
 
-        result = asyncio.run(self._fetch_async(url))
+            # Post-fetch PDF detection: if the browser got binary garbage (PDF served
+            # inline without proper content-type handling), re-fetch as a direct PDF download.
+            if result.content and _looks_like_binary(result.content, self._gates):
+                pdf_result = _fetch_pdf(url, self._settings)
+                if pdf_result is not None:
+                    return pdf_result
+                pdf_failure = _pdf_failure_reason(url) or pdf_failure
 
-        # Post-fetch PDF detection: if the browser got binary garbage (PDF served
-        # inline without proper content-type handling), re-fetch as a direct PDF download.
-        if result.content and _looks_like_binary(result.content, self._gates):
-            pdf_result = _fetch_pdf(url, self._settings)
-            if pdf_result is not None:
-                return pdf_result
-
+        # The junk gate downstream only sees "binary garbage"; the reason the
+        # PDF lane gave up is what the operator actually needs (#82).
+        if pdf_failure:
+            result.metadata[PDF_FAILURE_KEY] = pdf_failure
         return result
 
     async def _fetch_visible(self, url: str) -> WebResult:
@@ -333,6 +270,10 @@ class Crawl4AIProvider:
 
             await context.close()
 
+        # This lane runs with ignore_https_errors and follows redirects on
+        # its own, so where it LANDED needs the same gate as where it started.
+        _check_final_url(url, final_url, self._settings)
+
         # Convert HTML to markdown using crawl4ai's markdown generator
         # Prefer fit_markdown (main content, no nav/footer chrome) over raw_markdown.
         md_result = self._md_generator.generate_markdown(html, base_url=final_url)
@@ -357,6 +298,12 @@ class Crawl4AIProvider:
     async def _fetch_async(self, url: str) -> WebResult:
         async with self._make_crawler() as crawler:
             result = await crawler.arun(url=url, config=self._run_config)
+            # crawl4ai's result.url is the REQUESTED url even after the
+            # browser followed redirects; the landing url is redirected_url
+            # (hermetic-tier proven — rechecking result.url alone is blind).
+            _check_final_url(
+                url, getattr(result, "redirected_url", None) or result.url, self._settings
+            )
             metadata = result.metadata or {}
 
             # result.markdown is a MarkdownGenerationResult with .raw_markdown,
@@ -409,12 +356,26 @@ class Crawl4AIProvider:
 
     def fetch_many(self, urls: list[str]) -> list[WebResult]:
         """Fetch multiple URLs concurrently using crawl4ai's arun_many."""
-        return asyncio.run(self._fetch_many_async(urls))
+        return _run_coro(self._fetch_many_async(urls))
 
     async def _fetch_many_async(self, urls: list[str]) -> list[WebResult]:
+        # SSRF gate: same entry-point check as fetch(). Refused URLs are
+        # skipped (logged), not fatal — one hostile URL must not kill the
+        # whole batch.
+        from hyperresearch.web.safe_http import CertVerificationError, SafeHTTPError, check_url
+
+        log = logging.getLogger("hyperresearch.web")
+        allowed_urls = []
+        for url in urls:
+            try:
+                check_url(url, self._settings.allow_private_hosts)
+                allowed_urls.append(url)
+            except SafeHTTPError as exc:
+                log.warning("refused batch fetch for %s: %s", url, exc)
+
         # Split: PDFs go direct, rest go through browser
-        pdf_urls = [u for u in urls if _is_pdf_url(u)]
-        html_urls = [u for u in urls if not _is_pdf_url(u)]
+        pdf_urls = [u for u in allowed_urls if _is_pdf_url(u)]
+        html_urls = [u for u in allowed_urls if not _is_pdf_url(u)]
 
         web_results = []
 
@@ -422,10 +383,22 @@ class Crawl4AIProvider:
         # None (parser failure, non-PDF body served at a .pdf URL) we fall
         # back to the browser path — mirrors the single-fetch behaviour in
         # fetch() so batch callers don't silently lose academic PDFs that
-        # need JS-rendered landing pages.
+        # need JS-rendered landing pages. Cert refusals are the exception:
+        # the browser lane ignores TLS errors, so falling back would be an
+        # automatic unverified retry. A batch has no per-URL failure
+        # channel, so the skip is logged loudly instead.
         failed_pdf_urls = []
         for url in pdf_urls:
-            pdf_result = _fetch_pdf(url, self._settings)
+            try:
+                pdf_result = _fetch_pdf(url, self._settings)
+            except CertVerificationError as exc:
+                log.warning(
+                    "SKIPPED (TLS certificate invalid): %s -- a potentially "
+                    "valuable source was not fetched. To include it, set "
+                    "pdf_verify_tls = false under [fetch] in config.toml. (%s)",
+                    url, exc,
+                )
+                continue
             if pdf_result is not None:
                 web_results.append(pdf_result)
             else:
@@ -440,6 +413,13 @@ class Crawl4AIProvider:
                 for cr, url in zip(results, browser_urls, strict=False):
                     if not cr.success:
                         continue
+                    try:
+                        _check_final_url(
+                            url, getattr(cr, "redirected_url", None) or cr.url, self._settings
+                        )
+                    except SafeHTTPError as exc:
+                        log.warning("dropping batch result for %s: %s", url, exc)
+                        continue
                     metadata = cr.metadata or {}
                     md = cr.markdown
                     if md and hasattr(md, "fit_markdown"):
@@ -453,7 +433,13 @@ class Crawl4AIProvider:
 
                     # Post-fetch binary check — browser may have fetched a PDF inline
                     if content and _looks_like_binary(content, self._gates):
-                        pdf_result = _fetch_pdf(url, self._settings)
+                        try:
+                            pdf_result = _fetch_pdf(url, self._settings)
+                        except CertVerificationError as exc:
+                            # Keep the batch alive, but don't store the binary
+                            # garbage the browser got either.
+                            log.warning("SKIPPED (TLS certificate invalid): %s (%s)", url, exc)
+                            continue
                         if pdf_result is not None:
                             web_results.append(pdf_result)
                             continue

@@ -28,10 +28,45 @@ from pathlib import Path
 
 MANIFEST_VERSION = 1
 MANIFEST_NAME = "run.json"
+
+# Avg. chars per ASCII-whitespace token above which str.split() word counts
+# are no longer trustworthy (see _lacks_word_boundaries).
+_NO_WORD_BOUNDARY_AVG_TOKEN_CHARS = 15.0
+
+
+def _lacks_word_boundaries(text: str) -> bool:
+    """True if ASCII-whitespace doesn't meaningfully segment `text` into words."""
+    tokens = text.split()
+    if not tokens:
+        return False
+    avg_token_chars = sum(len(t) for t in tokens) / len(tokens)
+    return avg_token_chars >= _NO_WORD_BOUNDARY_AVG_TOKEN_CHARS
+
+
+def _effective_word_count(text: str, chars_per_word: float) -> float:
+    """Script-neutral word count: `str.split()` where whitespace delimits
+    words, else characters / `chars_per_word` (the profile's ratio for
+    scripts like Chinese, Japanese or Thai). Korean is space-delimited and
+    takes the split path."""
+    if _lacks_word_boundaries(text):
+        return len(text) / chars_per_word
+    return len(text.split())
+
+
 EVENTS_NAME = "events.jsonl"
 
 RUN_STATUSES = ("running", "paused", "blocked", "done", "failed", "aborted")
 STEP_STATUSES = ("pending", "running", "done", "skipped", "failed")
+
+# Step 1.5 (chapter partition) registers each chapter by emitting this event
+# type with {"chapter": <id>, "title": <title>}; record_event folds it into
+# manifest["chapters"] so resume_position sees the chapter as pending. This
+# is the ONLY registration path — there is no separate chapter command.
+CHAPTER_PLAN_EVENT = "chapter-plan"
+
+# Chaptered profiles loop steps 2..10 per chapter (see the step-1.5 skill's
+# "Chapter execution loop"); a chapter is complete once its step 10 is done.
+CHAPTER_LAST_STEP = "10"
 
 # A run whose manifest hasn't been touched in this long is flagged
 # possibly-stalled by `hpr run status`.
@@ -119,7 +154,14 @@ def _save(vault, vault_tag: str, manifest: dict) -> None:
 
 
 def record_event(vault, vault_tag: str, event: dict) -> None:
-    """Append one event to events.jsonl and touch the manifest heartbeat."""
+    """Append one event to events.jsonl and touch the manifest heartbeat.
+
+    A `chapter-plan` event (step 1.5) also registers its chapter in
+    `manifest["chapters"]` — status "planned", plus the title when given —
+    so the manifest, not the events log, stays the single input to
+    `resume_position`. Re-emitting the event for a chapter that already
+    has step progress never regresses its status.
+    """
     run_dir = vault.run_dir(vault_tag)
     if not (run_dir / MANIFEST_NAME).exists():
         raise RunError(f"no run '{vault_tag}'")
@@ -127,7 +169,48 @@ def record_event(vault, vault_tag: str, event: dict) -> None:
     with open(run_dir / EVENTS_NAME, "a", encoding="utf-8") as f:
         f.write(json.dumps(event) + "\n")
     manifest = load_manifest(vault, vault_tag)
+    if event.get("type") == CHAPTER_PLAN_EVENT:
+        _fold_chapter_plan(manifest, event)
     _save(vault, vault_tag, manifest)  # heartbeat
+
+
+# Bounds on what a chapter-plan event may write into the manifest. Events
+# come from `hpr run event --data <json>` — agent-authored, so the payload
+# shape is not trusted: only a short scalar chapter id and a short string
+# title are folded; every other key is left in events.jsonl.
+CHAPTER_ID_MAX_CHARS = 64
+CHAPTER_TITLE_MAX_CHARS = 500
+
+
+def _chapter_id_of(value) -> str | None:
+    """A chapter id is a short non-empty string or int; anything else is
+    ignored (bools, floats, lists, dicts, None)."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        value = str(value)
+    if not isinstance(value, str):
+        return None
+    value = value.strip()
+    if not value or len(value) > CHAPTER_ID_MAX_CHARS:
+        return None
+    return value
+
+
+def _fold_chapter_plan(manifest: dict, event: dict) -> None:
+    chapter = _chapter_id_of(event.get("chapter"))
+    if chapter is None:
+        return
+    chapters = manifest.get("chapters")
+    if not isinstance(chapters, dict):
+        chapters = manifest["chapters"] = {}
+    ch = chapters.get(chapter)
+    if not isinstance(ch, dict):
+        ch = chapters[chapter] = {}
+    ch.setdefault("status", "planned")
+    title = event.get("title")
+    if isinstance(title, str) and title.strip():
+        ch["title"] = title.strip()[:CHAPTER_TITLE_MAX_CHARS]
 
 
 def set_step(
@@ -153,15 +236,6 @@ def set_step(
         ch["status"] = f"step-{step}-{status}"
     _save(vault, vault_tag, manifest)
     record_event(vault, vault_tag, {"type": "step", "step": str(step), "status": status, "chapter": chapter})
-    return manifest
-
-
-def set_chapter(vault, vault_tag: str, chapter: str, **fields) -> dict:
-    """Create/update a chapter entry (title, status, sources, ...)."""
-    manifest = load_manifest(vault, vault_tag)
-    ch = manifest["chapters"].setdefault(chapter, {})
-    ch.update({k: v for k, v in fields.items() if v is not None})
-    _save(vault, vault_tag, manifest)
     return manifest
 
 
@@ -229,16 +303,23 @@ def resume_position(manifest: dict) -> dict:
     """Compute where a run should continue.
 
     Returns {next_step, done_steps, remaining_steps, chapters_pending}.
-    next_step is None when every profile step is done.
+    next_step is None when every profile step is done. A registered
+    chapter (see CHAPTER_PLAN_EVENT) stays pending until its last looped
+    step is done — `set_step(..., chapter=)` records "step-<N>-done" per
+    step, and only step CHAPTER_LAST_STEP closes the chapter.
     """
     profile_steps = manifest.get("profile_steps", [])
     steps = manifest.get("steps", {})
     done = [s for s in profile_steps if steps.get(s, {}).get("status") in ("done", "skipped")]
     remaining = [s for s in profile_steps if s not in done]
+    chapter_done = ("done", f"step-{CHAPTER_LAST_STEP}-done")
+    chapters = manifest.get("chapters")
+    if not isinstance(chapters, dict):
+        chapters = {}
     chapters_pending = [
         name
-        for name, ch in manifest.get("chapters", {}).items()
-        if ch.get("status") not in ("done", None) and not str(ch.get("status", "")).endswith("-done")
+        for name, ch in chapters.items()
+        if not isinstance(ch, dict) or ch.get("status") not in chapter_done
     ]
     return {
         "next_step": remaining[0] if remaining else None,
@@ -329,6 +410,46 @@ def run_report_data(vault, vault_tag: str) -> dict:
     }
 
 
+def _declared_tier(run_dir: Path) -> str | None:
+    """The `pipeline_tier` step 1 wrote into prompt-decomposition.json.
+
+    Tolerant on purpose: a missing or unreadable decomposition just means
+    "no declared tier", and verify_run reports the unreadable case through
+    its own `decomposition-readable` check.
+    """
+    decomp_path = run_dir / "prompt-decomposition.json"
+    if not decomp_path.exists():
+        return None
+    try:
+        decomp = json.loads(decomp_path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    tier = decomp.get("pipeline_tier") if isinstance(decomp, dict) else None
+    return tier if isinstance(tier, str) and tier.strip() else None
+
+
+def _required_step_ids(manifest: dict, run_dir: Path, config_path: Path | None) -> set[str]:
+    """Step ids whose artifacts the ship gate demands.
+
+    The router initializes a run with the installed gear and lets step 1
+    reclassify it: "the manifest's profile field is informational — the
+    decomposition's tier rules". So when the decomposition declares a tier
+    that disagrees with the manifest profile, that tier's step set wins;
+    otherwise (no tier, same tier, or a tier that resolves to nothing) the
+    manifest's own `profile_steps` stand.
+    """
+    from hyperresearch.core.profiles import ProfileError, resolve_profile
+
+    steps = {str(s) for s in manifest.get("profile_steps", [])}
+    tier = _declared_tier(run_dir)
+    if tier is None or tier == manifest.get("profile"):
+        return steps
+    try:
+        return {str(s) for s in resolve_profile(tier, config_path).steps}
+    except ProfileError:
+        return steps
+
+
 def verify_run(vault, vault_tag: str) -> dict:
     """Structural verification battery for a completed run.
 
@@ -386,13 +507,31 @@ def verify_run(vault, vault_tag: str) -> dict:
             )
 
         if response_format and response_format in profile.word_targets:
-            low, high = profile.word_targets[response_format]
-            wc = len(report_text.split())
-            check(
-                "length-in-range",
-                low * 0.8 <= wc <= high * 1.2,
-                f"{wc} words vs target {low}-{high} ({response_format}; ±20% tolerance)",
-            )
+            if _lacks_word_boundaries(report_text):
+                # char_targets_no_word_boundary is profile-configurable per
+                # response_format; falls back to word_target * chars_per_word
+                # if a format has no explicit target.
+                char_targets = profile.char_targets_no_word_boundary
+                if response_format in char_targets:
+                    low, high = char_targets[response_format]
+                else:
+                    low_w, high_w = profile.word_targets[response_format]
+                    ratio = profile.chars_per_word_no_word_boundary
+                    low, high = int(low_w * ratio), int(high_w * ratio)
+                count = len(report_text)
+                check(
+                    "length-in-range",
+                    low * 0.8 <= count <= high * 1.2,
+                    f"{count} chars vs target {low}-{high} ({response_format}; char-based; ±20% tolerance)",
+                )
+            else:
+                low, high = profile.word_targets[response_format]
+                wc = len(report_text.split())
+                check(
+                    "length-in-range",
+                    low * 0.8 <= wc <= high * 1.2,
+                    f"{wc} words vs target {low}-{high} ({response_format}; ±20% tolerance)",
+                )
 
         missing = [h for h in required_headings if h not in report_text]
         check(
@@ -403,18 +542,35 @@ def verify_run(vault, vault_tag: str) -> dict:
 
         import re as _re
 
+        from hyperresearch.core.patterns import WIKI_LINK_RE
+
         # Grouped markers ([7, 12]) count one citation per source number,
-        # so consolidating stacks never lowers measured density.
+        # so consolidating stacks never lowers measured density. Wiki-link
+        # citations use the shared pattern so this gate and the lint/cite-
+        # check rules agree on what a [[...]] citation is.
         cites = sum(
             len(g.split(","))
             for g in _re.findall(r"\[(\d{1,3}(?:\s*,\s*\d{1,3})*)\]", report_text)
-        ) + len(_re.findall(r"\[\[[^\]]+\]\]", report_text))
-        density = cites / max(1, len(report_text)) * 1000
-        floor = 1.5  # instruction-critic's re-count trigger
+        ) + len(WIKI_LINK_RE.findall(report_text))
+        # Per 1000 *effective* words, not characters: a character floor
+        # means a different amount of content per script (CJK packs ~3x
+        # the content per character), so the same number would be a
+        # different bar for a Japanese report than for an English one.
+        no_boundaries = _lacks_word_boundaries(report_text)
+        effective_words = _effective_word_count(
+            report_text, profile.chars_per_word_no_word_boundary
+        )
+        density = cites * 1000 / max(1.0, effective_words)
+        floor = profile.citation_density_min  # also the instruction critic's re-count trigger
+        unit = (
+            f"words (chars / {profile.chars_per_word_no_word_boundary:g}; no word boundaries)"
+            if no_boundaries
+            else "words"
+        )
         check(
             "citation-density",
             density >= floor,
-            f"{density:.2f} citations/1000 chars (floor {floor})",
+            f"{density:.2f} citations/1000 {unit} (floor {floor})",
         )
 
         check(
@@ -453,8 +609,9 @@ def verify_run(vault, vault_tag: str) -> dict:
         except Exception as exc:
             check("content-lints", False, f"content lint rules failed to run: {exc}")
 
-    # Tier-mandated artifacts
-    steps = set(manifest.get("profile_steps", []))
+    # Tier-mandated artifacts, keyed on the tier the run actually ran (see
+    # _required_step_ids) rather than the profile it was initialized with.
+    steps = _required_step_ids(manifest, run_dir, vault.config_path)
     if {"12", "14"} <= steps:
         for name in (
             "critic-findings-dialectic.json", "critic-findings-depth.json",

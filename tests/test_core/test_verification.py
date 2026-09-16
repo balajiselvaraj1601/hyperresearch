@@ -126,6 +126,64 @@ class TestCiteCheckExtraction:
         assert (cited_vault.run_dir("cc-run") / "cite-check-pairs.json").exists()
 
 
+class TestQuoteSpanExtraction:
+    """Regression tests for quote span pairing (no min-length in the regex)."""
+
+    def _extract_spans(self, text: str) -> list[str]:
+        from hyperresearch.cli.lint import _QUOTE_SPAN_RE, _report_body_only
+
+        body = _report_body_only(text)
+        return [m.group(1) for m in _QUOTE_SPAN_RE.finditer(body)]
+
+    def test_short_quotes_extracted_individually(self):
+        text = (
+            'Metrics include "TVL", "Low Security", "reasonable use", '
+            '"6x Exits", and "registered entity" in the analysis.'
+        )
+        assert self._extract_spans(text) == [
+            "TVL",
+            "Low Security",
+            "reasonable use",
+            "6x Exits",
+            "registered entity",
+        ]
+
+    def test_short_quote_before_long_quote_does_not_desync(self):
+        text = (
+            'The report discusses "Low Security" instruments.\n'
+            'The source states "this is a sufficiently long quoted passage from the source".'
+        )
+        spans = self._extract_spans(text)
+        assert spans == [
+            "Low Security",
+            "this is a sufficiently long quoted passage from the source",
+        ]
+        assert len(spans) == 2
+        giant = "Low Security" + text.split('"Low Security"', 1)[1].split('"', 1)[0]
+        assert giant not in spans[0]
+        assert " instruments" not in spans[0]
+
+    def test_curly_quotes_and_straight_quotes(self):
+        text = 'Curly “quoted phrase” and straight "another phrase" here.'
+        assert self._extract_spans(text) == ["quoted phrase", "another phrase"]
+
+    def test_adjacent_quoted_phrases(self):
+        text = 'Terms "TVL" "Low Security" appear back to back.'
+        assert self._extract_spans(text) == ["TVL", "Low Security"]
+
+    def test_punctuation_after_closing_quote(self):
+        text = 'The label "Low Security", is used throughout.'
+        assert self._extract_spans(text) == ["Low Security"]
+
+    def test_apostrophe_inside_quote(self):
+        text = 'As noted, "Python\'s async/await syntax enables concurrent I/O" today.'
+        assert self._extract_spans(text) == ["Python's async/await syntax enables concurrent I/O"]
+
+    def test_citation_markers_stripped_before_extraction(self):
+        text = 'Evidence shows "Low Security" risk [[rust-ownership]].'
+        assert self._extract_spans(text) == ["Low Security"]
+
+
 class TestVerificationLints:
     def _lint(self, vault, rule, monkeypatch):
         from typer.testing import CliRunner
@@ -157,6 +215,37 @@ class TestVerificationLints:
         payload = self._lint(seeded_vault, "quote-integrity", monkeypatch)
         issues = [i for i in payload["data"]["issues"] if i["rule"] == "quote-integrity"]
         assert issues == []
+
+    def test_quote_integrity_skips_short_quotes_without_false_positive(
+        self, seeded_vault, monkeypatch
+    ):
+        report = seeded_vault.root / "research" / "notes" / "final_report_q.md"
+        report.write_text(
+            'The analysis covers "TVL", "Low Security", "reasonable use", '
+            '"6x Exits", and "registered entity" throughout the report body. '
+            "Intervening prose that would be swallowed by a desynchronized matcher "
+            "when it crosses twenty characters of unquoted text in the document.",
+            encoding="utf-8",
+        )
+        payload = self._lint(seeded_vault, "quote-integrity", monkeypatch)
+        issues = [i for i in payload["data"]["issues"] if i["rule"] == "quote-integrity"]
+        assert issues == []
+
+    def test_quote_integrity_short_quote_before_long_fabrication(
+        self, seeded_vault, monkeypatch
+    ):
+        report = seeded_vault.root / "research" / "notes" / "final_report_q.md"
+        report.write_text(
+            'The report discusses "Low Security" instruments with intervening prose '
+            "that must not be treated as part of a quoted span.\n"
+            'The paper concludes that "quantum entanglement reverses causality in every measurable frame of reference".',
+            encoding="utf-8",
+        )
+        payload = self._lint(seeded_vault, "quote-integrity", monkeypatch)
+        issues = [i for i in payload["data"]["issues"] if i["rule"] == "quote-integrity"]
+        assert len(issues) == 1
+        assert "quantum entanglement" in issues[0]["message"]
+        assert "Low Security" not in issues[0]["message"]
 
     def test_numeric_consistency_flags_untraceable(self, cited_vault, monkeypatch):
         report = cited_vault.root / "research" / "notes" / "final_report_n.md"
@@ -239,6 +328,178 @@ class TestIndependence:
         assert any(c["kind"] == "url" for c in result["clusters"])
 
 
+class TestCJKLengthCheck:
+    """`str.split()` word counts collapse to near-zero for prose in scripts
+    that don't delimit words with ASCII whitespace (Chinese, Japanese,
+    Korean, Thai, ...), so a report that is squarely within its documented
+    character-count target must not fail length-in-range on a spurious
+    word count. The detector is a structural heuristic (average
+    whitespace-delimited token length), not a hardcoded script allowlist --
+    it must generalize to any such script without code changes."""
+
+    def test_lacks_word_boundaries(self):
+        from hyperresearch.core.runs import _lacks_word_boundaries
+
+        # Japanese (kana + kanji) and Chinese (hanzi) prose is written with
+        # no spaces between words at all.
+        assert _lacks_word_boundaries("この文章はほぼ全て日本語の文字で構成されています。")
+        assert _lacks_word_boundaries("这是一段中文测试文本内容和证据。")
+        # Structural-only proof of generality to a non-CJK, non-Latin
+        # script family (Thai) -- no claim about grammaticality, just that
+        # a long run of a spaceless script's characters trips the same
+        # heuristic without any script-specific code.
+        assert _lacks_word_boundaries("คำ" * 30)
+        # Korean is the counter-example that justifies a *structural*
+        # heuristic over a hardcoded script list: unlike Chinese/Japanese,
+        # modern Korean orthography IS space-delimited, so str.split()
+        # word counts are meaningful for it and it must NOT trip this
+        # branch. A script-identity allowlist would get this wrong.
+        assert not _lacks_word_boundaries(
+            "이것은 한국어 문장으로 구성된 테스트입니다 그리고 띄어쓰기를 사용합니다."
+        )
+        assert not _lacks_word_boundaries(
+            "This paragraph is entirely English prose with no CJK content at all."
+        )
+        # A handful of long wikilink citation keys inside a mostly-English
+        # report should not trip the branch -- many short real words still
+        # dominate the average token length.
+        assert not _lacks_word_boundaries(
+            "This is an English report with real citations. "
+            "[[dagitty-a-graphical-tool-for-analyzing-causal-diagrams-semantic-scholar]] " * 15
+        )
+
+    def test_verify_passes_cjk_report_within_char_target_despite_low_word_count(
+        self, tmp_vault
+    ):
+        init_run(tmp_vault, "cjk-01", profile="light")
+        run_dir = tmp_vault.run_dir("cjk-01")
+        (run_dir / "prompt-decomposition.json").write_text(json.dumps({
+            "response_format": "short",
+            "required_section_headings": ["## 結果"],
+        }), encoding="utf-8")
+        (run_dir / "polish-log.json").write_text('{"applied": []}', encoding="utf-8")
+        # light/short CJK char target is 1500-6000; this Japanese sentence
+        # has almost no ASCII whitespace, so str.split() would count only a
+        # handful of "words" despite being solidly in-range by characters.
+        sentence = "これは実質的な証拠を伴う文章である[[src-note]]。"
+        report = tmp_vault.root / "research" / "notes" / "final_report_cjk-01.md"
+        body = "## 結果\n\n" + (sentence * 90)
+        report.write_text(body, encoding="utf-8")
+
+        word_count = len(body.split())
+        assert word_count < 500  # would fail the English word-count target
+
+        result = verify_run(tmp_vault, "cjk-01")
+        by_name = {c["name"]: c for c in result["checks"]}
+        assert by_name["length-in-range"]["ok"] is True
+        assert "chars" in by_name["length-in-range"]["detail"]
+        assert result["passed"] is True
+
+    def test_verify_still_fails_cjk_report_far_outside_char_target(self, tmp_vault):
+        init_run(tmp_vault, "cjk-02", profile="light")
+        run_dir = tmp_vault.run_dir("cjk-02")
+        (run_dir / "prompt-decomposition.json").write_text(json.dumps({
+            "response_format": "short",
+            "required_section_headings": ["## 結果"],
+        }), encoding="utf-8")
+        # Well under the 1500-char floor (even with the 20% tolerance) --
+        # the CJK branch must still be a real length check, not a bypass.
+        report = tmp_vault.root / "research" / "notes" / "final_report_cjk-02.md"
+        report.write_text("## 結果\n\n短い。", encoding="utf-8")
+
+        result = verify_run(tmp_vault, "cjk-02")
+        by_name = {c["name"]: c for c in result["checks"]}
+        assert by_name["length-in-range"]["ok"] is False
+        assert result["passed"] is False
+
+    def test_verify_respects_profile_override_for_non_cjk_script(self, tmp_vault):
+        """End-to-end proof that a deployment serving a non-CJK,
+        non-word-boundary script (simulated here with a spaceless Thai-script
+        blob) is not stuck with CJK-calibrated numbers: it configures its own
+        char_targets_no_word_boundary via the standard profile-overlay
+        mechanism, and verify_run honors it -- no code change needed to
+        support a script this project has no real usage data for."""
+        cfg_dir = tmp_vault.root / ".hyperresearch"
+        cfg_dir.mkdir(parents=True, exist_ok=True)
+        (cfg_dir / "config.toml").write_text(
+            "[profile.light]\n"
+            "char_targets_no_word_boundary = { short = [300, 900] }\n",
+            encoding="utf-8",
+        )
+        init_run(tmp_vault, "th-01", profile="light")
+        run_dir = tmp_vault.run_dir("th-01")
+        (run_dir / "prompt-decomposition.json").write_text(json.dumps({
+            "response_format": "short",
+            "required_section_headings": ["## Results"],
+        }), encoding="utf-8")
+        (run_dir / "polish-log.json").write_text('{"applied": []}', encoding="utf-8")
+        # A spaceless Thai-script blob: within the overridden 300-900 char
+        # target, but far below the shipped CJK default's 1500-char floor --
+        # this only passes if the override is actually being read.
+        report = tmp_vault.root / "research" / "notes" / "final_report_th-01.md"
+        report.write_text("## Results\n\n" + ("คำ" * 250), encoding="utf-8")
+
+        result = verify_run(tmp_vault, "th-01")
+        by_name = {c["name"]: c for c in result["checks"]}
+        assert by_name["length-in-range"]["ok"] is True
+        assert "300-900" in by_name["length-in-range"]["detail"]
+
+
+class TestClassifiedTierArtifacts:
+    """The router lets step 1 reclassify a run's tier after `run init`:
+    "the manifest's profile field is informational — the decomposition's
+    tier rules". The ship gate has to read the same rule, or a
+    light-classified run started on the installed gear is asked for critic
+    findings that light tier never produces."""
+
+    def _light_classified_gear_run(self, tmp_vault, tag: str, tier: str | None):
+        init_run(tmp_vault, tag, profile="full")
+        run_dir = tmp_vault.run_dir(tag)
+        decomp = {
+            "response_format": "short",
+            "required_section_headings": ["## Findings"],
+        }
+        if tier is not None:
+            decomp["pipeline_tier"] = tier
+        (run_dir / "prompt-decomposition.json").write_text(
+            json.dumps(decomp), encoding="utf-8"
+        )
+        (run_dir / "polish-log.json").write_text('{"applied": []}', encoding="utf-8")
+        report = tmp_vault.root / "research" / "notes" / f"final_report_{tag}.md"
+        report.write_text(
+            "## Findings\n\n"
+            + ("Substantive sentence with real evidence attached [[src-note]]. " * 80),
+            encoding="utf-8",
+        )
+        return run_dir
+
+    def test_light_classified_gear_run_passes_without_critic_artifacts(self, tmp_vault):
+        self._light_classified_gear_run(tmp_vault, "tier-01", "light")
+
+        result = verify_run(tmp_vault, "tier-01")
+        names = {c["name"] for c in result["checks"]}
+        assert not [n for n in names if n.startswith("artifact:critic-findings")]
+        assert "artifact:patch-log.json" not in names
+        assert "artifact:polish-log.json" in names
+        assert result["passed"] is True
+
+    def test_gear_run_without_declared_tier_still_needs_critic_artifacts(self, tmp_vault):
+        self._light_classified_gear_run(tmp_vault, "tier-02", None)
+
+        result = verify_run(tmp_vault, "tier-02")
+        by_name = {c["name"]: c for c in result["checks"]}
+        assert by_name["artifact:critic-findings-dialectic.json"]["ok"] is False
+        assert result["passed"] is False
+
+    def test_unknown_declared_tier_falls_back_to_manifest_profile(self, tmp_vault):
+        self._light_classified_gear_run(tmp_vault, "tier-03", "bogus")
+
+        result = verify_run(tmp_vault, "tier-03")
+        by_name = {c["name"]: c for c in result["checks"]}
+        assert by_name["artifact:critic-findings-dialectic.json"]["ok"] is False
+        assert result["passed"] is False
+
+
 class TestTelemetryAndVerify:
     def test_run_report_rollup(self, tmp_vault):
         init_run(tmp_vault, "tel-01", profile="light")
@@ -278,16 +539,132 @@ class TestTelemetryAndVerify:
             "required_section_headings": ["## Findings"],
         }), encoding="utf-8")
         report = tmp_vault.root / "research" / "notes" / "final_report_vf-04.md"
-        filler = "Substantive analysis continues with replicated evidence in view. " * 11
+        filler = "Substantive analysis continues with replicated evidence in view. " * 14
         block = filler + "The consensus across measurements holds [1, 2, 3]. "
         report.write_text("## Findings\n\n" + block * 8, encoding="utf-8")
 
         result = verify_run(tmp_vault, "vf-04")
         by_name = {c["name"]: c for c in result["checks"]}
-        # One bracket per ~770 chars sits under the 1.5/1000 floor; the three
-        # sources inside each grouped bracket clear it. Counting markers
-        # instead of cited-source numbers would fail this check.
+        # One bracket per 133 words (~7.5/1000) sits under the 9/1000 floor;
+        # the three sources inside each grouped bracket clear it (~22/1000).
+        # Counting markers instead of cited-source numbers would fail this.
         assert by_name["citation-density"]["ok"]
+        assert "citations/1000 words" in by_name["citation-density"]["detail"]
+
+    @staticmethod
+    def _density_check(tmp_vault, tag: str, body: str, heading: str = "## Findings") -> dict:
+        init_run(tmp_vault, tag, profile="light")
+        run_dir = tmp_vault.run_dir(tag)
+        (run_dir / "prompt-decomposition.json").write_text(json.dumps({
+            "response_format": "short",
+            "required_section_headings": [heading],
+        }), encoding="utf-8")
+        report = tmp_vault.root / "research" / "notes" / f"final_report_{tag}.md"
+        report.write_text(body, encoding="utf-8")
+        result = verify_run(tmp_vault, tag)
+        return {c["name"]: c for c in result["checks"]}["citation-density"]
+
+    def test_density_english_boundary_is_nine_per_thousand_words(self, tmp_vault):
+        """The floor is 9 cited-source references per 1000 words — the old
+        1.5-per-1000-characters floor expressed in words for English prose
+        (~6 characters per word incl. the space), so English verdicts don't
+        move (#76). Exactly 9 in 1000 words passes; 8 fails."""
+        cited = "Replicated measurements support the committed position here [1]. "
+        plain = "Replicated measurements support the committed position here too. "
+
+        def report(n_cited: int) -> str:
+            # n_cited cited sentences, then plain prose, padded with single
+            # tokens to exactly 1000 whitespace-delimited words.
+            body = "## Findings\n\n" + cited * n_cited
+            while len((body + plain).split()) <= 1000:
+                body += plain
+            body += "pad " * (1000 - len(body.split()))
+            assert len(body.split()) == 1000, len(body.split())
+            return body
+
+        ok = self._density_check(tmp_vault, "den-en-1", report(9))
+        assert ok["ok"] is True, ok
+        assert ok["detail"].startswith("9.00 citations/1000 words (floor 9.0)")
+        fail = self._density_check(tmp_vault, "den-en-2", report(8))
+        assert fail["ok"] is False, fail
+
+    def test_density_cjk_clears_the_same_floor_per_unit_of_content(self, tmp_vault):
+        """A Japanese report has no ASCII word boundaries, so the denominator
+        is characters / chars_per_word_no_word_boundary (3): one citation
+        per ~50 characters is ~60 per 1000 effective words and passes; one
+        per ~600 characters (~5 per 1000 words) fails — even though the
+        old per-character floor (1.67 per 1000 chars) would have passed it.
+        The floor now means the same amount of content in every script."""
+        dense = "この文章は再現された測定結果に基づく実質的な証拠を示している[1]。"  # ~34 chars, 1 cite
+        assert 30 <= len(dense) <= 40
+        body = "## 結果\n\n" + dense * 60
+        ok = self._density_check(tmp_vault, "den-ja-1", body, heading="## 結果")
+        assert ok["ok"] is True, ok
+        assert "no word boundaries" in ok["detail"]
+
+        sparse_filler = "この文章は再現された測定結果に基づく実質的な証拠を示している。"  # ~31 chars
+        sparse = sparse_filler * 18 + "この文章は再現された測定結果に基づく実質的な証拠を示している[1]。"
+        assert 560 <= len(sparse) <= 640
+        from hyperresearch.core.runs import _lacks_word_boundaries
+
+        assert _lacks_word_boundaries(sparse)
+        body = "## 結果\n\n" + sparse * 4
+        old_chars_density = 4 / len(body) * 1000
+        assert old_chars_density >= 1.5  # would have cleared the old gate
+        fail = self._density_check(tmp_vault, "den-ja-2", body, heading="## 結果")
+        assert fail["ok"] is False, fail
+
+    def test_density_korean_takes_the_word_path(self, tmp_vault):
+        """Korean is space-delimited, so it is counted by words like English
+        — the detail names plain words, not the chars/ratio denominator."""
+        sentence = "이 문장은 반복된 측정에서 확인된 실질적인 근거를 제시한다 [1]. "  # 9 tokens, 1 cite
+        body = "## 결과\n\n" + sentence * 60
+        from hyperresearch.core.runs import _lacks_word_boundaries
+
+        assert not _lacks_word_boundaries(body)
+        res = self._density_check(tmp_vault, "den-ko-1", body, heading="## 결과")
+        assert res["ok"] is True, res
+        assert "citations/1000 words (floor" in res["detail"]
+        assert "no word boundaries" not in res["detail"]
+
+    def test_density_counts_wikilinks_with_the_shared_pattern(self, tmp_vault):
+        """[[...]] citations are counted with core.patterns.WIKI_LINK_RE, not
+        a private regex, so this gate agrees with lint and cite-check about
+        what a wiki-link citation is."""
+        from hyperresearch.core.patterns import WIKI_LINK_RE
+
+        plain = "Replicated measurements support the committed position here too. "
+        body = "## Findings\n\n" + (
+            "Evidence sits in the vault [[src-note-alpha]] and [[src-note-beta|Beta]]. "
+            + plain * 3
+        ) * 20
+        expected = len(WIKI_LINK_RE.findall(body))
+        assert expected == 40
+        res = self._density_check(tmp_vault, "den-wl-1", body)
+        words = len(body.split())
+        assert res["detail"].startswith(f"{expected * 1000 / words:.2f} citations/1000 words")
+
+    def test_verify_density_floor_comes_from_profile(self, tmp_vault):
+        """`citation_density_min` used to be dead config (declared, never
+        read) while the gate hardcoded its own floor (#101). A profile
+        overlay must now move the gate."""
+        cfg = tmp_vault.root / ".hyperresearch" / "config.toml"
+        cfg.parent.mkdir(parents=True, exist_ok=True)
+        cfg.write_text("[profile.light]\ncitation_density_min = 10000\n", encoding="utf-8")
+        init_run(tmp_vault, "vf-05", profile="light")
+        run_dir = tmp_vault.run_dir("vf-05")
+        (run_dir / "prompt-decomposition.json").write_text(json.dumps({
+            "response_format": "short",
+            "required_section_headings": ["## Findings"],
+        }), encoding="utf-8")
+        report = tmp_vault.root / "research" / "notes" / "final_report_vf-05.md"
+        body = "## Findings\n\n" + ("Substantive sentence with real evidence attached [[src-note]]. " * 80)
+        report.write_text(body, encoding="utf-8")
+
+        result = verify_run(tmp_vault, "vf-05")
+        by_name = {c["name"]: c for c in result["checks"]}
+        assert by_name["citation-density"]["ok"] is False
+        assert "floor 10000" in by_name["citation-density"]["detail"]
 
     def test_verify_fails_on_missing_heading_and_report(self, tmp_vault):
         init_run(tmp_vault, "vf-02", profile="light")

@@ -10,8 +10,9 @@ from urllib.parse import urlparse
 
 import typer
 
-from hyperresearch.cli._output import console, output
+from hyperresearch.cli._output import console, err_console, output
 from hyperresearch.core.config import AssetSettings, FetchSettings
+from hyperresearch.core.fetcher import existing_live_note_for_url, reclaim_orphaned_source_row
 from hyperresearch.models.output import error, success
 
 app = typer.Typer()
@@ -229,6 +230,7 @@ def fetch(
     from hyperresearch.core.sync import compute_sync_plan, execute_sync
     from hyperresearch.core.vault import Vault, VaultError
     from hyperresearch.web.base import get_provider
+    from hyperresearch.web.pdf import PDF_FAILURE_KEY
 
     try:
         vault = Vault.discover()
@@ -242,8 +244,9 @@ def fetch(
     vault.auto_sync()
     conn = vault.db
 
-    # Check if URL already fetched
-    existing = conn.execute("SELECT note_id FROM sources WHERE url = ?", (url,)).fetchone()
+    # Check if URL already fetched (an orphaned row — note deleted — is not a duplicate,
+    # so --suggested-by never tries to append a breadcrumb to a note_id of None)
+    existing = existing_live_note_for_url(conn, url)
     if existing:
         note_id = existing["note_id"]
         # Graceful duplicate handling for the guided reading loop:
@@ -389,7 +392,11 @@ def fetch(
                 item_id = _escalate_blocked(vault, url, reason, tags, suggested_by, utility_score,
                                             detail=junk_reason)
             escalated = f" Queued for browser-lane escalation (#{item_id})." if item_id else ""
-            msg = f"Skipped junk content from {url}: {junk_reason}.{escalated}"
+            # A PDF that failed its own lane lands here as "binary garbage";
+            # say why the PDF lane declined it, or the message is useless (#82).
+            pdf_failure = result.metadata.get(PDF_FAILURE_KEY)
+            pdf_note = f" PDF lane: {pdf_failure}." if pdf_failure else ""
+            msg = f"Skipped junk content from {url}: {junk_reason}.{pdf_note}{escalated}"
             if json_output:
                 output(error(msg, "JUNK_ESCALATED" if item_id else "JUNK_CONTENT"), json_mode=True)
             else:
@@ -540,6 +547,12 @@ def fetch(
            VALUES (?, ?, ?, ?, ?, ?)""",
         (url, note_id, domain, result.fetched_at.isoformat(), prov.name, content_hash),
     )
+    # An orphaned row (note deleted → ON DELETE SET NULL) also makes that INSERT
+    # a no-op, but nobody owns the url, so claim it. Guarded on note_id IS NULL,
+    # so a genuine race winner is left alone and the check below still fires.
+    reclaim_orphaned_source_row(
+        conn, url, note_id, domain, result.fetched_at.isoformat(), prov.name, content_hash
+    )
     conn.commit()
 
     # Detect the race: if the committed row's note_id != ours, another
@@ -587,6 +600,8 @@ def fetch(
         saved_assets = _save_assets(
             conn, result, note_id, assets_dir,
             settings=vault.config.assets, image_timeout_s=vault.config.fetch.image_timeout_s,
+            max_image_bytes=vault.config.fetch.max_image_bytes,
+            allow_private_hosts=vault.config.fetch.allow_private_hosts,
         )
 
     data = {
@@ -666,10 +681,18 @@ def _save_assets(
     assets_dir: Path,
     settings: AssetSettings | None = None,
     image_timeout_s: int | None = None,
+    max_image_bytes: int | None = None,
+    allow_private_hosts: tuple[str, ...] | None = None,
 ) -> list[dict]:
     """Save screenshot and images to assets dir, record in DB. Returns list of saved asset info."""
     settings = settings or AssetSettings()
-    timeout_s = image_timeout_s if image_timeout_s is not None else FetchSettings().image_timeout_s
+    fetch_defaults = FetchSettings()
+    timeout_s = image_timeout_s if image_timeout_s is not None else fetch_defaults.image_timeout_s
+    image_cap = max_image_bytes if max_image_bytes is not None else fetch_defaults.max_image_bytes
+    allow_private = (
+        allow_private_hosts if allow_private_hosts is not None
+        else fetch_defaults.allow_private_hosts
+    )
     saved: list[dict] = []
     now = datetime.now(UTC).isoformat()
 
@@ -713,6 +736,7 @@ def _save_assets(
             asset_info = _download_image(
                 conn, note_id, img_url, alt, assets_dir, now,
                 min_image_bytes=settings.min_image_bytes, timeout_s=timeout_s,
+                max_image_bytes=image_cap, allow_private_hosts=allow_private,
             )
             if asset_info:
                 saved.append(asset_info)
@@ -726,10 +750,10 @@ def _save_assets(
 def _download_image(
     conn, note_id: str, img_url: str, alt: str, assets_dir: Path, now: str,
     min_image_bytes: int = 50_000, timeout_s: int = 15,
+    max_image_bytes: int | None = None,
+    allow_private_hosts: tuple[str, ...] = (),
 ) -> dict | None:
     """Download a single image. Returns asset info dict or None if skipped."""
-    import urllib.request
-
     # Generate filename from URL
     parsed = urlparse(img_url)
     url_path = parsed.path.rstrip("/")
@@ -751,11 +775,24 @@ def _download_image(
         file_path = assets_dir / f"{clean_name}-{counter}{ext}"
         counter += 1
 
+    from hyperresearch.web.safe_http import MAX_BYTES_IMAGE, SafeHTTPError, safe_get
+
     try:
-        req = urllib.request.Request(img_url, headers={"User-Agent": "hyperresearch/0.1"})
-        with urllib.request.urlopen(req, timeout=timeout_s) as resp:
-            data = resp.read()
-            content_type = resp.headers.get("Content-Type", "")
+        resp = safe_get(
+            img_url,
+            max_bytes=max_image_bytes if max_image_bytes is not None else MAX_BYTES_IMAGE,
+            timeout=timeout_s,
+            allow_private_hosts=allow_private_hosts,
+        )
+        data = resp.content
+        content_type = resp.headers.get("content-type", "")
+    except SafeHTTPError as exc:
+        # A gate refusal (SSRF / size cap) is a security event, not a skip —
+        # it must be visible, unlike routine 404s and timeouts below. Printed
+        # to stderr: this helper has no json_output flag, and stdout must stay
+        # pure JSON in --json mode.
+        err_console.print(f"  [yellow]Image refused by fetch gate:[/] {img_url} — {exc}")
+        return None
     except Exception:
         return None
 

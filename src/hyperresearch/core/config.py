@@ -18,6 +18,18 @@ class FetchSettings:
     # cert-broken mirrors you explicitly trust.
     pdf_verify_tls: bool = True
     min_pdf_bytes: int = 100
+    # Response-size caps enforced by the SSRF gate (web/safe_http.py).
+    # Defaults mirror the MAX_BYTES_* constants there.
+    max_html_bytes: int = 10 * 1024 * 1024
+    max_pdf_bytes: int = 25 * 1024 * 1024
+    max_image_bytes: int = 2 * 1024 * 1024
+    # SSRF-gate escape hatch: hostnames (exact, case-insensitive) or IP
+    # networks in CIDR form ("10.8.0.0/16", "192.168.1.20") that may be
+    # fetched even though they resolve to private/reserved addresses —
+    # for self-hosted mirrors and intranet sources. Empty by default:
+    # adding an entry is an explicit act by someone who controls the
+    # address space.
+    allow_private_hosts: tuple[str, ...] = ()
     # Smart-wait DOM-stability loop (shared by headless and visible paths)
     wait_initial_ms: int = 2000
     poll_interval_ms: int = 500
@@ -148,14 +160,18 @@ class ScholarSettings:
     """Open-access full-text recovery ([scholar] section).
 
     When a fetch lands a thin page that carries a DOI — a publisher abstract or
-    paywall interstitial — `core/oa.py` asks Unpaywall and Europe PMC for a
-    legal open-access copy and stores THAT text in the note body instead. The
-    swap is always disclosed: a banner at the top of the body, four `oa_*`
-    frontmatter fields, and a line in the fetch output.
+    paywall interstitial — `core/oa.py` asks Unpaywall, Europe PMC and CORE, in
+    that order, for a legal open-access copy and stores THAT text in the note
+    body instead. The swap is always disclosed: a banner at the top of the
+    body, four `oa_*` frontmatter fields, and a line in the fetch output.
 
     `contact_email` is required by Unpaywall's terms of use. Leave it empty and
     Unpaywall is skipped entirely; Europe PMC needs no key, so biomedical
-    recovery still works out of the box.
+    recovery still works out of the box. CORE is the broad net that catches
+    everything outside biomedicine — it hosts full text directly rather than
+    linking to it — and activates when the `CORE_API_KEY` environment variable
+    is set. The key lives in the environment rather than here so it can never
+    be committed with a vault.
     """
 
     oa_recovery: bool = True
@@ -373,7 +389,9 @@ class VaultConfig:
                 "",
                 "contact_email: REQUIRED by Unpaywall's terms of use. Leave it empty and",
                 "Unpaywall is skipped; Europe PMC needs no key, so recovery over its",
-                "open-access subset still works. oa_recovery = false disables everything.",
+                "open-access subset still works. Set the CORE_API_KEY environment variable",
+                "to add CORE, which covers every field and hosts full text directly.",
+                "oa_recovery = false disables everything.",
                 "",
                 "A recovered copy is only accepted if it is both longer than the page we",
                 "already had and long enough to clear oa_min_full_text_chars, so a",

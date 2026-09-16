@@ -2,9 +2,18 @@
 
 from __future__ import annotations
 
+import json
+import os
+import shlex
+import shutil
+import subprocess
+
+import pytest
+
 from hyperresearch.core.hooks import (
     _RETIRED_AGENT_FILES,
     _RETIRED_SKILL_DIRS,
+    _install_claude_hook,
     _install_depth_critic_agent,
     _install_depth_investigator_agent,
     _install_dialectic_critic_agent,
@@ -17,6 +26,7 @@ from hyperresearch.core.hooks import (
     _install_source_analyst_agent,
     _install_width_critic_agent,
     _prune_retired_agents,
+    _write_hook_script,
     install_hooks,
 )
 
@@ -384,6 +394,45 @@ def test_prune_retired_agents_spares_a_dir_with_no_skill_file(tmp_vault):
 
 
 # ---------------------------------------------------------------------------
+# PreToolUse hook — the reminder must reach the model (#94)
+# ---------------------------------------------------------------------------
+
+
+def test_installed_hook_delivers_reminder_through_the_injection_channel(tmp_vault):
+    """Exit 0 + hookSpecificOutput JSON on stdout is the only channel that
+    reaches the model. stderr at exit 0 is written to the debug log, so a hook
+    that writes the reminder there has no effect at all."""
+    script = _write_hook_script(tmp_vault.root, "hyperresearch").read_text(encoding="utf-8")
+
+    assert "hookSpecificOutput" in script
+    assert "hookEventName: 'PreToolUse'" in script
+    assert "additionalContext" in script
+    assert "process.stderr.write" not in script
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
+def test_installed_hook_emits_parseable_injection_json(tmp_vault):
+    """Run the installed script the way Claude Code does, and read the channel
+    the model reads."""
+    hook_path = _write_hook_script(tmp_vault.root, "hyperresearch")
+
+    proc = subprocess.run(
+        ["node", str(hook_path)],
+        capture_output=True,
+        text=True,
+        env={**os.environ, "CLAUDE_PROJECT_DIR": str(tmp_vault.root)},
+        timeout=60,
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    assert proc.stderr == ""
+    output = json.loads(proc.stdout)["hookSpecificOutput"]
+    assert output["hookEventName"] == "PreToolUse"
+    assert "HYPERRESEARCH" in output["additionalContext"]
+    assert "hyperresearch fetch" in output["additionalContext"]
+
+
+# ---------------------------------------------------------------------------
 # install_hooks — end-to-end integration
 # ---------------------------------------------------------------------------
 
@@ -435,3 +484,25 @@ def test_install_hooks_second_run_is_noop(tmp_vault):
     # Hook installer may still report the hook is already installed → no
     # actions or a trivial subset. Must not crash, must not reinstall files.
     assert not second or all("pruned" not in a.lower() for a in second)
+
+
+# ---------------------------------------------------------------------------
+# The registered command must survive the shell that runs it
+# ---------------------------------------------------------------------------
+
+
+def test_installed_hook_command_keeps_the_script_path_in_one_argument(tmp_path):
+    """Claude Code runs a hook command through a shell, so an unquoted path is
+    split at its first space and node receives a truncated script path. Project
+    directories with spaces are ordinary — a Windows user directory, or anything
+    under "My Documents" — and the hook then fails on every matching tool call
+    without the reminder ever appearing."""
+    project = tmp_path / "my project"
+    project.mkdir()
+
+    _install_claude_hook(project, "hyperresearch")
+
+    settings = json.loads((project / ".claude" / "settings.json").read_text(encoding="utf-8"))
+    command = settings["hooks"]["PreToolUse"][0]["hooks"][0]["command"]
+
+    assert shlex.split(command) == ["node", (project / ".hyperresearch" / "hook.js").as_posix()]

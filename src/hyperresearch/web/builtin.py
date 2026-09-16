@@ -1,4 +1,10 @@
-"""Builtin web provider — uses httpx + beautifulsoup4 if available, else bare urllib."""
+"""Builtin web provider — SSRF-gated fetching via safe_http, beautifulsoup4 extraction if available.
+
+PDFs go through the shared lane in :mod:`hyperresearch.web.pdf`, the same one
+the crawl4ai provider uses. Before that, a vault on this provider had no PDF
+handling at all: the bytes were decoded as HTML and every PDF on every host
+was rejected by the junk gate with the same generic message (#82).
+"""
 
 from __future__ import annotations
 
@@ -7,6 +13,13 @@ from datetime import UTC, datetime
 from html.parser import HTMLParser
 
 from hyperresearch.web.base import WebResult
+from hyperresearch.web.pdf import (
+    PDF_FAILURE_KEY,
+    extract_pdf,
+    failure_reason,
+    fetch_pdf,
+    is_pdf_url,
+)
 
 
 class _TextExtractor(HTMLParser):
@@ -52,16 +65,45 @@ class BuiltinProvider:
 
     name = "builtin"
 
+    def __init__(self, settings=None):
+        from hyperresearch.core.config import FetchSettings
+
+        self._settings = settings or FetchSettings()
+
     def fetch(self, url: str) -> WebResult:
-        html, final_url = self._download(url)
+        # PDF detection by URL shape: download directly, extract with pymupdf.
+        # A miss falls through to the HTML lane (the URL may be a landing page)
+        # and the reason travels with the result for the junk gate to report.
+        pdf_failure: str | None = None
+        if is_pdf_url(url):
+            result = fetch_pdf(url, self._settings)
+            if result is not None:
+                return result
+            pdf_failure = failure_reason(url)
+
+        resp = self._get(url)
+        # Post-download PDF detection: a PDF behind a URL that does not look
+        # like one (download?id=…, a redirect) is decoded here as text and
+        # would otherwise be reported as binary garbage.
+        if resp.content.startswith(b"%PDF-") or "application/pdf" in resp.headers.get("content-type", "").lower():
+            result, pdf_failure = extract_pdf(
+                resp.url, resp.content, self._settings, resp.headers.get("content-type", "")
+            )
+            if result is not None:
+                return result
+
+        html = resp.text
         title, content = self._extract(html)
-        return WebResult(
-            url=final_url,
+        result = WebResult(
+            url=resp.url,
             title=title,
             content=content,
             raw_html=html,
             fetched_at=datetime.now(UTC),
         )
+        if pdf_failure:
+            result.metadata[PDF_FAILURE_KEY] = pdf_failure
+        return result
 
     def search(self, query: str, max_results: int = 5) -> list[WebResult]:
         raise NotImplementedError(
@@ -69,24 +111,23 @@ class BuiltinProvider:
             "Use your agent's built-in search, then pipe URLs into 'hyperresearch fetch'."
         )
 
+    def _get(self, url: str):
+        """Download URL through the SSRF gate in :mod:`hyperresearch.web.safe_http`."""
+        from hyperresearch.web.safe_http import safe_get
+
+        resp = safe_get(
+            url,
+            max_bytes=self._settings.max_html_bytes,
+            allow_private_hosts=self._settings.allow_private_hosts,
+        )
+        if resp.status_code >= 400:
+            raise RuntimeError(f"HTTP {resp.status_code} fetching {url}")
+        return resp
+
     def _download(self, url: str) -> tuple[str, str]:
-        """Download URL, return (html, final_url). Tries httpx first, falls back to urllib."""
-        try:
-            import httpx
-
-            with httpx.Client(follow_redirects=True, timeout=30) as client:
-                resp = client.get(url, headers={"User-Agent": "hyperresearch/0.1"})
-                resp.raise_for_status()
-                return resp.text, str(resp.url)
-        except ImportError:
-            pass
-
-        import urllib.request
-
-        req = urllib.request.Request(url, headers={"User-Agent": "hyperresearch/0.1"})
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            html = resp.read().decode("utf-8", errors="replace")
-            return html, resp.url or url
+        """Download URL, return (html, final_url)."""
+        resp = self._get(url)
+        return resp.text, resp.url
 
     def _extract(self, html: str) -> tuple[str, str]:
         """Extract title and clean text from HTML. Tries bs4 first, falls back to stdlib."""

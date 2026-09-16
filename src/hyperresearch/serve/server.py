@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import html as html_mod
 import json
+import sqlite3
+import sys
 import urllib.parse
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from hyperresearch.serve.renderer import render_markdown
 
@@ -339,16 +341,26 @@ GRAPH_JS = """
 
 
 class HyperresearchHandler(BaseHTTPRequestHandler):
+    # Bound reads from browser preconnections that never send a request.
+    timeout = 30
     vault = None
-    _db = None
+    _db: sqlite3.Connection | None = None
 
     @property
-    def db(self):
-        if self.__class__._db is None:
-            import sqlite3
-            self.__class__._db = sqlite3.connect(str(self.__class__.vault.db_path), check_same_thread=False)
-            self.__class__._db.row_factory = sqlite3.Row
-        return self.__class__._db
+    def db(self) -> sqlite3.Connection:
+        # A handler runs in its own thread; never share its connection with other handlers.
+        if self._db is None:
+            self._db = sqlite3.connect(str(self.__class__.vault.db_path))
+            self._db.row_factory = sqlite3.Row
+        return self._db
+
+    def finish(self) -> None:
+        try:
+            super().finish()
+        finally:
+            if self._db is not None:
+                self._db.close()
+                self._db = None
 
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
@@ -572,16 +584,39 @@ class HyperresearchHandler(BaseHTTPRequestHandler):
         pass
 
 
-def run_server(vault, port: int = 8080, open_browser: bool = False):
+class HyperresearchServer(ThreadingHTTPServer):
+    """ThreadingHTTPServer whose listening port is exclusively ours on every platform.
+
+    HTTPServer sets ``allow_reuse_address`` (SO_REUSEADDR) so a restarted
+    server can reclaim a port whose previous owner is still in TIME_WAIT.
+    That is all the option does on POSIX. Winsock gives SO_REUSEADDR a
+    different meaning: the bind is allowed to succeed on a port another
+    socket is actively listening on, so the port is shared rather than
+    reclaimed, and neither listener is guaranteed the connections. With
+    ``port=0`` that also means the OS-picked port is not exclusively ours.
+    Windows does not need the option for the POSIX use case, since a plain
+    bind there already succeeds over TIME_WAIT entries, so leave it off.
+    This mirrors CPython's own ``test.support.bind_port`` choice.
+    """
+
+    allow_reuse_address = sys.platform != "win32"
+
+
+def run_server(vault, port: int = 8080, open_browser: bool = False) -> int:
+    """Serve ``vault`` on 127.0.0.1 until SIGINT and return the port actually bound.
+
+    ``port=0`` asks the OS for a free port; the printed URL and the return
+    value carry that port, not the argument.
+    """
     import signal
-    import sys
 
     HyperresearchHandler.vault = vault
-    server = HTTPServer(("127.0.0.1", port), HyperresearchHandler)
+    server = HyperresearchServer(("127.0.0.1", port), HyperresearchHandler)
     server.timeout = 0.5  # Check for Ctrl+C every 500ms
+    port = server.server_address[1]
     url = f"http://127.0.0.1:{port}"
-    print(f"Serving at {url}")
-    print("Press Ctrl+C to stop.\n")
+    print(f"Serving at {url}", flush=True)
+    print("Press Ctrl+C to stop.\n", flush=True)
 
     if open_browser:
         import webbrowser
@@ -595,9 +630,11 @@ def run_server(vault, port: int = 8080, open_browser: bool = False):
 
     signal.signal(signal.SIGINT, _shutdown)
 
-    while running:
-        server.handle_request()
+    try:
+        while running:
+            server.handle_request()
+    finally:
+        server.server_close()
 
     print("\nStopped.")
-    server.server_close()
-    sys.exit(0)
+    return port
