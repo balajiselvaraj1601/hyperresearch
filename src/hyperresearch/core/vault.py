@@ -24,14 +24,14 @@ class InvalidRunTagError(VaultError):
 
 # A run tag is a slug: what `hpr vault-tag` mints, plus underscore and dot so
 # hand-written tags survive. No separators, so it can only ever name a child
-# of research/runs/; the leading character rule rejects `.` and `..`.
+# of output/runs/; the leading character rule rejects `.` and `..`.
 RUN_TAG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$")
 
 
 def validate_run_tag(vault_tag: str) -> str:
     """Return the tag unchanged, or raise InvalidRunTagError.
 
-    Every run command joins the tag onto research/runs/, and pathlib replaces
+    Every run command joins the tag onto output/runs/, and pathlib replaces
     the base on an absolute segment, so without this `run init ../../x` or
     `run init C:/anything` scaffolds a workspace outside the vault and every
     later subcommand follows it there (#116).
@@ -80,7 +80,7 @@ class Vault:
 
     @property
     def research_dir(self) -> Path:
-        """The one visible directory at repo root (default: research/)."""
+        """The one visible directory at repo root (default: output/)."""
         return self.root / self.config.research_dir
 
     @property
@@ -103,12 +103,12 @@ class Vault:
 
     @property
     def runs_dir(self) -> Path:
-        """Per-run workspaces (research/runs/<vault_tag>/).
+        """Per-run workspaces (output/runs/<vault_tag>/).
 
         All run-scoped pipeline artifacts (scaffold, decomposition, loci,
         critic findings, logs, temp scratch) live under one directory per
         run, so concurrent and sequential runs never collide. Vault notes
-        stay global (research/notes/). NOT synced as notes.
+        stay global (output/notes/). NOT synced as notes.
         """
         return self.research_dir / "runs"
 

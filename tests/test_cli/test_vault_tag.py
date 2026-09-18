@@ -19,7 +19,9 @@ _TAG_RE = re.compile(r"^[a-z0-9][a-z0-9-]+-[0-9a-f]{6}$")
 @pytest.fixture
 def vault_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Init a vault, chdir into it, return its root."""
-    result = runner.invoke(app, ["init", str(tmp_path / "v"), "--name", "Tag Test"])
+    result = runner.invoke(
+        app, ["init", str(tmp_path / "v"), "--name", "Tag Test", "--dir", "output"]
+    )
     assert result.exit_code == 0, result.output
     root = tmp_path / "v"
     monkeypatch.chdir(root)
@@ -58,10 +60,10 @@ def test_vault_tag_repeated_calls_produce_distinct_tags(vault_root: Path):
 
 
 def test_vault_tag_avoids_existing_query_file(vault_root: Path):
-    """If a prior run already produced research/query-topic-aaaaaa.md, the
+    """If a prior run already produced output/query-topic-aaaaaa.md, the
     new tag must not collide with it.
     """
-    research = vault_root / "research"
+    research = vault_root / "output"
     (research / "query-topic-aaaaaa.md").write_text("prior")
     # Bias the test by hammering the same slug 30x; each must dodge the
     # reserved suffix.
@@ -74,7 +76,7 @@ def test_vault_tag_avoids_existing_final_report(vault_root: Path):
     """Final reports also lock a suffix even if the corresponding query
     file got moved or deleted.
     """
-    notes = vault_root / "research" / "notes"
+    notes = vault_root / "output" / "notes"
     notes.mkdir(parents=True, exist_ok=True)
     (notes / "final_report_topic-cafe42.md").write_text("---\ntitle: x\n---\n")
     for _ in range(30):
@@ -88,7 +90,7 @@ def test_vault_tag_ignores_legacy_without_suffix_tag(vault_root: Path):
     length), so we just need to confirm the command runs cleanly and
     produces a valid suffixed tag.
     """
-    research = vault_root / "research"
+    research = vault_root / "output"
     (research / "query-topic.md").write_text("legacy")
     data = _invoke("topic")["data"]
     assert _TAG_RE.match(data["vault_tag"])
@@ -107,7 +109,9 @@ def test_vault_tag_rejects_invalid_slugs(vault_root: Path):
         assert data["error_code"] == "INVALID_SLUG"
 
 
-def test_vault_tag_works_without_vault_only_fails_cleanly(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+def test_vault_tag_works_without_vault_only_fails_cleanly(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
     """If the user runs vault-tag outside a vault, the command exits
     nonzero with a NO_VAULT error code rather than crashing.
     """

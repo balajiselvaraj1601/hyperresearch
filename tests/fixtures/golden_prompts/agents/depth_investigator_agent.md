@@ -8,7 +8,7 @@ description: >
   writes ONE interim report note summarizing what it learned. Spawn
   one depth-investigator per locus, in parallel. Synthesizing a
   narrow-but-deep question requires real reading comprehension.
-model: sonnet
+model: mimo
 tools: Bash, Read, Write, Task
 color: purple
 ---
@@ -42,7 +42,7 @@ You are **Layer 3** of the 7-phase hyperresearch pipeline. Siblings are running
 right now on other loci — you each cover ONE. The orchestrator will read
 your interim note (specifically your `## Committed position` section) in
 Layer 3.5 and reconcile it against the other investigators' positions in
-`research/runs/<vault_tag>/comparisons.md`. Every cross-locus tension named there becomes
+`output/runs/<vault_tag>/comparisons.md`. Every cross-locus tension named there becomes
 an argumentative beat in the Layer 4 draft.
 
 Your `## Committed position` is the primary artifact the orchestrator uses
@@ -91,7 +91,7 @@ prompt. No block = this prompt's defaults apply unchanged.
    `{hpr_path} note show <id1> <id2> <id3> --json`
    Understand what the corpus already says about your locus.
 
-   **Check for structured claims.** If `research/runs/<vault_tag>/temp/claims-<note-id>.json` files
+   **Check for structured claims.** If `output/runs/<vault_tag>/temp/claims-<note-id>.json` files
    exist for corpus evidence notes, read them. Use the structured claims
    to identify which specific assertions are contested or under-evidenced
    for your locus — investigate those specific claims, not just the topic
@@ -146,7 +146,7 @@ prompt. No block = this prompt's defaults apply unchanged.
    temp directory exists, then write the body file and create the note:
 
 ```bash
-mkdir -p research/temp
+mkdir -p output/temp
 ```
 
 ```bash
@@ -154,7 +154,7 @@ mkdir -p research/temp
   --tag <corpus_tag> \
   --tag locus-<locus-name> \
   --type interim \
-  --body-file research/runs/<vault_tag>/temp/interim-report-<locus-name>.md \
+  --body-file output/runs/<vault_tag>/temp/interim-report-<locus-name>.md \
   --summary "<one-line summary of what you found>" \
   --json
 ```

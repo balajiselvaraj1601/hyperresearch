@@ -20,8 +20,8 @@ description: >
 ## Recover state
 
 Read these inputs:
-- `research/runs/<vault_tag>/scaffold.md` — vault_tag
-- All `research/runs/<vault_tag>/critic-findings-*.json` files (which exist depends on tier)
+- `output/runs/<vault_tag>/scaffold.md` — vault_tag
+- All `output/runs/<vault_tag>/critic-findings-*.json` files (which exist depends on tier)
 
 ---
 
@@ -46,12 +46,12 @@ Read these inputs:
 
    **Spawn template:**
    ```
-   subagent_type: hyperresearch-fetcher
+   subagent_type: agent_medium
    prompt: |
      RESEARCH QUERY (verbatim, gospel):
-     > {{paste research/runs/<vault_tag>/query.md body}}
+     > {{paste output/runs/<vault_tag>/query.md body}}
 
-     QUERY FILE: research/runs/<vault_tag>/query.md
+     QUERY FILE: output/runs/<vault_tag>/query.md
 
      PIPELINE POSITION: You are a step 13 (post-critic gap-fill) fetcher
      of the hyperresearch V8 pipeline. Critics identified gaps in vault
@@ -63,14 +63,14 @@ Read these inputs:
      - urls: [<gap-targeted URLs>]
      - extra_tags: ["post-critic-fill"]
 
-     RUN DIRECTIVES: append the FULL contents of research/runs/<vault_tag>/shims/research.md here, verbatim.
+     RUN DIRECTIVES: append the FULL contents of output/runs/<vault_tag>/shims/research.md here, verbatim.
    ```
 
-   Each fetcher: fetches, quality-checks, summarizes, extracts claims (same procedure as step 2). Tags notes with `vault_tag` + `post-critic-fill`. Writes claims to `research/runs/<vault_tag>/temp/claims-<note-id>.json`.
+   Each fetcher: fetches, quality-checks, summarizes, extracts claims (same procedure as step 2). Tags notes with `vault_tag` + `post-critic-fill`. Writes claims to `output/runs/<vault_tag>/temp/claims-<note-id>.json`.
 
-5. **Update evidence digest.** If new claims were extracted, append them to `research/runs/<vault_tag>/temp/evidence-digest.md` under a new `### Post-critic gap fill` section. The patcher reads the evidence digest when looking for citation sources to insert.
+5. **Update evidence digest.** If new claims were extracted, append them to `output/runs/<vault_tag>/temp/evidence-digest.md` under a new `### Post-critic gap fill` section. The patcher reads the evidence digest when looking for citation sources to insert.
 
-6. **Log results** to `research/runs/<vault_tag>/temp/post-critic-fetch-log.md`:
+6. **Log results** to `output/runs/<vault_tag>/temp/post-critic-fetch-log.md`:
    - Each gap: what was searched, how many new sources found, note IDs
    - If a gap remained unfilled after fetching: flag it so the patcher knows to acknowledge the limitation rather than fabricate
 
@@ -78,7 +78,7 @@ Read these inputs:
 
 ## Exit criterion
 
-- `research/runs/<vault_tag>/temp/post-critic-fetch-log.md` exists (even if it says "no gaps found")
+- `output/runs/<vault_tag>/temp/post-critic-fetch-log.md` exists (even if it says "no gaps found")
 - All fetch-worthy gaps attempted (proceed to step 14 whether or not all gaps were filled — unfilled gaps are noted in the log)
 
 **Overhead:** small — at most << p.gap_fetch_fetchers|hyphen >> fetchers. Most runs with good step 2 coverage will find 0-2 gaps, making this a near-no-op.

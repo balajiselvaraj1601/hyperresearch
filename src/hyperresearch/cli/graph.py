@@ -219,7 +219,7 @@ def graph_stub(
                 console.print(f"  [cyan]{t}[/]")
         return
 
-    # Stubs are sidelined to research/temp/ (not research/notes/) so they
+    # Stubs are sidelined to output/temp/ (not output/notes/) so they
     # resolve broken wiki-links without cluttering the real notes listing.
     # Sync still picks them up via rglob, so link-resolution works.
     created = []

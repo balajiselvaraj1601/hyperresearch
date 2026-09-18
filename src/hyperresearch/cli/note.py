@@ -588,7 +588,7 @@ def note_rm(
     """Delete a note and its associated raw file and assets.
 
     Previous versions only unlinked the `.md` file, leaving raw PDFs under
-    `research/raw/` and assets under `research/assets/<id>/` as orphans.
+    `output/raw/` and assets under `output/assets/<id>/` as orphans.
     Every fetch-then-delete cycle leaked disk. The current implementation
     also removes:
       - the raw file referenced in the note's `raw_file` frontmatter field
@@ -628,8 +628,8 @@ def note_rm(
                 # Resolve and guard against path traversal — a malicious or
                 # corrupted frontmatter could set raw_file to "../../etc/passwd".
                 # Refuse to unlink anything outside <vault>/research/.
-                research_root = (vault.root / "research").resolve()
-                raw_path = (vault.root / "research" / meta.raw_file).resolve()
+                research_root = (vault.research_dir).resolve()
+                raw_path = (vault.research_dir / meta.raw_file).resolve()
                 try:
                     raw_path.relative_to(research_root)
                     inside_vault = True
@@ -642,7 +642,7 @@ def note_rm(
             pass
 
     # Assets directory
-    assets_dir = vault.root / "research" / "assets" / note_id
+    assets_dir = vault.research_dir / "assets" / note_id
     if assets_dir.exists() and assets_dir.is_dir():
         for asset_file in assets_dir.iterdir():
             if asset_file.is_file():

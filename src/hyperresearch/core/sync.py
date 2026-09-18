@@ -50,7 +50,7 @@ def _has_frontmatter(path: Path) -> bool:
     """Cheap content probe — true iff the file opens with a YAML frontmatter
     delimiter (matching parse_frontmatter's regex, with optional UTF-8 BOM).
 
-    Real notes — including stub notes under research/temp/ — always carry
+    Real notes — including stub notes under output/temp/ — always carry
     frontmatter (write_note() in core/note.py emits it unconditionally).
     Files without it are agent scratch artifacts that should never enter the
     note index (see issue #25): interim-report body files written before
@@ -75,8 +75,8 @@ def compute_sync_plan(vault, force: bool = False) -> SyncPlan:
     # Only scan inside the research directory (notes/, index/)
     # This avoids walking .git/, .venv/, src/, etc. entirely.
     #
-    # Files at the research/ root (e.g. research/scaffold.md,
-    # research/comparisons.md, research/synthesis.md) are STAGING files the
+    # Files at the output/ root (e.g. output/scaffold.md,
+    # output/comparisons.md, output/synthesis.md) are STAGING files the
     # agent writes then registers as real notes via `note new --body-file`.
     # They must NOT be synced as notes themselves — otherwise every run
     # produces 4 orphan notes and the missing-title/missing-tags/missing-summary
@@ -88,11 +88,11 @@ def compute_sync_plan(vault, force: bool = False) -> SyncPlan:
     runs_dir = kb_dir / "runs"
     disk_files: dict[str, float] = {}
     for md_file in kb_dir.rglob("*.md"):
-        # Skip staging files at the research/ root. Real notes live in
-        # research/notes/** or research/index/**.
+        # Skip staging files at the output/ root. Real notes live in
+        # output/notes/** or output/index/**.
         if md_file.parent == kb_dir:
             continue
-        # Skip per-run workspaces entirely (research/runs/<vault_tag>/**) —
+        # Skip per-run workspaces entirely (output/runs/<vault_tag>/**) —
         # run-scoped pipeline artifacts are never vault notes.
         if runs_dir in md_file.parents:
             continue

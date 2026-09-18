@@ -43,13 +43,21 @@ def _resolve_tag(vault, tag: str | None, json_output: bool) -> str:
 
 @app.command("init")
 def run_init(
-    vault_tag: str = typer.Argument(..., help="Collision-safe run tag (mint via `hyperresearch vault-tag <slug>`)"),
+    vault_tag: str = typer.Argument(
+        ..., help="Collision-safe run tag (mint via `hyperresearch vault-tag <slug>`)"
+    ),
     profile: str = typer.Option("full", "--profile", help="Pipeline profile for this run"),
-    budget: float | None = typer.Option(None, "--budget", help="Hard ceiling on estimated API-equivalent spend (the run blocks when the estimate crosses it; a value measure, not a bill, on subscription billing)"),
-    query_file: str | None = typer.Option(None, "--query-file", help="File whose verbatim contents become runs/<tag>/query.md"),
+    budget: float | None = typer.Option(
+        None,
+        "--budget",
+        help="Hard ceiling on estimated API-equivalent spend (the run blocks when the estimate crosses it; a value measure, not a bill, on subscription billing)",
+    ),
+    query_file: str | None = typer.Option(
+        None, "--query-file", help="File whose verbatim contents become runs/<tag>/query.md"
+    ),
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
 ) -> None:
-    """Scaffold research/runs/<vault_tag>/ with a fresh manifest (idempotent)."""
+    """Scaffold output/runs/<vault_tag>/ with a fresh manifest (idempotent)."""
     from pathlib import Path
 
     from hyperresearch.core.runs import RunError, init_run
@@ -105,7 +113,9 @@ def run_status(
     if json_output:
         output(success(summary, vault=str(vault.root)), json_mode=True)
     else:
-        console.print(f"[bold]{summary['vault_tag']}[/]  ({summary['profile']})  status: {summary['status']}")
+        console.print(
+            f"[bold]{summary['vault_tag']}[/]  ({summary['profile']})  status: {summary['status']}"
+        )
         levers = summary.get("levers")
         if levers:
             console.print(
@@ -153,7 +163,9 @@ def run_list(
         output(success({"runs": rows}, count=len(rows), vault=str(vault.root)), json_mode=True)
     else:
         for r in rows:
-            console.print(f"  [cyan]{r['vault_tag']}[/] {r['status']} ({r['profile']}) {r['started_at']}")
+            console.print(
+                f"  [cyan]{r['vault_tag']}[/] {r['status']} ({r['profile']}) {r['started_at']}"
+            )
 
 
 @app.command("resume")
@@ -185,10 +197,10 @@ def run_resume(
         "run_dir": str(vault.run_dir(tag)),
         "profile": manifest["profile"],
         **position,
-        # Looked up from the installer's step-skill roster, not rebuilt by
-        # string substitution — "2" must come back as the invokable
-        # `hyperresearch-2-width-sweep`, never a bare `hyperresearch-2`.
-        "skill_to_invoke": step_skill_slug(position["next_step"]),
+        # Step contract name for the next step (e.g. "hyperresearch-2-width-sweep").
+        # The runner agent reads the contract from src/hyperresearch/skills/ and
+        # executes it directly — there is no installed SKILL.md to invoke.
+        "next_step_contract": step_skill_slug(position["next_step"]),
     }
     if json_output:
         output(success(data, vault=str(vault.root)), json_mode=True)
@@ -197,7 +209,7 @@ def run_resume(
             console.print(f"[green]{tag}[/] — all profile steps complete.")
         else:
             console.print(f"[green]{tag}[/] — resume at step {position['next_step']}")
-            console.print(f"  Skill(skill: \"{data['skill_to_invoke']}\")")
+            console.print("  Hand this step to hyperresearch-runner agent")
 
 
 @app.command("abort")
@@ -228,7 +240,9 @@ def run_step(
     vault_tag: str = typer.Argument(..., help="Run tag"),
     step: str = typer.Argument(..., help='Step id ("1", "1.5", "11g", ...)'),
     status: str = typer.Option(..., "--status", "-s", help="pending|running|done|skipped|failed"),
-    chapter: str | None = typer.Option(None, "--chapter", help="Chapter id for chaptered steps (e.g. ch3)"),
+    chapter: str | None = typer.Option(
+        None, "--chapter", help="Chapter id for chaptered steps (e.g. ch3)"
+    ),
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
 ) -> None:
     """Record a step-status transition in the manifest."""
@@ -264,9 +278,12 @@ def run_spend(
     vault = _vault_or_exit(json_output)
     try:
         manifest = add_spend(
-            vault, vault_tag,
-            estimated_usd=usd, sources_fetched=sources,
-            notes_written=notes, agents_spawned=agents,
+            vault,
+            vault_tag,
+            estimated_usd=usd,
+            sources_fetched=sources,
+            notes_written=notes,
+            agents_spawned=agents,
         )
     except (RunError, VaultError) as e:
         if json_output:
@@ -274,7 +291,11 @@ def run_spend(
         else:
             console.print(f"[red]Error:[/] {e}")
         raise typer.Exit(1)
-    data = {"spend": manifest["spend"], "status": manifest["status"], "blocked_on": manifest["blocked_on"]}
+    data = {
+        "spend": manifest["spend"],
+        "status": manifest["status"],
+        "blocked_on": manifest["blocked_on"],
+    }
     if json_output:
         output(success(data, vault=str(vault.root)), json_mode=True)
     else:
@@ -284,7 +305,9 @@ def run_spend(
 @app.command("event")
 def run_event(
     vault_tag: str = typer.Argument(..., help="Run tag"),
-    type_: str = typer.Option(..., "--type", help="Event type (spawn, fetch-wave, escalation, note)"),
+    type_: str = typer.Option(
+        ..., "--type", help="Event type (spawn, fetch-wave, escalation, note)"
+    ),
     data: str | None = typer.Option(None, "--data", help="JSON payload for the event"),
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
 ) -> None:
@@ -319,7 +342,9 @@ def run_event(
 @app.command("block")
 def run_block(
     vault_tag: str = typer.Argument(..., help="Run tag"),
-    on: str = typer.Option(..., "--on", help="What the run is blocked on (e.g. human-challenges, budget)"),
+    on: str = typer.Option(
+        ..., "--on", help="What the run is blocked on (e.g. human-challenges, budget)"
+    ),
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
 ) -> None:
     """Mark a run blocked (e.g. on human browser challenges). `run resume` unblocks."""
@@ -335,14 +360,22 @@ def run_block(
             console.print(f"[red]Error:[/] {e}")
         raise typer.Exit(1)
     if json_output:
-        output(success({"status": manifest["status"], "blocked_on": manifest["blocked_on"]}, vault=str(vault.root)), json_mode=True)
+        output(
+            success(
+                {"status": manifest["status"], "blocked_on": manifest["blocked_on"]},
+                vault=str(vault.root),
+            ),
+            json_mode=True,
+        )
     else:
         console.print(f"[yellow]Blocked:[/] {vault_tag} on {on}")
 
 
 @app.command("report")
 def run_report(
-    vault_tag: str | None = typer.Argument(None, help="Run tag (default: newest run); ignored with --all"),
+    vault_tag: str | None = typer.Argument(
+        None, help="Run tag (default: newest run); ignored with --all"
+    ),
     all_runs: bool = typer.Option(False, "--all", help="Aggregate across every run"),
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
 ) -> None:
@@ -375,11 +408,15 @@ def run_report(
         if json_output:
             output(success(agg, count=len(reports), vault=str(vault.root)), json_mode=True)
         else:
-            console.print(f"[bold]{agg['runs']} runs[/] — ~${agg['total_estimated_usd']} API-equiv, "
-                          f"{agg['total_sources']} sources, {agg['total_agents']} agents")
+            console.print(
+                f"[bold]{agg['runs']} runs[/] — ~${agg['total_estimated_usd']} API-equiv, "
+                f"{agg['total_sources']} sources, {agg['total_agents']} agents"
+            )
             for r in reports:
-                console.print(f"  [cyan]{r['vault_tag']}[/] {r['status']} ~${r['spend']['estimated_usd']} "
-                              f"{r['spend']['sources_fetched']}src {r['total_wall_minutes']}min")
+                console.print(
+                    f"  [cyan]{r['vault_tag']}[/] {r['status']} ~${r['spend']['estimated_usd']} "
+                    f"{r['spend']['sources_fetched']}src {r['total_wall_minutes']}min"
+                )
         return
 
     tag = _resolve_tag(vault, vault_tag, json_output)
@@ -396,13 +433,17 @@ def run_report(
     if json_output:
         output(success(report, vault=str(vault.root)), json_mode=True)
     else:
-        console.print(f"[bold]{report['vault_tag']}[/] ({report['profile']}) — {report['status']}, "
-                      f"{report['total_wall_minutes']} min total")
+        console.print(
+            f"[bold]{report['vault_tag']}[/] ({report['profile']}) — {report['status']}, "
+            f"{report['total_wall_minutes']} min total"
+        )
         for step in report["steps"]:
             console.print(f"  step {step['step']:>4}: {step['status']:<8} {step['minutes']} min")
         spend = report["spend"]
-        console.print(f"  API-equiv spend: ~${spend['estimated_usd']} | {spend['sources_fetched']} sources | "
-                      f"{spend['agents_spawned']} agents | {spend['notes_written']} notes")
+        console.print(
+            f"  API-equiv spend: ~${spend['estimated_usd']} | {spend['sources_fetched']} sources | "
+            f"{spend['agents_spawned']} agents | {spend['notes_written']} notes"
+        )
         ev = report["events"]
         if ev:
             console.print(f"  events: {ev}")

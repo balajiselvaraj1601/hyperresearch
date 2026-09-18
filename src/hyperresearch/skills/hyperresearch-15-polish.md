@@ -2,7 +2,7 @@
 name: hyperresearch-15-polish
 description: >
   Step 15 (final) of the hyperresearch V8 pipeline. Spawns the
-  hyperresearch-polish-auditor subagent (TOOL-LOCKED to Read + Edit) for
+  agent_medium subagent (TOOL-LOCKED to Read + Edit) for
   the final hygiene + readability pass. Strips pipeline-reference leaks,
   YAML frontmatter, scaffold sections, filler phrases, run-on sentences.
   Escalates structural mismatches rather than fabricating content.
@@ -21,8 +21,8 @@ description: >
 ## Recover state
 
 Read these inputs:
-- `research/notes/final_report_<vault_tag>.md` — the patched draft from step 14 (or single-pass draft for light tier)
-- `research/runs/<vault_tag>/query.md` — canonical research query
+- `output/notes/final_report_<vault_tag>.md` — the patched draft from step 14 (or single-pass draft for light tier)
+- `output/runs/<vault_tag>/query.md` — canonical research query
 
 ---
 
@@ -31,7 +31,7 @@ Read these inputs:
 The polish auditor has `[Read, Edit]` only and cannot create a new file (same tool-lock rule as the step 14 patcher). Stub it first:
 
 ```bash
-echo '{"applied": [], "escalations": []}' > research/runs/<vault_tag>/polish-log.json
+echo '{"applied": [], "escalations": []}' > output/runs/<vault_tag>/polish-log.json
 ```
 
 ---
@@ -42,12 +42,12 @@ Spawn ONCE.
 
 **Spawn template:**
 ```
-subagent_type: hyperresearch-polish-auditor
+subagent_type: agent_medium
 prompt: |
   RESEARCH QUERY (verbatim, gospel):
-  > {{paste research/runs/<vault_tag>/query.md body}}
+  > {{paste output/runs/<vault_tag>/query.md body}}
 
-  QUERY FILE: research/runs/<vault_tag>/query.md
+  QUERY FILE: output/runs/<vault_tag>/query.md
 
   PIPELINE POSITION: You are step 15 (polish auditor) of the
   hyperresearch V8 pipeline — the final step. Step 14 (patcher) applied
@@ -56,10 +56,10 @@ prompt: |
   [Read, Edit].
 
   YOUR INPUTS:
-  - draft_path: research/notes/final_report_<vault_tag>.md
-  - polish_log_path: research/runs/<vault_tag>/polish-log.json   (already stubbed)
+  - draft_path: output/notes/final_report_<vault_tag>.md
+  - polish_log_path: output/runs/<vault_tag>/polish-log.json   (already stubbed)
 
-  RUN DIRECTIVES: append the FULL contents of research/runs/<vault_tag>/shims/polish.md here, verbatim.
+  RUN DIRECTIVES: append the FULL contents of output/runs/<vault_tag>/shims/polish.md here, verbatim.
 ```
 
 The polish auditor strips:
@@ -87,16 +87,16 @@ If the escalation names a structural issue (e.g., "user asked for a ranked list;
 
 Before declaring the run complete, verify every expected pipeline artifact exists. **The required set depends on the tier:**
 
-- **light tier:** only `research/runs/<vault_tag>/polish-log.json` is required (steps 12–14 are skipped, so no critic findings or patch log).
+- **light tier:** only `output/runs/<vault_tag>/polish-log.json` is required (steps 12–14 are skipped, so no critic findings or patch log).
 - **full tier:** require all four critic findings + patch-log + polish-log:
 
 ```bash
-for f in research/runs/<vault_tag>/critic-findings-dialectic.json \
-         research/runs/<vault_tag>/critic-findings-depth.json \
-         research/runs/<vault_tag>/critic-findings-width.json \
-         research/runs/<vault_tag>/critic-findings-instruction.json \
-         research/runs/<vault_tag>/patch-log.json \
-         research/runs/<vault_tag>/polish-log.json; do
+for f in output/runs/<vault_tag>/critic-findings-dialectic.json \
+         output/runs/<vault_tag>/critic-findings-depth.json \
+         output/runs/<vault_tag>/critic-findings-width.json \
+         output/runs/<vault_tag>/critic-findings-instruction.json \
+         output/runs/<vault_tag>/patch-log.json \
+         output/runs/<vault_tag>/polish-log.json; do
   test -f "$f" || echo "MISSING: $f"
 done
 ```
@@ -107,7 +107,7 @@ If any artifact is missing, the responsible step failed silently. Re-spawn the r
 
 ## Step 15.5 — Record the run + lint gate
 
-1. **Record the run.** Append to `research/runs/<vault_tag>/audit_findings.json`:
+1. **Record the run.** Append to `output/runs/<vault_tag>/audit_findings.json`:
    ```json
    {
      "mode": "hyperresearch-v8",
@@ -140,16 +140,16 @@ If any artifact is missing, the responsible step failed silently. Re-spawn the r
 
 ## Step 15.6 — Ship
 
-The final report lives at `research/notes/final_report_<vault_tag>.md`. The wrapper's required save path (if any) is a separate copy — handle per the wrapper contract.
+The final report lives at `output/notes/final_report_<vault_tag>.md`. The wrapper's required save path (if any) is a separate copy — handle per the wrapper contract.
 
 ---
 
 ## Exit criterion
 
-- `research/runs/<vault_tag>/polish-log.json` populated
+- `output/runs/<vault_tag>/polish-log.json` populated
 - Final integrity gate passed (or stub-filled with documented failure)
 - Lint gate passed
-- `research/notes/final_report_<vault_tag>.md` is the final, shippable artifact
+- `output/notes/final_report_<vault_tag>.md` is the final, shippable artifact
 
 ---
 

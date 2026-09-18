@@ -11,7 +11,7 @@ Levers are run-time choices step 1 writes into prompt-decomposition.json:
     }
 
 `render_shims` composes them into four role-scoped shim files under
-`research/runs/<tag>/shims/` which the orchestrator pastes VERBATIM into
+`output/runs/<tag>/shims/` which the orchestrator pastes VERBATIM into
 subagent spawn prompts. Division of labor: install-time profiles own every
 number (source targets, budgets, word ceilings); levers own posture only.
 Shim text must never restate a numeric budget.

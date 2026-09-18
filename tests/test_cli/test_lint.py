@@ -99,7 +99,7 @@ def test_scaffold_prompt_warns_when_quote_too_short(tmp_vault):
 
 
 def test_scaffold_prompt_fails_when_canonical_prompt_mismatch(tmp_vault):
-    (tmp_vault.root / "research" / "prompt.txt").write_text(
+    (tmp_vault.root / "output" / "prompt.txt").write_text(
         "Exact wrapped prompt text.\nSecond line.",
         encoding="utf-8",
     )
@@ -119,7 +119,7 @@ def test_scaffold_prompt_fails_when_canonical_prompt_mismatch(tmp_vault):
     issues = [i for i in data.get("data", {}).get("issues", []) if i.get("rule") == "scaffold-prompt"]
     assert len(issues) == 1
     assert issues[0]["severity"] == "error"
-    assert "research/prompt.txt" in issues[0]["message"]
+    assert "output/prompt.txt" in issues[0]["message"]
 
 
 def test_scaffold_prompt_no_scaffold_notes_is_noop(tmp_vault):
@@ -134,9 +134,9 @@ def test_scaffold_prompt_no_scaffold_notes_is_noop(tmp_vault):
 
 
 def _write_wrapper_contract(vault, **fields):
-    """Persist a research/wrapper_contract.json at the vault root."""
+    """Persist a output/wrapper_contract.json at the vault root."""
     import json
-    (vault.root / "research" / "wrapper_contract.json").write_text(
+    (vault.root / "output" / "wrapper_contract.json").write_text(
         json.dumps(fields), encoding="utf-8",
     )
 
@@ -144,7 +144,7 @@ def _write_wrapper_contract(vault, **fields):
 def test_wrapper_report_requires_terminal_sections_from_wrapper_contract(tmp_vault):
     """When wrapper_contract.json declares required_terminal_sections, the
     wrapper-report rule must fail if any are missing from the final report."""
-    (tmp_vault.root / "research" / "prompt.txt").write_text(
+    (tmp_vault.root / "output" / "prompt.txt").write_text(
         "Exact wrapped prompt text.",
         encoding="utf-8",
     )
@@ -155,7 +155,7 @@ def test_wrapper_report_requires_terminal_sections_from_wrapper_contract(tmp_vau
             "### Concluding Thoughts",
         ],
     )
-    (tmp_vault.root / "research" / "notes" / "final_report.md").write_text(
+    (tmp_vault.root / "output" / "notes" / "final_report.md").write_text(
         "# Report\n\n## Body\nSome body content.\n",
         encoding="utf-8",
     )
@@ -173,7 +173,7 @@ def test_wrapper_report_requires_terminal_sections_from_wrapper_contract(tmp_vau
 
 def test_wrapper_report_passes_when_required_sections_present(tmp_vault):
     """Wrapper contract + report with all declared sections => no issues."""
-    (tmp_vault.root / "research" / "prompt.txt").write_text(
+    (tmp_vault.root / "output" / "prompt.txt").write_text(
         "Exact wrapped prompt text.",
         encoding="utf-8",
     )
@@ -184,7 +184,7 @@ def test_wrapper_report_passes_when_required_sections_present(tmp_vault):
             "### Concluding Thoughts",
         ],
     )
-    (tmp_vault.root / "research" / "notes" / "final_report.md").write_text(
+    (tmp_vault.root / "output" / "notes" / "final_report.md").write_text(
         (
             "# Report\n\n"
             "## Body\nSome body content.\n\n"
@@ -205,11 +205,11 @@ def test_wrapper_report_without_contract_only_checks_hygiene(tmp_vault):
     """With prompt.txt but no wrapper_contract.json, the rule should NOT
     flag missing terminal sections (since nothing was declared required).
     Scaffold-leak hygiene is still enforced."""
-    (tmp_vault.root / "research" / "prompt.txt").write_text(
+    (tmp_vault.root / "output" / "prompt.txt").write_text(
         "Exact wrapped prompt text.",
         encoding="utf-8",
     )
-    (tmp_vault.root / "research" / "notes" / "final_report.md").write_text(
+    (tmp_vault.root / "output" / "notes" / "final_report.md").write_text(
         "# Report\n\n## Body\nSome content, no synthesis tail.\n",
         encoding="utf-8",
     )
@@ -225,11 +225,11 @@ def test_wrapper_report_forbids_scaffold_leaks_without_contract(tmp_vault):
     """Scaffold-leak hygiene runs regardless of whether wrapper_contract.json
     declares forbidden_body_sections — the canonical base list from
     SCAFFOLD_ONLY_SECTION_HEADERS is always forbidden."""
-    (tmp_vault.root / "research" / "prompt.txt").write_text(
+    (tmp_vault.root / "output" / "prompt.txt").write_text(
         "Exact wrapped prompt text.",
         encoding="utf-8",
     )
-    (tmp_vault.root / "research" / "notes" / "final_report.md").write_text(
+    (tmp_vault.root / "output" / "notes" / "final_report.md").write_text(
         (
             "# Report\n\n"
             "## User Prompt (VERBATIM — gospel)\n"
@@ -256,7 +256,7 @@ def test_wrapper_report_honors_wrapper_extra_forbidden_sections(tmp_vault):
         tmp_vault,
         forbidden_body_sections=["## Internal-only scratch"],
     )
-    (tmp_vault.root / "research" / "notes" / "final_report.md").write_text(
+    (tmp_vault.root / "output" / "notes" / "final_report.md").write_text(
         (
             "# Report\n\n"
             "## Body\nContent.\n\n"
@@ -275,7 +275,7 @@ def test_wrapper_report_honors_wrapper_extra_forbidden_sections(tmp_vault):
 
 def test_wrapper_report_inactive_without_signals(tmp_vault):
     """No prompt.txt, no wrapper_contract.json => rule is inactive, no issues."""
-    (tmp_vault.root / "research" / "notes" / "final_report.md").write_text(
+    (tmp_vault.root / "output" / "notes" / "final_report.md").write_text(
         "# Report\n\n## Body\nRegular /research output.\n",
         encoding="utf-8",
     )
@@ -290,7 +290,7 @@ def test_wrapper_report_inactive_without_signals(tmp_vault):
 def test_wrapper_report_unreadable_contract_surfaces_error(tmp_vault):
     """Malformed wrapper_contract.json produces an error rather than silently
     disabling the rule."""
-    (tmp_vault.root / "research" / "wrapper_contract.json").write_text(
+    (tmp_vault.root / "output" / "wrapper_contract.json").write_text(
         "{not valid json",
         encoding="utf-8",
     )
@@ -448,8 +448,8 @@ def test_provenance_errors_on_under_30pct_non_seed_ratio(tmp_vault):
 
 
 def test_orphaned_raw_files_flags_disk_leak(tmp_vault):
-    """Files in research/raw/ with no matching note should be flagged."""
-    raw_dir = tmp_vault.root / "research" / "raw"
+    """Files in output/raw/ with no matching note should be flagged."""
+    raw_dir = tmp_vault.root / "output" / "raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
     # Create a raw file whose stem doesn't match any note.
     (raw_dir / "orphan-note.pdf").write_bytes(b"%PDF-1.4 dummy")
@@ -463,7 +463,7 @@ def test_orphaned_raw_files_flags_disk_leak(tmp_vault):
     assert "orphan-note" in issues[0]["message"]
 
 
-def _write_audit_findings(vault, data: dict, path: str = "research/audit_findings.json") -> None:
+def _write_audit_findings(vault, data: dict, path: str = "output/audit_findings.json") -> None:
     import json as _json
     audit_path = vault.root / path
     audit_path.parent.mkdir(parents=True, exist_ok=True)
@@ -505,12 +505,12 @@ def test_audit_gate_accepts_custom_audit_file_flag(tmp_vault):
                 "minor": [],
             },
         ],
-    }, path="research/audit_findings-run-a.json")
+    }, path="output/audit_findings-run-a.json")
 
     _, out = _run_lint(
         tmp_vault,
         rule="audit-gate",
-        audit_file="research/audit_findings-run-a.json",
+        audit_file="output/audit_findings-run-a.json",
     )
     import json
     data = json.loads(out)
@@ -775,7 +775,7 @@ def test_audit_gate_no_self_cert_when_fix_genuinely_landed(tmp_vault):
 
 
 def test_audit_gate_handles_malformed_file(tmp_vault):
-    audit_path = tmp_vault.root / "research" / "audit_findings.json"
+    audit_path = tmp_vault.root / "output" / "audit_findings.json"
     audit_path.parent.mkdir(parents=True, exist_ok=True)
     audit_path.write_text("{ not valid json }", encoding="utf-8")
     _, out = _run_lint(tmp_vault, rule="audit-gate")
@@ -797,7 +797,7 @@ def test_orphaned_raw_files_ignores_matched_raw(tmp_vault):
         content_type="paper",
         extra_frontmatter={"raw_file": "raw/real-pdf-note.pdf"},
     )
-    raw_dir = tmp_vault.root / "research" / "raw"
+    raw_dir = tmp_vault.root / "output" / "raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
     (raw_dir / "real-pdf-note.pdf").write_bytes(b"%PDF-1.4 dummy")
     tmp_vault.auto_sync()
@@ -816,9 +816,9 @@ def test_orphaned_raw_files_ignores_matched_raw(tmp_vault):
 
 
 def _write_loci_json(vault, loci: list[dict]) -> None:
-    """Write research/loci.json so the locus-coverage rule has something to read."""
+    """Write output/loci.json so the locus-coverage rule has something to read."""
     import json
-    research_dir = vault.root / "research"
+    research_dir = vault.root / "output"
     research_dir.mkdir(parents=True, exist_ok=True)
     (research_dir / "loci.json").write_text(
         json.dumps({"loci": loci}, ensure_ascii=False, indent=2),
@@ -897,7 +897,7 @@ def test_locus_coverage_noop_when_no_loci_json(tmp_vault):
 
 def _write_patch_log(vault, applied=None, skipped=None, conflicts=None) -> None:
     import json
-    research_dir = vault.root / "research"
+    research_dir = vault.root / "output"
     research_dir.mkdir(parents=True, exist_ok=True)
     (research_dir / "patch-log.json").write_text(
         json.dumps({
@@ -956,7 +956,7 @@ def test_patch_surgery_noop_when_no_patch_log(tmp_vault):
 
 
 def test_workflow_flags_missing_comparisons_when_multiple_loci(tmp_vault):
-    """2+ loci without research/comparisons.md is a Layer 3.5 skip — the
+    """2+ loci without output/comparisons.md is a Layer 3.5 skip — the
     insight-killing failure mode the cross-locus reconciliation step was
     added to prevent."""
     from hyperresearch.core.note import write_note
@@ -969,7 +969,7 @@ def test_workflow_flags_missing_comparisons_when_multiple_loci(tmp_vault):
         tags=["synthesis"],
     )
     # Scaffold artifact so the scaffold check passes
-    (tmp_vault.root / "research" / "scaffold.md").write_text(
+    (tmp_vault.root / "output" / "scaffold.md").write_text(
         "scaffold\n", encoding="utf-8"
     )
     # 2 loci, 2 interim notes — but NO comparisons.md
@@ -1005,10 +1005,10 @@ def test_workflow_passes_with_comparisons_md(tmp_vault):
         note_id="final_report",
         tags=["synthesis"],
     )
-    (tmp_vault.root / "research" / "scaffold.md").write_text(
+    (tmp_vault.root / "output" / "scaffold.md").write_text(
         "scaffold\n", encoding="utf-8"
     )
-    (tmp_vault.root / "research" / "comparisons.md").write_text(
+    (tmp_vault.root / "output" / "comparisons.md").write_text(
         "# Cross-locus comparisons\n\n## Tension 1\n...", encoding="utf-8"
     )
     _write_loci_json(tmp_vault, [
@@ -1041,7 +1041,7 @@ def test_workflow_requires_comparisons_even_on_single_locus(tmp_vault):
         note_id="final_report",
         tags=["synthesis"],
     )
-    (tmp_vault.root / "research" / "scaffold.md").write_text(
+    (tmp_vault.root / "output" / "scaffold.md").write_text(
         "scaffold\n", encoding="utf-8"
     )
     _write_loci_json(tmp_vault, [
@@ -1064,7 +1064,7 @@ def test_workflow_requires_comparisons_even_on_single_locus(tmp_vault):
 
 # ---------------------------------------------------------------------------
 # provenance — hyperresearch-aware: skip breadcrumb coverage ratio checks when
-# research/loci.json exists (hyperresearch's fetch pattern is not bouncing-loop)
+# output/loci.json exists (hyperresearch's fetch pattern is not bouncing-loop)
 # ---------------------------------------------------------------------------
 
 
@@ -1152,11 +1152,11 @@ def test_patch_surgery_flags_empty_log_with_findings_present(tmp_vault):
     log is empty, the patcher's log was lost. Warn so the operator knows."""
     import json as _json
     # Draft exists
-    notes_dir = tmp_vault.root / "research" / "notes"
+    notes_dir = tmp_vault.root / "output" / "notes"
     notes_dir.mkdir(parents=True, exist_ok=True)
     (notes_dir / "final_report.md").write_text("# Report\n\nBody.", encoding="utf-8")
     # Critic findings with 12 findings
-    research = tmp_vault.root / "research"
+    research = tmp_vault.root / "output"
     research.mkdir(parents=True, exist_ok=True)
     (research / "critic-findings-dialectic.json").write_text(
         _json.dumps({"findings": [{"severity": "major"} for _ in range(12)]}),
@@ -1198,7 +1198,7 @@ def test_patch_surgery_empty_log_without_findings_is_silent(tmp_vault):
 
 def _write_decomposition(vault, entities=None, formats=None, citation_style=None):
     import json as _json
-    research = vault.root / "research"
+    research = vault.root / "output"
     research.mkdir(parents=True, exist_ok=True)
     data = {
         "sub_questions": [],
@@ -1217,7 +1217,7 @@ def _write_decomposition(vault, entities=None, formats=None, citation_style=None
 
 
 def _write_final_report(vault, body: str):
-    notes_dir = vault.root / "research" / "notes"
+    notes_dir = vault.root / "output" / "notes"
     notes_dir.mkdir(parents=True, exist_ok=True)
     (notes_dir / "final_report.md").write_text(body, encoding="utf-8")
 

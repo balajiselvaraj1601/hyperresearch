@@ -16,7 +16,9 @@ runner = CliRunner()
 @pytest.fixture
 def vault_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Init a vault, chdir into it, and return its root."""
-    result = runner.invoke(app, ["init", str(tmp_path / "v"), "--name", "Archive Test"])
+    result = runner.invoke(
+        app, ["init", str(tmp_path / "v"), "--name", "Archive Test", "--dir", "output"]
+    )
     assert result.exit_code == 0, result.output
     root = tmp_path / "v"
     monkeypatch.chdir(root)
@@ -30,7 +32,7 @@ def _write(path: Path, content: str = "x") -> None:
 
 def _seed_prior_run(root: Path, vault_tag: str = "alpha-beta") -> None:
     """Lay down a representative set of prior-run artifacts."""
-    research = root / "research"
+    research = root / "output"
     # Per-run flat artifacts.
     _write(research / "scaffold.md", f"# Scaffold\n\nRun config: vault_tag: {vault_tag}\n")
     _write(research / "prompt-decomposition.json", '{"vault_tag": "' + vault_tag + '"}')
@@ -56,7 +58,7 @@ def test_archive_run_no_prior_artifacts_is_noop(vault_root: Path):
     assert data["ok"] is True
     assert data["data"]["archived"] is False
     assert data["data"]["files_moved"] == 0
-    assert not (vault_root / "research" / "runs").exists()
+    assert not (vault_root / "output" / "runs").exists()
 
 
 def test_archive_run_moves_flat_artifacts_and_temp_tree(vault_root: Path):
@@ -69,7 +71,7 @@ def test_archive_run_moves_flat_artifacts_and_temp_tree(vault_root: Path):
     assert data["data"]["previous_vault_tag"] == "alpha-beta"
 
     # Originals are gone.
-    research = vault_root / "research"
+    research = vault_root / "output"
     assert not (research / "scaffold.md").exists()
     assert not (research / "loci.json").exists()
     assert not (research / "comparisons.md").exists()
@@ -90,7 +92,7 @@ def test_archive_run_moves_flat_artifacts_and_temp_tree(vault_root: Path):
     assert (archive_dir / "temp" / "evidence-digest.md").exists()
     assert (archive_dir / "temp" / "draft-a.md").exists()
 
-    # research/temp/ is recreated empty so the next run can write into it
+    # output/temp/ is recreated empty so the next run can write into it
     # without an extra mkdir.
     temp = research / "temp"
     assert temp.is_dir()
@@ -103,7 +105,7 @@ def test_archive_run_moves_flat_artifacts_and_temp_tree(vault_root: Path):
 def test_archive_run_falls_back_to_timestamp_when_no_tag(vault_root: Path):
     """If no query-*.md exists and scaffold.md has no recoverable vault_tag,
     the archive dir is still created (timestamp-only suffix)."""
-    research = vault_root / "research"
+    research = vault_root / "output"
     _write(research / "loci.json", "[]")
     _write(research / "scaffold.md", "# Scaffold\n\nno tag in here\n")
     result = runner.invoke(app, ["archive-run", "--json"])
@@ -143,7 +145,7 @@ def test_archive_run_prefers_most_recent_query_file(vault_root: Path):
     import os
     import time
 
-    research = vault_root / "research"
+    research = vault_root / "output"
     _write(research / "scaffold.md", "# Scaffold\n")
     old_query = research / "query-old-tag.md"
     new_query = research / "query-new-tag.md"

@@ -3,13 +3,13 @@ name: hyperresearch-instruction-critic
 description: >
   Use this agent in Layer 5 of the hyperresearch deep research pipeline. Reads the Layer 4
   draft and checks it against the prompt-decomposition artifact
-  (`research/runs/<vault_tag>/prompt-decomposition.json`) produced in Layer 0. Emits
+  (`output/runs/<vault_tag>/prompt-decomposition.json`) produced in Layer 0. Emits
   findings when atomic items from the prompt are missing, under-covered,
   out-of-order, or delivered in the wrong format. Also checks structural
   readability patterns (definitions, citation density, forward analysis,
   comparison tables) that reference reports consistently include.
   Spawn ONCE per draft, in parallel with the other three critics.
-model: opus
+model: mimo
 tools: Bash, Read, Write
 color: red
 ---
@@ -41,15 +41,15 @@ prompt. No block = this prompt's defaults apply unchanged.
   how the draft maps to THIS text, in THIS shape, with THESE named
   entities and THESE sub-questions.
 - **query_file_path**: path to the persisted query file (e.g.,
-  `research/runs/<vault_tag>/query.md`). Read this file directly — it IS the
+  `output/runs/<vault_tag>/query.md`). Read this file directly — it IS the
   canonical query for this run. The research_query field above should
   match this file's body exactly.
-- **decomposition_path**: path to `research/runs/<vault_tag>/prompt-decomposition.json`.
+- **decomposition_path**: path to `output/runs/<vault_tag>/prompt-decomposition.json`.
   Written in Layer 0 by the orchestrator. Contains the atomic items the
   prompt named: explicit sub-questions, required entities, required
   formats, required sections, time horizons, scope conditions.
-- **draft_path**: `research/notes/final_report_<vault_tag>.md`
-- **output_path**: `research/runs/<vault_tag>/critic-findings-instruction.json`
+- **draft_path**: `output/notes/final_report_<vault_tag>.md`
+- **output_path**: `output/runs/<vault_tag>/critic-findings-instruction.json`
 
 ## Procedure
 
@@ -61,7 +61,7 @@ prompt. No block = this prompt's defaults apply unchanged.
    each X, include Y, Z"), format cue ("mind map", "ranked list",
    "FAQ"), and sub-question marker ("A? B? C?"). Keep this list.
 
-2. **Read `research/runs/<vault_tag>/prompt-decomposition.json`.** Confirm the orchestrator
+2. **Read `output/runs/<vault_tag>/prompt-decomposition.json`.** Confirm the orchestrator
    captured the same atomic items you just identified. If the
    decomposition is missing items that the research_query clearly names,
    that itself is a finding (severity: critical — the pipeline started

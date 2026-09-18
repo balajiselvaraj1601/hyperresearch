@@ -13,9 +13,9 @@ description: >
 
 # Step 10 — Triple-draft ensemble (curated lists, parallel writers)
 
-**⚠ CRITICAL ANTI-PATTERN: Writing a single draft for `full` tier is a PIPELINE VIOLATION.** In V7 runs, context compaction caused the orchestrator to forget this step's procedure and write a single draft instead of spawning 3 sub-orchestrators. V8 fixes this by loading this skill fresh at the moment it's needed. **If you find yourself about to write `research/notes/final_report_<vault_tag>.md` directly without spawning 3 `hyperresearch-draft-orchestrator` subagents, STOP. Re-read this skill. Spawn the sub-orchestrators.** (Light tier is the ONE exception — see "Light tier" section below.)
+**⚠ CRITICAL ANTI-PATTERN: Writing a single draft for `full` tier is a PIPELINE VIOLATION.** In V7 runs, context compaction caused the orchestrator to forget this step's procedure and write a single draft instead of spawning 3 sub-orchestrators. V8 fixes this by loading this skill fresh at the moment it's needed. **If you find yourself about to write `output/notes/final_report_<vault_tag>.md` directly without spawning 3 `agent_medium` subagents, STOP. Re-read this skill. Spawn the sub-orchestrators.** (Light tier is the ONE exception — see "Light tier" section below.)
 
-**Tier gate:** Runs for ALL tiers. For `light` tier: write a single draft directly to `research/notes/final_report_<vault_tag>.md` and skip ahead to step 15 (polish). For `full`: run the triple-draft ensemble below — step 11 (synthesizer) will turn the 3 drafts into the final report.
+**Tier gate:** Runs for ALL tiers. For `light` tier: write a single draft directly to `output/notes/final_report_<vault_tag>.md` and skip ahead to step 15 (polish). For `full`: run the triple-draft ensemble below — step 11 (synthesizer) will turn the 3 drafts into the final report.
 
 **Goal:** produce THREE independent angle-specific drafts (`draft-{a,b,c}.md`). Step 11 (synthesizer subagent) consumes all three and writes the final report.
 
@@ -24,12 +24,12 @@ description: >
 ## Recover state
 
 Read these inputs:
-- `research/runs/<vault_tag>/scaffold.md` — vault_tag, modality, wrapper requirements
-- `research/runs/<vault_tag>/prompt-decomposition.json` — atomic items, required_section_headings, response_format, citation_style, pipeline_tier
-- `research/runs/<vault_tag>/temp/evidence-digest.md` — top claims + verbatim quotes — PRIMARY EVIDENCE LAYER (full only; absent for light)
-- `research/runs/<vault_tag>/comparisons.md` (full tier) — cross-locus tensions
-- `research/runs/<vault_tag>/temp/source-tensions.json` (full tier) — expert disagreements
-- `research/runs/<vault_tag>/temp/coverage-gaps.md` (if exists) — items with weak source coverage
+- `output/runs/<vault_tag>/scaffold.md` — vault_tag, modality, wrapper requirements
+- `output/runs/<vault_tag>/prompt-decomposition.json` — atomic items, required_section_headings, response_format, citation_style, pipeline_tier
+- `output/runs/<vault_tag>/temp/evidence-digest.md` — top claims + verbatim quotes — PRIMARY EVIDENCE LAYER (full only; absent for light)
+- `output/runs/<vault_tag>/comparisons.md` (full tier) — cross-locus tensions
+- `output/runs/<vault_tag>/temp/source-tensions.json` (full tier) — expert disagreements
+- `output/runs/<vault_tag>/temp/coverage-gaps.md` (if exists) — items with weak source coverage
 - Survey vault: `$HPR note list --tag <vault_tag> --all -j` for the evidence landscape
 - Modality calibration (from the scaffold's `modality` field):
   - **collect** — enumerative coverage, per-entity sections with named fields
@@ -41,7 +41,7 @@ Read these inputs:
 
 ## Step 10.0 — Read response_format and citation_style
 
-Read `response_format` and `citation_style` from `research/runs/<vault_tag>/prompt-decomposition.json`. These control the draft shape:
+Read `response_format` and `citation_style` from `output/runs/<vault_tag>/prompt-decomposition.json`. These control the draft shape:
 
 | Format | Target length | Character |
 |--------|-------------|-----------|
@@ -57,12 +57,12 @@ Read `response_format` and `citation_style` from `research/runs/<vault_tag>/prom
 
 If `pipeline_tier == "light"`: SKIP step 10.1 — 10.3 below and follow this section instead.
 
-**Light tier writes a single draft directly to `research/notes/final_report_<vault_tag>.md`.** No subagents, no triple-draft ensemble, no synthesizer.
+**Light tier writes a single draft directly to `output/notes/final_report_<vault_tag>.md`.** No subagents, no triple-draft ensemble, no synthesizer.
 
 1. **Read the vault directly.** Light tier has no `evidence-digest.md` (step 9 was skipped). Survey the vault: `$HPR note list --tag <vault_tag> --all -j` and pick the << p.single_draft_reads|dash >> most relevant non-deprecated notes. Read each one (`$HPR note show <id1> <id2> ... -j`) before writing.
 
 2. **Honor the structural contract.**
-   - Use the literal H2 headings from `required_section_headings` in `research/runs/<vault_tag>/prompt-decomposition.json`, in order.
+   - Use the literal H2 headings from `required_section_headings` in `output/runs/<vault_tag>/prompt-decomposition.json`, in order.
    - Hit the length target from step 10.0's table for the chosen `response_format` (light typically pairs with `short` or `structured`).
    - Apply the modality calibration from the recover-state list above.
 
@@ -73,7 +73,7 @@ If `pipeline_tier == "light"`: SKIP step 10.1 — 10.3 below and follow this sec
 
 4. **Hygiene.** No YAML frontmatter on the final report. No pipeline vocabulary in prose ("hyperresearch", "evidence digest", "comparisons.md", "committed reading", etc.). When `citation_style == "wikilink"`, `[[<source-note-id>]]` markers ARE the citation system and must be preserved — only strip wikilinks that point at workspace artifacts (interim-*, scaffold, comparisons). Step 15 (polish) is a backstop, not a license to leak.
 
-5. **Exit and route.** Once `research/notes/final_report_<vault_tag>.md` is written, return to the entry skill and invoke `Skill(skill: "hyperresearch-15-polish")`. Light tier skips steps 11–14 entirely.
+5. **Exit and route.** Once `output/notes/final_report_<vault_tag>.md` is written, return to the entry skill and invoke `Skill(skill: "hyperresearch-15-polish")`. Light tier skips steps 11–14 entirely.
 
 ---
 
@@ -91,7 +91,7 @@ Based on the evidence, tensions, and query, assign each sub-orchestrator a disti
 - **Draft B — Depth-optimized:** deeper treatment of the 3-4 most important atomic items.
 - **Draft C — Practitioner-optimized:** organized around actionable recommendations.
 
-Write the 3 angle assignments to `research/runs/<vault_tag>/temp/draft-angles.md` (for the run log). Each angle: 2-3 sentences describing the analytical direction.
+Write the 3 angle assignments to `output/runs/<vault_tag>/temp/draft-angles.md` (for the run log). Each angle: 2-3 sentences describing the analytical direction.
 
 ---
 
@@ -123,9 +123,9 @@ Write the 3 angle assignments to `research/runs/<vault_tag>/temp/draft-angles.md
 4. **Cap each list at << p.must_read.argumentative[1] >>, minimum << p.must_read.short[0] >>.** For `argumentative` format, lean toward << p.must_read.argumentative|hyphen >>. For `structured`, lean toward << p.must_read.structured|hyphen >>. For `short`, lean toward << p.must_read.short|hyphen >>.
 
 5. **Write each list to disk** so the spawn template can reference it:
-   - `research/runs/<vault_tag>/temp/draft-a-source-list.md`
-   - `research/runs/<vault_tag>/temp/draft-b-source-list.md`
-   - `research/runs/<vault_tag>/temp/draft-c-source-list.md`
+   - `output/runs/<vault_tag>/temp/draft-a-source-list.md`
+   - `output/runs/<vault_tag>/temp/draft-b-source-list.md`
+   - `output/runs/<vault_tag>/temp/draft-c-source-list.md`
 
    Format:
    ```markdown
@@ -141,16 +141,16 @@ Write the 3 angle assignments to `research/runs/<vault_tag>/temp/draft-angles.md
 
 ## Step 10.3 — Spawn << p.draft_count >> draft sub-orchestrators in parallel
 
-**Spawn << p.draft_count >> `hyperresearch-draft-orchestrator` subagents in ONE message.** This is true parallel execution. Each gets a different `draft_id`, `analytical_angle`, and (CRUCIALLY) a different `must_read_note_ids` array.
+**Spawn << p.draft_count >> `agent_medium` subagents in ONE message.** This is true parallel execution. Each gets a different `draft_id`, `analytical_angle`, and (CRUCIALLY) a different `must_read_note_ids` array.
 
 **Spawn template:**
 ```
-subagent_type: hyperresearch-draft-orchestrator
+subagent_type: agent_medium
 prompt: |
   RESEARCH QUERY (verbatim, gospel):
-  > {{paste research/runs/<vault_tag>/query.md body}}
+  > {{paste output/runs/<vault_tag>/query.md body}}
 
-  QUERY FILE: research/runs/<vault_tag>/query.md
+  QUERY FILE: output/runs/<vault_tag>/query.md
 
   PIPELINE POSITION: You are one of 3 parallel step 10 sub-orchestrators
   in the hyperresearch V8 pipeline. After you and the other two return, the
@@ -159,28 +159,28 @@ prompt: |
   synthesis, not the final output.
 
   YOUR INPUTS:
-  - query_file_path: research/runs/<vault_tag>/query.md
+  - query_file_path: output/runs/<vault_tag>/query.md
   - vault_tag: <vault_tag>
   - draft_id: "a" (or "b" or "c")
-  - output_path: research/runs/<vault_tag>/temp/draft-a.md (or draft-b.md or draft-c.md)
+  - output_path: output/runs/<vault_tag>/temp/draft-a.md (or draft-b.md or draft-c.md)
   - analytical_angle: "<the 2-3 sentence angle assignment>"
-  - must_read_note_ids: [<paste the IDs from research/runs/<vault_tag>/temp/draft-<x>-source-list.md, e.g. 30-50 IDs>]
-  - decomposition_path: research/runs/<vault_tag>/prompt-decomposition.json
-  - evidence_digest_path: research/runs/<vault_tag>/temp/evidence-digest.md
-  - comparisons_path: research/runs/<vault_tag>/comparisons.md
-  - source_tensions_path: research/runs/<vault_tag>/temp/source-tensions.json
+  - must_read_note_ids: [<paste the IDs from output/runs/<vault_tag>/temp/draft-<x>-source-list.md, e.g. 30-50 IDs>]
+  - decomposition_path: output/runs/<vault_tag>/prompt-decomposition.json
+  - evidence_digest_path: output/runs/<vault_tag>/temp/evidence-digest.md
+  - comparisons_path: output/runs/<vault_tag>/comparisons.md
+  - source_tensions_path: output/runs/<vault_tag>/temp/source-tensions.json
   - response_format: "<short|structured|argumentative>"
   - citation_style: "<wikilink|inline|none>"
   - modality: "<collect|synthesize|compare|forecast>"
 
-  RUN DIRECTIVES: append the FULL contents of research/runs/<vault_tag>/shims/drafting.md here, verbatim.
+  RUN DIRECTIVES: append the FULL contents of output/runs/<vault_tag>/shims/drafting.md here, verbatim.
 
   Read every note on must_read_note_ids before writing. Do NOT survey
   the vault — your reading list is curated. Do NOT fetch new sources.
   Write your draft from your assigned angle, citing your curated sources.
 ```
 
-**CRITICAL: never emit bare text while the 3 sub-orchestrators are running.** They will take 5-15 minutes each. Use this time to think — append notes to `research/runs/<vault_tag>/temp/orchestrator-notes.md` about the synthesis you'll plan in step 11: what's the strongest thesis emerging across angles? Which atomic items will be contentious? What argumentative beats must the final draft commit to? One vault count check per minute max. Write your thoughts, don't just poll.
+**CRITICAL: never emit bare text while the 3 sub-orchestrators are running.** They will take 5-15 minutes each. Use this time to think — append notes to `output/runs/<vault_tag>/temp/orchestrator-notes.md` about the synthesis you'll plan in step 11: what's the strongest thesis emerging across angles? Which atomic items will be contentious? What argumentative beats must the final draft commit to? One vault count check per minute max. Write your thoughts, don't just poll.
 
 ---
 
@@ -189,9 +189,9 @@ prompt: |
 When all 3 sub-orchestrators return:
 
 1. **Confirm all 3 draft files exist:**
-   - `research/runs/<vault_tag>/temp/draft-a.md`
-   - `research/runs/<vault_tag>/temp/draft-b.md`
-   - `research/runs/<vault_tag>/temp/draft-c.md`
+   - `output/runs/<vault_tag>/temp/draft-a.md`
+   - `output/runs/<vault_tag>/temp/draft-b.md`
+   - `output/runs/<vault_tag>/temp/draft-c.md`
 
 2. **Read each sub-orchestrator's report-back.** Each should report:
    - Path to the draft
@@ -209,12 +209,12 @@ When all 3 sub-orchestrators return:
 ## Exit criterion
 
 **Light tier:**
-- `research/notes/final_report_<vault_tag>.md` exists, hits the length target from step 10.0, follows `required_section_headings`, and respects `citation_style`.
+- `output/notes/final_report_<vault_tag>.md` exists, hits the length target from step 10.0, follows `required_section_headings`, and respects `citation_style`.
 
 **Standard / full tier:**
-- All three drafts exist at `research/runs/<vault_tag>/temp/draft-{a,b,c}.md`
+- All three drafts exist at `output/runs/<vault_tag>/temp/draft-{a,b,c}.md`
 - Each draft has non-trivial length (1000+ chars argumentative, 500+ structured)
-- Sub-orchestrator report-backs are captured (you can paraphrase them in `research/runs/<vault_tag>/temp/orchestrator-notes.md` for the synthesis plan you'll write in step 11)
+- Sub-orchestrator report-backs are captured (you can paraphrase them in `output/runs/<vault_tag>/temp/orchestrator-notes.md` for the synthesis plan you'll write in step 11)
 
 ---
 
@@ -222,5 +222,5 @@ When all 3 sub-orchestrators return:
 
 Return to the entry skill (`hyperresearch`). Tier-based routing:
 
-- **light tier:** You already wrote `research/notes/final_report_<vault_tag>.md` directly. Skip steps 11-14 (no synthesis, no critics, no patcher) and invoke `Skill(skill: "hyperresearch-15-polish")`.
+- **light tier:** You already wrote `output/notes/final_report_<vault_tag>.md` directly. Skip steps 11-14 (no synthesis, no critics, no patcher) and invoke `Skill(skill: "hyperresearch-15-polish")`.
 - **full tier:** Invoke `Skill(skill: "hyperresearch-11-synthesize")`.

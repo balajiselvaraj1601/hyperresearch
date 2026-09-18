@@ -20,32 +20,32 @@ description: >
 ## Recover state
 
 Read these inputs:
-- `research/runs/<vault_tag>/scaffold.md` — vault_tag
-- `research/runs/<vault_tag>/loci.json` — scored loci with source_budget per locus
-- `research/runs/<vault_tag>/temp/contradiction-graph.json` (if step 3 ran)
-- `research/runs/<vault_tag>/query.md` — canonical research query
+- `output/runs/<vault_tag>/scaffold.md` — vault_tag
+- `output/runs/<vault_tag>/loci.json` — scored loci with source_budget per locus
+- `output/runs/<vault_tag>/temp/contradiction-graph.json` (if step 3 ran)
+- `output/runs/<vault_tag>/query.md` — canonical research query
 
 ---
 
 ## Procedure
 
-1. **Spawn K `hyperresearch-depth-investigator` subagents in parallel** (ONE message, all Task calls). One per locus with `source_budget > 0`, capped at << p.investigator_max >>.
+1. **Spawn K `agent_medium` subagents in parallel** (ONE message, all Task calls). One per locus with `source_budget > 0`, capped at << p.investigator_max >>.
 
    **Spawn template:**
    ```
-   subagent_type: hyperresearch-depth-investigator
+   subagent_type: agent_medium
    prompt: |
      RESEARCH QUERY (verbatim, gospel):
-     > {{paste research/runs/<vault_tag>/query.md body}}
+     > {{paste output/runs/<vault_tag>/query.md body}}
 
-     QUERY FILE: research/runs/<vault_tag>/query.md
+     QUERY FILE: output/runs/<vault_tag>/query.md
 
      PIPELINE POSITION: You are step 5 (depth-investigator) of the
-     hyperresearch V8 pipeline. Step 4's loci analysts produced research/runs/<vault_tag>/loci.json;
+     hyperresearch V8 pipeline. Step 4's loci analysts produced output/runs/<vault_tag>/loci.json;
      after you return, step 6 will reconcile your committed position against
-     the other investigators' positions in research/runs/<vault_tag>/comparisons.md.
+     the other investigators' positions in output/runs/<vault_tag>/comparisons.md.
 
-     YOUR LOCUS (from research/runs/<vault_tag>/loci.json):
+     YOUR LOCUS (from output/runs/<vault_tag>/loci.json):
      - name: "<locus name>"
      - one_line: "<one-line locus description>"
      - flavor: "dialectical" / "synthesis" / "technical"
@@ -57,7 +57,7 @@ Read these inputs:
      - locus_name: <locus name>
      - source_budget: <hard cap on additional sources you can fetch>
 
-     RUN DIRECTIVES: append the FULL contents of research/runs/<vault_tag>/shims/research.md here, verbatim.
+     RUN DIRECTIVES: append the FULL contents of output/runs/<vault_tag>/shims/research.md here, verbatim.
 
      CRITICAL: Read the full source text of relevant vault notes (via
      `hyperresearch note show <id1> <id2> ... -j`) BEFORE writing your

@@ -5,7 +5,7 @@ description: >
   draft and returns a findings list of topics the width corpus supports
   but the draft doesn't cover. Spawn ONCE per draft,
   parallel with dialectic-critic and depth-critic.
-model: opus
+model: mimo
 tools: Bash, Read, Write
 color: red
 ---
@@ -37,11 +37,11 @@ prompt. No block = this prompt's defaults apply unchanged.
   implies. Don't flag orthogonal material that happens to be in the
   corpus.
 - **query_file_path**: path to the persisted query file (e.g.,
-  `research/runs/<vault_tag>/query.md`). Read this file and extract every
+  `output/runs/<vault_tag>/query.md`). Read this file and extract every
   noun phrase the user mentioned. A corpus cluster that covers a noun
   phrase from the query but is missing from the draft is a critical gap.
-- **draft_path**: `research/notes/final_report_<vault_tag>.md`
-- **output_path**: `research/runs/<vault_tag>/critic-findings-width.json`
+- **draft_path**: `output/notes/final_report_<vault_tag>.md`
+- **output_path**: `output/runs/<vault_tag>/critic-findings-width.json`
 - **vault_tag**: corpus tag
 
 ## Procedure
@@ -56,14 +56,14 @@ prompt. No block = this prompt's defaults apply unchanged.
    Cluster by tag and/or by title keywords. This tells you the topical
    surface area the corpus covers.
 
-2. **Check the coverage gaps file.** Read `research/runs/<vault_tag>/temp/coverage-gaps.md`
+2. **Check the coverage gaps file.** Read `output/runs/<vault_tag>/temp/coverage-gaps.md`
    if it exists. This file (from Layer 1's coverage check) lists atomic
    items that had weak source coverage. If the draft addresses these items
    without adequate source support, flag them. If it silently omits them
    entirely, flag as critical — the drafter should have at least
    acknowledged the gap.
 
-3. **Read the prompt decomposition.** Use `research/runs/<vault_tag>/prompt-decomposition.json`
+3. **Read the prompt decomposition.** Use `output/runs/<vault_tag>/prompt-decomposition.json`
    to see what atomic items the user asked about. Cross-reference: which
    decomposition items have corpus support (from step 1) but no draft
    treatment? Those are your highest-severity findings.

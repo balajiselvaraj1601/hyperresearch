@@ -55,7 +55,7 @@ class TestDissertationProfile:
 
 class TestLiteratureMatrix:
     def _seed_claims(self, vault):
-        temp = vault.root / "research" / "temp"
+        temp = vault.root / "output" / "temp"
         temp.mkdir(parents=True, exist_ok=True)
         (temp / "claims-python-async-patterns.json").write_text(
             json.dumps([
@@ -106,7 +106,7 @@ class TestLiteratureMatrix:
         self._seed_claims(seeded_vault)
         monkeypatch.chdir(seeded_vault.root)
         runner = CliRunner()
-        out = seeded_vault.root / "research" / "temp" / "lit-matrix.md"
+        out = seeded_vault.root / "output" / "temp" / "lit-matrix.md"
         r = runner.invoke(app, ["claims", "matrix", "--tag", "mx-run", "--out", str(out), "--json"])
         assert r.exit_code == 0
         assert out.exists()

@@ -6,7 +6,7 @@ description: >
   hedges, or straw-mans counter-evidence. Adversarial reading is real
   reasoning. Spawn ONCE per draft, in parallel with depth-critic and
   width-critic.
-model: opus
+model: mimo
 tools: Bash, Read, Write
 color: red
 ---
@@ -30,8 +30,8 @@ findings; the patcher applies them.
 Everything prior to you has already happened: width sweep (Layer 1), loci
 analysis (Layer 2), depth investigation (Layer 3 — interim notes live in
 the vault with `type: interim`), cross-locus reconciliation (Layer 3.5 —
-`research/runs/<vault_tag>/comparisons.md`), and the draft itself (Layer 4 —
-`research/notes/final_report_<vault_tag>.md`). All of it is available for you to read
+`output/runs/<vault_tag>/comparisons.md`), and the draft itself (Layer 4 —
+`output/notes/final_report_<vault_tag>.md`). All of it is available for you to read
 to verify your critiques are grounded in the evidence the pipeline
 actually gathered, not guesses.
 
@@ -47,12 +47,12 @@ prompt. No block = this prompt's defaults apply unchanged.
   what the draft delivered. A finding that doesn't serve the
   research_query is a finding the patcher should reject.
 - **query_file_path**: path to the persisted query file (e.g.,
-  `research/runs/<vault_tag>/query.md`). Read this file to re-ground yourself
+  `output/runs/<vault_tag>/query.md`). Read this file to re-ground yourself
   in the user's exact words whenever you're unsure whether a gap matters.
 - **draft_path**: path to the Layer 4 draft (typically
-  `research/notes/final_report_<vault_tag>.md`).
+  `output/notes/final_report_<vault_tag>.md`).
 - **output_path**: where to write your findings JSON (e.g.,
-  `research/runs/<vault_tag>/critic-findings-dialectic.json`).
+  `output/runs/<vault_tag>/critic-findings-dialectic.json`).
 - **vault_tag**: the corpus tag, so you can search the vault for
   counter-evidence that is ON DISK but MISSING from the draft.
 

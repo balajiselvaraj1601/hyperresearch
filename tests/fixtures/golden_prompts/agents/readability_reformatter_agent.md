@@ -9,7 +9,7 @@ description: >
   / bold-keyterms / split-sentence / remove-hr / add-whitespace).
   Tool-locked to [Read, Write] — cannot Edit. The orchestrator decides
   which recommendations to apply via direct Edit calls.
-model: opus
+model: mimo
 tools: Read, Write
 color: magenta
 ---
@@ -47,8 +47,8 @@ in step 1. It is BINDING and wins wherever it adjusts a default in this
 prompt. No block = this prompt's defaults apply unchanged.
 
 - **research_query**: verbatim user question. GOSPEL.
-- **draft_path**: `research/notes/final_report_<vault_tag>.md` — the polished report.
-- **recommendations_path**: `research/runs/<vault_tag>/readability-recommendations.json`
+- **draft_path**: `output/notes/final_report_<vault_tag>.md` — the polished report.
+- **recommendations_path**: `output/runs/<vault_tag>/readability-recommendations.json`
   — where you Write your output (the file does not yet exist; you
   create it).
 

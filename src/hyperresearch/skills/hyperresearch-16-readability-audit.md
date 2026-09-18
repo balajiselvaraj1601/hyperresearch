@@ -2,7 +2,7 @@
 name: hyperresearch-16-readability-audit
 description: >
   Step 16 (final) of the hyperresearch V8 pipeline. Spawns the
-  hyperresearch-readability-recommender subagent (Read+Write
+  agent_medium subagent (Read+Write
   tool-locked) to audit the polished final report and write JSON
   recommendations for paragraph merges, breaks, list/table conversions,
   bold injection, sentence splits, and HR removal. The orchestrator
@@ -25,27 +25,27 @@ description: >
 ## Recover state
 
 Read these inputs:
-- `research/runs/<vault_tag>/scaffold.md` — vault_tag
-- `research/notes/final_report_<vault_tag>.md` — the polished final report from step 15
+- `output/runs/<vault_tag>/scaffold.md` — vault_tag
+- `output/notes/final_report_<vault_tag>.md` — the polished final report from step 15
 
 ---
 
 ## Step 16.1 — Spawn the readability recommender
 
-Spawn ONE `hyperresearch-readability-recommender` subagent. Single spawn, runs once.
+Spawn ONE `agent_medium` subagent. Single spawn, runs once.
 
 **Spawn template:**
 ```
-subagent_type: hyperresearch-readability-recommender
+subagent_type: agent_medium
 prompt: |
   RESEARCH QUERY (verbatim, gospel):
-  > {{paste research/runs/<vault_tag>/query.md body}}
+  > {{paste output/runs/<vault_tag>/query.md body}}
 
-  QUERY FILE: research/runs/<vault_tag>/query.md
+  QUERY FILE: output/runs/<vault_tag>/query.md
 
   PIPELINE POSITION: You are step 16 of the hyperresearch V8 pipeline —
   the final analytical pass. The final report at
-  research/notes/final_report_<vault_tag>.md has been drafted (step 10),
+  output/notes/final_report_<vault_tag>.md has been drafted (step 10),
   synthesized (step 11), critiqued (step 12), gap-filled (step 13),
   patched (step 14), and polish-audited (step 15). Your job: write
   JSON recommendations for paragraph rhythm, list/table conversions,
@@ -54,10 +54,10 @@ prompt: |
   reads your recommendations and decides which to apply.
 
   YOUR INPUTS:
-  - draft_path: research/notes/final_report_<vault_tag>.md
-  - recommendations_path: research/runs/<vault_tag>/readability-recommendations.json
+  - draft_path: output/notes/final_report_<vault_tag>.md
+  - recommendations_path: output/runs/<vault_tag>/readability-recommendations.json
 
-  RUN DIRECTIVES: append the FULL contents of research/runs/<vault_tag>/shims/polish.md here, verbatim.
+  RUN DIRECTIVES: append the FULL contents of output/runs/<vault_tag>/shims/polish.md here, verbatim.
 
   Write recommendations as a JSON array per the schema in your agent
   prompt. Cap at << p.readability_rec_cap >> recommendations, prioritized by impact.
@@ -69,7 +69,7 @@ prompt: |
 
 When the recommender returns:
 
-1. **Read `research/runs/<vault_tag>/readability-recommendations.json`.**
+1. **Read `output/runs/<vault_tag>/readability-recommendations.json`.**
 
 2. **Read the recommender's report-back.** It tells you:
    - Total count of recommendations
@@ -110,7 +110,7 @@ You are not obligated to apply every recommendation. Use these heuristics:
 
 For each recommendation you decide to apply:
 
-1. Use the Edit tool on `research/notes/final_report_<vault_tag>.md`
+1. Use the Edit tool on `output/notes/final_report_<vault_tag>.md`
 2. `old_string` = the recommendation's `current` field (exactly as the recommender wrote it)
 3. `new_string` = the recommendation's `recommended` field
 
@@ -130,7 +130,7 @@ If an Edit fails because `old_string` doesn't match (recommender mis-anchored), 
 
 ## Step 16.5 — Log decisions
 
-Write `research/runs/<vault_tag>/readability-decisions.json` with the orchestrator's decisions:
+Write `output/runs/<vault_tag>/readability-decisions.json` with the orchestrator's decisions:
 
 ```json
 {
@@ -152,9 +152,9 @@ This is the audit trail. If a future review finds a readability problem we shoul
 
 ## Exit criterion
 
-- `research/runs/<vault_tag>/readability-recommendations.json` exists
-- `research/runs/<vault_tag>/readability-decisions.json` exists with at least one entry in `applied` or all `skipped`
-- `research/notes/final_report_<vault_tag>.md` reflects the applied recommendations
+- `output/runs/<vault_tag>/readability-recommendations.json` exists
+- `output/runs/<vault_tag>/readability-decisions.json` exists with at least one entry in `applied` or all `skipped`
+- `output/notes/final_report_<vault_tag>.md` reflects the applied recommendations
 - The final report's structure (H2 list, executive summary, conclusion) is unchanged from step 15's output (this step does not restructure)
 
 ---

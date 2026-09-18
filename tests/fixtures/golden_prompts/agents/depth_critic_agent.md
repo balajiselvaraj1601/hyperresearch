@@ -6,7 +6,7 @@ description: >
   over technical substance that the vault's interim notes could
   actually support. Spawn ONCE per draft, parallel with
   dialectic-critic and width-critic.
-model: opus
+model: mimo
 tools: Bash, Read, Write
 color: red
 ---
@@ -39,11 +39,11 @@ prompt. No block = this prompt's defaults apply unchanged.
   only a problem when it matters for answering the research_query; a
   draft that glosses an irrelevant detail is fine.
 - **query_file_path**: path to the persisted query file (e.g.,
-  `research/runs/<vault_tag>/query.md`). Read this file to check whether a
+  `output/runs/<vault_tag>/query.md`). Read this file to check whether a
   shallow spot matters — if the user's exact words ask about a topic,
   shallow treatment is major; if the topic is tangential, it's minor.
-- **draft_path**: `research/notes/final_report_<vault_tag>.md`
-- **output_path**: `research/runs/<vault_tag>/critic-findings-depth.json`
+- **draft_path**: `output/notes/final_report_<vault_tag>.md`
+- **output_path**: `output/runs/<vault_tag>/critic-findings-depth.json`
 - **vault_tag**: corpus tag for searching the vault
 
 ## Procedure

@@ -3,7 +3,7 @@ name: hyperresearch-9-evidence-digest
 description: >
   Step 9 of the hyperresearch V8 pipeline. Assembles the top load-bearing
   claims and verbatim quotes from the claims JSONs into
-  research/runs/<vault_tag>/temp/evidence-digest.md — a single high-fidelity evidence
+  output/runs/<vault_tag>/temp/evidence-digest.md — a single high-fidelity evidence
   index the draft sub-orchestrators read as primary evidence (higher
   fidelity than fetcher summaries). Invoked via Skill tool from the
   entry skill (full tier).
@@ -13,34 +13,34 @@ description: >
 
 **Tier gate:** Run for `full`. Skip for `light`.
 
-**Goal:** assemble the top load-bearing claims and verbatim quotes from the claims JSONs into a single digest file the drafter reads as primary evidence — higher-fidelity than fetcher summaries.
+**Goal:** build the top load-bearing claims and verbatim quotes from the claims JSONs into a single digest file the drafter reads as primary evidence — higher-fidelity than fetcher summaries.
 
 ---
 
 ## Recover state
 
 Read these inputs:
-- `research/runs/<vault_tag>/scaffold.md` — vault_tag
-- `research/runs/<vault_tag>/prompt-decomposition.json` — atomic items, response_format, pipeline_tier
-- All `research/runs/<vault_tag>/temp/claims-*.json` files
-- `research/runs/<vault_tag>/temp/consensus-claims.json` (if step 3 ran)
-- `research/runs/<vault_tag>/temp/contradiction-graph.json` (if step 3 ran)
+- `output/runs/<vault_tag>/scaffold.md` — vault_tag
+- `output/runs/<vault_tag>/prompt-decomposition.json` — atomic items, response_format, pipeline_tier
+- All `output/runs/<vault_tag>/temp/claims-*.json` files
+- `output/runs/<vault_tag>/temp/consensus-claims.json` (if step 3 ran)
+- `output/runs/<vault_tag>/temp/contradiction-graph.json` (if step 3 ran)
 
 ---
 
 ## Procedure
 
-1. **Read all claims files** from `research/runs/<vault_tag>/temp/claims-*.json` for every non-deprecated note tagged with the vault tag. If no claim files exist (e.g., fetchers didn't produce them), skip this step.
+1. **Read all claims files** from `output/runs/<vault_tag>/temp/claims-*.json` for every non-deprecated note tagged with the vault tag. If no claim files exist (e.g., fetchers didn't produce them), skip this step.
 
 2. **Filter and rank.** Keep claims where `confidence` is `"high"` OR `evidence_type` is `"empirical"` or `"statistical"`. From the remainder, prefer claims with non-empty `numbers` arrays and non-empty `quoted_support`. Cap at **<< p.claims_cap|dash >> claims total** for `full` tier.
 
 3. **Group by atomic item.** Match each surviving claim to the atomic item it is most relevant to based on **topic overlap** — do not rely on exact field matching. A claim about "United Health Group regulatory exposure" serves the atomic item "UNH risk factors" even though no field matches exactly. Use the claim's `entities`, `stance_target`, `scope_conditions`, and `claim` text holistically to judge relevance. When uncertain, include the claim under the most relevant item rather than dropping it to Ungrouped. Claims that genuinely don't map to any atomic item go into an "Ungrouped" section at the end.
 
 4. **Include consensus and contested claims.**
-   - If `research/runs/<vault_tag>/temp/consensus-claims.json` exists, include its claims marked as `[consensus]`.
-   - If `research/runs/<vault_tag>/temp/contradiction-graph.json` exists, include the top 3–5 contested claim pairs with both sides' `quoted_support` passages.
+   - If `output/runs/<vault_tag>/temp/consensus-claims.json` exists, include its claims marked as `[consensus]`.
+   - If `output/runs/<vault_tag>/temp/contradiction-graph.json` exists, include the top 3–5 contested claim pairs with both sides' `quoted_support` passages.
 
-5. **Write `research/runs/<vault_tag>/temp/evidence-digest.md`.** Format: one H3 per atomic item, bullet list of claims. Each bullet includes:
+5. **Write `output/runs/<vault_tag>/temp/evidence-digest.md`.** Format: one H3 per atomic item, bullet list of claims. Each bullet includes:
    - The `claim` text
    - The `quoted_support` verbatim passage (block-quoted)
    - The `source_note_id`
@@ -64,7 +64,7 @@ Read these inputs:
 
 ## Exit criterion
 
-- `research/runs/<vault_tag>/temp/evidence-digest.md` exists
+- `output/runs/<vault_tag>/temp/evidence-digest.md` exists
 - Contains at least << p.claims_min >> claims for `full` tier
 - Grouped by atomic item with verbatim quoted_support and source_note_id
 

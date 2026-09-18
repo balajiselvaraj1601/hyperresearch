@@ -1,7 +1,7 @@
 """Per-run workspaces and the run manifest.
 
 A run is one /hyperresearch invocation. Everything run-scoped lives under
-`research/runs/<vault_tag>/`:
+`output/runs/<vault_tag>/`:
 
     run.json          — the manifest (this module's contract)
     events.jsonl      — append-only event log (step boundaries, spawns, fetches)
@@ -17,7 +17,7 @@ step boundaries via `hpr run ...` commands; `hpr run resume <tag>` computes
 the exact next position.
 
 Vault notes stay global — runs are ephemeral workspaces over the compounding
-vault. Final reports ship to `research/notes/final_report_<vault_tag>.md`.
+vault. Final reports ship to `output/notes/final_report_<vault_tag>.md`.
 """
 
 from __future__ import annotations
@@ -92,7 +92,7 @@ def init_run(
     budget_usd: float | None = None,
     query: str | None = None,
 ) -> dict:
-    """Scaffold research/runs/<vault_tag>/ and write a fresh manifest.
+    """Scaffold output/runs/<vault_tag>/ and write a fresh manifest.
 
     Idempotent: re-running on an existing run returns the existing manifest
     unchanged (so a recovering orchestrator can call it safely).
@@ -469,7 +469,7 @@ def verify_run(vault, vault_tag: str) -> dict:
     def check(name: str, ok: bool, detail: str) -> None:
         checks.append({"name": name, "ok": bool(ok), "detail": detail})
 
-    report_path = vault.root / "research" / "notes" / f"final_report_{vault_tag}.md"
+    report_path = vault.research_dir / "notes" / f"final_report_{vault_tag}.md"
     check("report-exists", report_path.exists(), str(report_path))
 
     report_text = ""

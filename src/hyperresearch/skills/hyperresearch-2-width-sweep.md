@@ -20,10 +20,10 @@ description: >
 ## Recover state
 
 Read these inputs:
-- `research/runs/<vault_tag>/scaffold.md` — vault_tag (in Run config), modality
-- `research/runs/<vault_tag>/prompt-decomposition.json` — atomic items, sub_questions, entities, pipeline_tier
-- `research/runs/<vault_tag>/temp/coverage-matrix.md` — verbatim query phrases mapped to atomic items
-- `research/runs/<vault_tag>/query.md` — canonical research query (GOSPEL)
+- `output/runs/<vault_tag>/scaffold.md` — vault_tag (in Run config), modality
+- `output/runs/<vault_tag>/prompt-decomposition.json` — atomic items, sub_questions, entities, pipeline_tier
+- `output/runs/<vault_tag>/temp/coverage-matrix.md` — verbatim query phrases mapped to atomic items
+- `output/runs/<vault_tag>/query.md` — canonical research query (GOSPEL)
 
 ---
 
@@ -63,7 +63,7 @@ Before spawning any fetchers, produce a **search plan** that maps the decomposit
    - **Earnings-call transcripts are insufficient on their own.** Transcripts narrate already-rounded numbers ("revenue grew about 27%"); rubrics demand the tabular line items from the filing itself. If the prompt names a fiscal period, the search plan MUST include a query for the filing PDF, not just the transcript.
    - Goal: every period in `time_periods` has at least one search that, if successful, fetches the filing's tabular data — not a paraphrase of it.
 
-3. **Write the combined search plan to `research/runs/<vault_tag>/temp/search-plan.md`** — a table with a `Lens` column:
+3. **Write the combined search plan to `output/runs/<vault_tag>/temp/search-plan.md`** — a table with a `Lens` column:
    ```markdown
    | Atomic item | Search query | Type | Lens | Target |
    |---|---|---|---|---|
@@ -75,7 +75,7 @@ Before spawning any fetchers, produce a **search plan** that maps the decomposit
 
    Plan typically has **<< p.planned_searches|dash >> planned searches** for a `full` query.
 
-4. **Search gap check.** Cross-check the search plan against `research/runs/<vault_tag>/temp/coverage-matrix.md`. For every row in the coverage matrix, verify at least one search in the plan targets that query phrase's atomic item. Re-read the verbatim query and check: is there any significant topic, entity, or category in the query that has ZERO rows in the search plan?
+4. **Search gap check.** Cross-check the search plan against `output/runs/<vault_tag>/temp/coverage-matrix.md`. For every row in the coverage matrix, verify at least one search in the plan targets that query phrase's atomic item. Re-read the verbatim query and check: is there any significant topic, entity, or category in the query that has ZERO rows in the search plan?
 
    Common failure modes this catches:
    - Decomposition correctly listed "rugged tablets" but search plan has no queries for tablet manufacturers, enterprise mobility, or field-service devices
@@ -119,7 +119,7 @@ Before batching URLs, score each candidate URL on six dimensions (0–3 each, ma
 
 **Selection rule:** Rank by composite utility score. Select the top N URLs (where N = batch capacity × batch count). Hard constraint: every atomic item must have ≥3 candidate URLs before low-utility URLs from well-covered items are included.
 
-Write to `research/runs/<vault_tag>/temp/scored-urls.md`.
+Write to `output/runs/<vault_tag>/temp/scored-urls.md`.
 
 **Scores travel with the URLs.** When you assign batches (step 2.4), include each URL's composite utility score next to it. Fetchers pass it to `$HPR fetch --utility-score <N>` so the score persists into note frontmatter — it becomes one input to the vault's composite `quality_score`, which step 10 uses for ranked curation.
 
@@ -129,16 +129,16 @@ Write to `research/runs/<vault_tag>/temp/scored-urls.md`.
 
 **Wave 1 (main wave):** Spawn **<< p.wave1_fetchers|dash >> fetcher subagents in ONE message** — true parallel execution. Each fetcher gets its own non-overlapping batch.
 
-**Subagent type:** `hyperresearch-fetcher`
+**Subagent type:** `agent_medium`
 
 **Spawn template (use the standard 3-piece contract):**
 ```
-subagent_type: hyperresearch-fetcher
+subagent_type: agent_medium
 prompt: |
   RESEARCH QUERY (verbatim, gospel):
-  > {{paste contents of research/runs/<vault_tag>/query.md}}
+  > {{paste contents of output/runs/<vault_tag>/query.md}}
 
-  QUERY FILE: research/runs/<vault_tag>/query.md
+  QUERY FILE: output/runs/<vault_tag>/query.md
 
   PIPELINE POSITION: You are step 2 (width-sweep fetcher) of the
   hyperresearch V8 pipeline. The orchestrator partitioned the URL queue into
@@ -151,14 +151,14 @@ prompt: |
   - urls: [<batch URLs, exactly as assigned — with each URL's utility score when scored, e.g. "https://... (utility: 14)">]
   - batch_id: <number>
 
-  RUN DIRECTIVES: append the FULL contents of research/runs/<vault_tag>/shims/research.md here, verbatim.
+  RUN DIRECTIVES: append the FULL contents of output/runs/<vault_tag>/shims/research.md here, verbatim.
 ```
 
 **CRITICAL: no token waste.** Each fetcher gets ONLY its batch. No fetcher searches for new URLs or duplicates another fetcher's work. If a fetcher finishes early, it's done.
 
 **CRITICAL: never emit bare text while waiting.** In `-p` mode, a text-only response triggers `end_turn`.
 
-**Use wait time to think.** While subagents are working, write evolving thoughts to `research/runs/<vault_tag>/temp/orchestrator-notes.md`:
+**Use wait time to think.** While subagents are working, write evolving thoughts to `output/runs/<vault_tag>/temp/orchestrator-notes.md`:
 - What patterns are emerging from sources?
 - What tensions or contradictions do you expect?
 - What's the strongest thesis forming? What could overturn it?
@@ -193,7 +193,7 @@ After Wave 1 returns, run the coverage check before proceeding:
    - Spawn << p.wave2_fetchers|dash >> fetchers with gap-filling URLs (non-overlapping batches)
    - This wave is smaller (typically 20–40 URLs) but surgically targeted
 
-4. **Write coverage report** to `research/runs/<vault_tag>/temp/coverage-gaps.md`:
+4. **Write coverage report** to `output/runs/<vault_tag>/temp/coverage-gaps.md`:
    - List every atomic item with its coverage status and source count
    - Any item still at 0 sources after Wave 2 is a genuine gap — flag it prominently
 
@@ -207,7 +207,7 @@ After Wave 1 returns, run the coverage check before proceeding:
 
 **Goal:** detect when N sources are really 1 source in N outfits.
 
-1. **Collect all claims.** Read `research/runs/<vault_tag>/temp/claims-<note-id>.json` for every non-deprecated note tagged `<vault_tag>`. If no claim files exist, skip this step.
+1. **Collect all claims.** Read `output/runs/<vault_tag>/temp/claims-<note-id>.json` for every non-deprecated note tagged `<vault_tag>`. If no claim files exist, skip this step.
 
 2. **Cluster by content overlap.** Sources sharing >60% of their `quoted_support` passages are likely derivative.
 
@@ -215,7 +215,7 @@ After Wave 1 returns, run the coverage check before proceeding:
 
 4. **For each cluster, identify the canonical upstream source.** Tag derivative sources with `derivative-of`. Do NOT deprecate them — discount them in coverage counting.
 
-5. **Write `research/runs/<vault_tag>/temp/redundancy-audit.md`** — clusters, adjusted coverage counts, atomic items dropping below 2 → flag for Wave 3.
+5. **Write `output/runs/<vault_tag>/temp/redundancy-audit.md`** — clusters, adjusted coverage counts, atomic items dropping below 2 → flag for Wave 3.
 
 6. **Wave 3 fetch (conditional).** If any atomic item's independent source count drops below 2, run targeted searches for INDEPENDENT sources. Spawn << p.wave3_fetchers|hyphen >> fetchers.
 
@@ -232,7 +232,7 @@ $HPR sources score --tag <vault_tag> -j          # citation counts + retraction 
 $HPR graph rank -j                               # vault centrality + composite quality_score
 ```
 
-**If `sources score` reports RETRACTED sources:** flag them in `research/runs/<vault_tag>/temp/coverage-gaps.md` immediately — a retracted source must never anchor a locus or survive into drafting as unqualified evidence. The retraction floor also crushes its `quality_score`, so ranked curation (step 10) buries it automatically.
+**If `sources score` reports RETRACTED sources:** flag them in `output/runs/<vault_tag>/temp/coverage-gaps.md` immediately — a retracted source must never anchor a locus or survive into drafting as unqualified evidence. The retraction floor also crushes its `quality_score`, so ranked curation (step 10) buries it automatically.
 
 These commands are local/cached and cost seconds. Skipping them leaves step 10's ranked curation blind.
 
@@ -246,15 +246,15 @@ Blocked fetches (login walls, bot walls, captchas) were NOT lost — the fetch g
 $HPR escalation list --status queued --tag <vault_tag> -j
 ```
 
-**If queued items exist**, spawn EXACTLY ONE `hyperresearch-browser-fetcher` subagent to drain them (serial, one browser — never spawn two):
+**If queued items exist**, spawn EXACTLY ONE `agent_medium` subagent to drain them (serial, one browser — never spawn two):
 
 ```
-subagent_type: hyperresearch-browser-fetcher
+subagent_type: agent_medium
 prompt: |
   RESEARCH QUERY (verbatim, gospel):
-  > {{paste research/runs/<vault_tag>/query.md body}}
+  > {{paste output/runs/<vault_tag>/query.md body}}
 
-  QUERY FILE: research/runs/<vault_tag>/query.md
+  QUERY FILE: output/runs/<vault_tag>/query.md
 
   PIPELINE POSITION: You are the step 2 escalation-lane fetcher of the
   hyperresearch V8 pipeline. Headless fetchers hit walls on these URLs;
@@ -266,7 +266,7 @@ prompt: |
   - vault_tag: <vault_tag>
   - drain up to 10 items (claim via `$HPR escalation claim --tag <vault_tag>`)
 
-  RUN DIRECTIVES: append the FULL contents of research/runs/<vault_tag>/shims/research.md here, verbatim.
+  RUN DIRECTIVES: append the FULL contents of output/runs/<vault_tag>/shims/research.md here, verbatim.
 ```
 
 **When the browser-fetcher returns with `needs_human` items** (CAPTCHAs, logins, 2FA — it NEVER solves these itself):
@@ -293,7 +293,7 @@ Substantive (non-deprecated) note counts. The `full` row reflects the installed 
 
 ## Long-source delegation (any time during step 2)
 
-When a single long source (><< p.source_analyst_word_trigger >> words) is load-bearing, delegate end-to-end analysis to `hyperresearch-source-analyst` (full-source deep read):
+When a single long source (><< p.source_analyst_word_trigger >> words) is load-bearing, delegate end-to-end analysis to `agent_medium` (full-source deep read):
 
 Trigger conditions (ALL three must hold):
 1. **Length:** source's `word_count` (visible on `$HPR note show <id> -j`) exceeds ~<< p.source_analyst_word_trigger >> words
@@ -304,12 +304,12 @@ Trigger conditions (ALL three must hold):
 
 Spawn template:
 ```
-subagent_type: hyperresearch-source-analyst
+subagent_type: agent_medium
 prompt: |
   RESEARCH QUERY (verbatim, gospel):
-  > {{paste research/runs/<vault_tag>/query.md body}}
+  > {{paste output/runs/<vault_tag>/query.md body}}
 
-  QUERY FILE: research/runs/<vault_tag>/query.md
+  QUERY FILE: output/runs/<vault_tag>/query.md
 
   PIPELINE POSITION: You are a leaf subagent for deep end-to-end analysis
   of ONE long source. Your digest feeds downstream hyperresearch V8 steps. You
@@ -317,10 +317,10 @@ prompt: |
 
   YOUR INPUTS:
   - source_note_id: <vault note id of the long source>
-  - output_path: research/runs/<vault_tag>/temp/source-analysis-<source_note_id>.md
+  - output_path: output/runs/<vault_tag>/temp/source-analysis-<source_note_id>.md
   - vault_tag: <vault_tag>
 
-  RUN DIRECTIVES: append the FULL contents of research/runs/<vault_tag>/shims/research.md here, verbatim.
+  RUN DIRECTIVES: append the FULL contents of output/runs/<vault_tag>/shims/research.md here, verbatim.
 ```
 
 ---
@@ -329,8 +329,8 @@ prompt: |
 
 - Minimum source count met (per tier table)
 - Coverage check shows no `uncovered` atomic items (thin is acceptable)
-- `research/runs/<vault_tag>/temp/coverage-gaps.md` written
-- (For std/full): `research/runs/<vault_tag>/temp/redundancy-audit.md` written if any claim files existed
+- `output/runs/<vault_tag>/temp/coverage-gaps.md` written
+- (For std/full): `output/runs/<vault_tag>/temp/redundancy-audit.md` written if any claim files existed
 
 If you fall short after two waves, proceed anyway but ensure `coverage-gaps.md` lists what's missing so the drafter handles it.
 

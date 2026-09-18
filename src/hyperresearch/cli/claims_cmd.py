@@ -30,8 +30,8 @@ def claims_ingest(
     paths: list[str] = typer.Argument(
         None,
         help=(
-            "claims-*.json files (default: research/runs/<tag>/temp/ when --tag names an "
-            "existing run, else research/temp/ plus every research/runs/*/temp/)"
+            "claims-*.json files (default: output/runs/<tag>/temp/ when --tag names an "
+            "existing run, else output/temp/ plus every output/runs/*/temp/)"
         ),
     ),
     vault_tag: str | None = typer.Option(
@@ -42,8 +42,8 @@ def claims_ingest(
 ) -> None:
     """Ingest claims JSON files into the claims table (idempotent).
 
-    Fetchers write `research/runs/<vault_tag>/temp/claims-<note-id>.json`;
-    the no-argument form finds those (and the legacy flat `research/temp/`).
+    Fetchers write `output/runs/<vault_tag>/temp/claims-<note-id>.json`;
+    the no-argument form finds those (and the legacy flat `output/temp/`).
     """
     from hyperresearch.core.claims import ingest_claims_dir, ingest_claims_file
 

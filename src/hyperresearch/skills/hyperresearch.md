@@ -17,7 +17,7 @@ You are the orchestrator. Your entire job in this conversation is:
 1. Read this file once at the start.
 2. Bootstrap canonical inputs (research_query, vault_tag, scaffold).
 3. Invoke each step skill in sequence via the `Skill` tool.
-4. Between steps, do nothing except mark todos and (optionally) think to `research/runs/<vault_tag>/temp/orchestrator-notes.md`.
+4. Between steps, do nothing except mark todos and (optionally) think to `output/runs/<vault_tag>/temp/orchestrator-notes.md`.
 
 You do NOT do the work of any step yourself. The step skills do. You just sequence them.
 
@@ -62,7 +62,7 @@ When you invoke a Skill, that skill's full procedure is loaded into your context
 
 ## Tier routing
 
-Step 1 classifies the query into a `pipeline_tier` (`light` / `full`). The tier is written to `research/runs/<vault_tag>/prompt-decomposition.json`. After step 1, **read that file** to learn the tier, then sequence steps according to:
+Step 1 classifies the query into a `pipeline_tier` (`light` / `full`). The tier is written to `output/runs/<vault_tag>/prompt-decomposition.json`. After step 1, **read that file** to learn the tier, then sequence steps according to:
 
 | Tier | Steps that run | Typical time |
 |------|---|---|
@@ -82,19 +82,20 @@ Step 1 classifies the query into a `pipeline_tier` (`light` / `full`). The tier 
 
 Before you invoke any step skill, do this:
 
-0. **Auto-init if missing.** Two checks for the first-run-after-global-install case:
-   - **Vault check.** If `.hyperresearch/` doesn't exist in the working directory, run `hyperresearch init . --json`. Creates the SQLite vault and `research/` directory.
-   - **Step-skills check.** If `.claude/skills/hyperresearch-1-decompose/SKILL.md` doesn't exist relative to the working directory, run `hyperresearch install --steps-only . --json`. Installs the 16 step skill files needed by `Skill(skill: "hyperresearch-N-...")` calls in later steps.
+0. **Auto-init if missing.** One check for the first-run-after-global-install case:
+   - **Vault check.** If `.hyperresearch/` doesn't exist in the working directory, run `hyperresearch init . --json`. Creates the SQLite vault and `output/` directory.
 
-   If either command fails because the binary isn't on PATH, tell the user to run `pip install hyperresearch` first. If both files already exist, both commands no-op cheaply — safe to run unconditionally.
+   If the command fails because the binary isn't on PATH, tell the user to run `pip install hyperresearch` first. If the vault already exists, the command no-ops cheaply — safe to run unconditionally.
 
-0.5. **Archive any pre-3.0 flat artifacts.** Run `hyperresearch archive-run --json`. On vaults that ran pre-3.0 pipelines, flat artifacts (research/scaffold.md, loci.json, etc.) may still sit at the research root; this moves them into `research/runs/archive-<prev-tag>-<UTC-timestamp>/`. On 3.0+ vaults every run already owns `research/runs/<vault_tag>/`, so concurrent and sequential runs never collide and this command cheaply no-ops.
+   **Note:** Step contracts live in the repo's `src/hyperresearch/skills/` directory — no separate install step is needed. The `Skill(skill: "hyperresearch-N-...")` calls load them directly from there.
+
+0.5. **Archive any pre-3.0 flat artifacts.** Run `hyperresearch archive-run --json`. On vaults that ran pre-3.0 pipelines, flat artifacts (output/scaffold.md, loci.json, etc.) may still sit at the research root; this moves them into `output/runs/archive-<prev-tag>-<UTC-timestamp>/`. On 3.0+ vaults every run already owns `output/runs/<vault_tag>/`, so concurrent and sequential runs never collide and this command cheaply no-ops.
 
 1. **Resolve the canonical research query.** Order of precedence:
-   - If `research/prompt.txt` exists (legacy harness / wrapped run), read it. Its contents are the canonical research query. GOSPEL.
+   - If `output/prompt.txt` exists (legacy harness / wrapped run), read it. Its contents are the canonical research query. GOSPEL.
    - Otherwise, use the user's verbatim prompt as the canonical research query.
    - Extract wrapper requirements separately: required save path, citation format, terminal-section shape, wrapper contract. These are binding but NOT part of the query.
-   - If `research/wrapper_contract.json` exists, read it.
+   - If `output/wrapper_contract.json` exists, read it.
 
 2. **Mint a unique vault tag.** First produce a short topical slug from the canonical query — 3–5 lowercase hyphen-separated words, e.g. `efield-dft-sac`. Then call `hyperresearch vault-tag <slug> --json` and parse the `vault_tag` field from the response. The CLI appends a random 6-hex-char suffix that's verified unique against every prior run's workspaces, query files, and final reports in this vault. The result — e.g. `efield-dft-sac-a3f9b7` — is the canonical vault_tag for the rest of the pipeline.
 
@@ -103,9 +104,9 @@ Before you invoke any step skill, do this:
    hyperresearch run init <vault_tag> --profile <full|light|premier|dissertation> --json
    ```
    For a standard run, pass the installed gear (`<< p.name >>`) unless the user asked for something else.
-   Pass `--budget <usd>` when the user set a spend ceiling. This scaffolds `research/runs/<vault_tag>/` (with `temp/`) and writes `run.json` — the run manifest. **The manifest is your durable memory**: record every step transition with `hyperresearch run step <vault_tag> <N> --status running|done -j` as you go. The profile here defaults to matching the tier you expect; if step 1 classifies differently, the manifest's profile field is informational — the decomposition's tier rules.
+   Pass `--budget <usd>` when the user set a spend ceiling. This scaffolds `output/runs/<vault_tag>/` (with `temp/`) and writes `run.json` — the run manifest. **The manifest is your durable memory**: record every step transition with `hyperresearch run step <vault_tag> <N> --status running|done -j` as you go. The profile here defaults to matching the tier you expect; if step 1 classifies differently, the manifest's profile field is informational — the decomposition's tier rules.
 
-3. **Persist the query file.** Write the verbatim canonical query to `research/runs/<vault_tag>/query.md`:
+3. **Persist the query file.** Write the verbatim canonical query to `output/runs/<vault_tag>/query.md`:
    ```markdown
    ---
    vault_tag: <slug>
@@ -123,7 +124,7 @@ Before you invoke any step skill, do this:
    - **compare**: proportionate per-entity depth + a committed recommendation
    - **forecast**: predictive claims grounded in past + present, explicit time horizon
 
-5. **Write the scaffold.** Write `research/runs/<vault_tag>/scaffold.md` (your private planning document — it MUST NOT appear anywhere in the final report). Include in scaffold:
+5. **Write the scaffold.** Write `output/runs/<vault_tag>/scaffold.md` (your private planning document — it MUST NOT appear anywhere in the final report). Include in scaffold:
    - User Prompt (VERBATIM — gospel)
    - Run config (vault_tag, query_file_path, modality, wrapper requirements)
    - Modality classification rationale
@@ -139,13 +140,13 @@ Before you invoke any step skill, do this:
 
 7. **Invoke step 1:** `Skill(skill: "hyperresearch-1-decompose")`.
 
-After step 1 returns, read `research/runs/<vault_tag>/prompt-decomposition.json` to learn the tier, then continue invoking step skills per the tier routing table above. After each step's exit criterion is met, mark its todo complete and move to the next.
+After step 1 returns, read `output/runs/<vault_tag>/prompt-decomposition.json` to learn the tier, then continue invoking step skills per the tier routing table above. After each step's exit criterion is met, mark its todo complete and move to the next.
 
 ---
 
 ## Four canonical rules (ALWAYS in force)
 
-1. **NEVER EMIT BARE TEXT WHILE TASKS ARE RUNNING.** In non-interactive (`-p`) mode, a text-only response (no tool call) triggers `end_turn` — the process exits and the pipeline dies. Every response while subagent tasks are in flight MUST include a tool call. The best one is appending analytical thoughts to `research/runs/<vault_tag>/temp/orchestrator-notes.md`. Vault count checks at most once per minute.
+1. **NEVER EMIT BARE TEXT WHILE TASKS ARE RUNNING.** In non-interactive (`-p`) mode, a text-only response (no tool call) triggers `end_turn` — the process exits and the pipeline dies. Every response while subagent tasks are in flight MUST include a tool call. The best one is appending analytical thoughts to `output/runs/<vault_tag>/temp/orchestrator-notes.md`. Vault count checks at most once per minute.
 
 2. **PATCH, NEVER REGENERATE.** After step 11 produces the synthesized final report (or step 10 for light tier), the only modifications are surgical Edit hunks from step 14 (patcher) and step 15 (polish-auditor). Both subagents are tool-locked to `[Read, Edit]`. If a critic's finding would require rewriting a whole section, it escalates to you as a structural issue — not a rewrite. Keep hunks surgical.
 
@@ -157,7 +158,7 @@ After step 1 returns, read `research/runs/<vault_tag>/prompt-decomposition.json`
 
 ## Browser-lane escalations (all tiers)
 
-Blocked fetches (login walls, bot walls, captchas) are queued, not lost: `$HPR escalation list --status queued --tag <vault_tag> -j`. Step 2.8 drains the queue via ONE `hyperresearch-browser-fetcher` subagent driving the user's real Chrome browser. Two standing rules:
+Blocked fetches (login walls, bot walls, captchas) are queued, not lost: `$HPR escalation list --status queued --tag <vault_tag> -j`. Step 2.8 drains the queue via ONE `agent_medium` subagent driving the user's real Chrome browser. Two standing rules:
 
 1. **CAPTCHAs / logins / 2FA are ALWAYS the human's.** The browser-fetcher marks them `needs_human`; you consolidate ALL of them into ONE message to the user at a natural pause point (never one interruption per URL). In non-interactive runs, `$HPR run block <vault_tag> --on human-challenges` and continue with everything else.
 2. **One browser-fetcher at a time.** It's the user's actual browser — parallel instances are chaos. Check the queue again after step 13 (gap-fetch) if new fetches got blocked.
@@ -166,13 +167,13 @@ Blocked fetches (login walls, bot walls, captchas) are queued, not lost: `$HPR e
 
 When a step skill instructs you to spawn a subagent, the prompt you pass MUST include three pieces near the top:
 
-1. **`research_query` — verbatim, block-quoted** from `research/runs/<vault_tag>/query.md`. Do not paraphrase, do not summarize.
+1. **`research_query` — verbatim, block-quoted** from `output/runs/<vault_tag>/query.md`. Do not paraphrase, do not summarize.
 
-2. **Pipeline position statement.** One sentence naming what step the subagent runs in, what came before, what comes after. Example: *"You are step 5 (depth investigator) of the hyperresearch V8 pipeline. Step 4's loci analysts produced `research/runs/<vault_tag>/loci.json`; after you return, step 6 will reconcile your committed position against the other investigators'."*
+2. **Pipeline position statement.** One sentence naming what step the subagent runs in, what came before, what comes after. Example: *"You are step 5 (depth investigator) of the hyperresearch V8 pipeline. Step 4's loci analysts produced `output/runs/<vault_tag>/loci.json`; after you return, step 6 will reconcile your committed position against the other investigators'."*
 
 3. **The subagent's specific inputs** (vault_tag, output_path, locus, etc.). Each step skill's spawn template documents the required fields.
 
-4. **The run's shim file, pasted VERBATIM.** Step 1 renders posture shims (register / domain notes / inference depth) to `research/runs/<vault_tag>/shims/{research,drafting,critics,polish}.md`. Each step skill's spawn template names which shim its subagents receive; append that file's FULL contents to the end of the spawn prompt, unedited. You never write, summarize, or trim shim text — the file is the single source of truth. The cite-checker receives NO shim (verification is register-independent). If the shims directory is missing, run `$HPR levers render <vault_tag> -j` before spawning.
+4. **The run's shim file, pasted VERBATIM.** Step 1 renders posture shims (register / domain notes / inference depth) to `output/runs/<vault_tag>/shims/{research,drafting,critics,polish}.md`. Each step skill's spawn template names which shim its subagents receive; append that file's FULL contents to the end of the spawn prompt, unedited. You never write, summarize, or trim shim text — the file is the single source of truth. The cite-checker receives NO shim (verification is register-independent). If the shims directory is missing, run `$HPR levers render <vault_tag> -j` before spawning.
 
 Skipping any of these in a Task prompt is a process violation.
 
@@ -185,22 +186,22 @@ Context compaction may eat parts of this conversation. If you're unsure what ste
 0. **Read the run manifest FIRST.** `hyperresearch run resume <vault_tag> --json` (or with no tag for the newest run) returns the exact next step and the Skill invocation to continue with. This is the primary recovery path — the manifest records every step transition you logged via `hyperresearch run step`. The artifact scan below is the fallback for manifests that are missing or were not kept up to date.
 1. **Check the TodoWrite list.** It carries integer step numbers and survives compaction.
 2. **Check disk artifacts (fallback).** Each step writes a canonical artifact:
-   - Step 1: `research/runs/<vault_tag>/scaffold.md`, `research/runs/<vault_tag>/prompt-decomposition.json`, `research/runs/<vault_tag>/temp/coverage-matrix.md`
+   - Step 1: `output/runs/<vault_tag>/scaffold.md`, `output/runs/<vault_tag>/prompt-decomposition.json`, `output/runs/<vault_tag>/temp/coverage-matrix.md`
    - Step 2: vault notes tagged with vault_tag (`$HPR note list --tag <vault_tag> --all -j`)
-   - Step 3: `research/runs/<vault_tag>/temp/contradiction-graph.json`, `research/runs/<vault_tag>/temp/consensus-claims.json`
-   - Step 4: `research/runs/<vault_tag>/loci.json`
+   - Step 3: `output/runs/<vault_tag>/temp/contradiction-graph.json`, `output/runs/<vault_tag>/temp/consensus-claims.json`
+   - Step 4: `output/runs/<vault_tag>/loci.json`
    - Step 5: vault notes with `type: interim` (`$HPR note list --tag <vault_tag> --type interim --all -j`)
-   - Step 6: `research/runs/<vault_tag>/comparisons.md`
-   - Step 7: `research/runs/<vault_tag>/temp/source-tensions.json`
-   - Step 8: `research/runs/<vault_tag>/corpus-critic-gaps.json`, `research/runs/<vault_tag>/temp/corpus-critic-results.md`
-   - Step 9: `research/runs/<vault_tag>/temp/evidence-digest.md`
-   - Step 10: `research/runs/<vault_tag>/temp/draft-{a,b,c}.md` (or `research/notes/final_report_<vault_tag>.md` for light tier single-pass)
-   - Step 11: `research/runs/<vault_tag>/temp/synthesis-plan.md`, `research/runs/<vault_tag>/temp/synthesis-outline.md`, `research/runs/<vault_tag>/temp/synthesis-pass1.md`, `research/notes/final_report_<vault_tag>.md`
-   - Step 12: `research/runs/<vault_tag>/critic-findings-{dialectic,depth,width,instruction}.json`
-   - Step 13: `research/runs/<vault_tag>/temp/post-critic-fetch-log.md`
-   - Step 14: `research/runs/<vault_tag>/patch-log.json` (and edited final_report.md)
-   - Step 15: `research/runs/<vault_tag>/polish-log.json` (and edited final_report.md)
-   - Step 16: `research/runs/<vault_tag>/readability-recommendations.json`, `research/runs/<vault_tag>/readability-decisions.json` (and edited final_report.md)
+   - Step 6: `output/runs/<vault_tag>/comparisons.md`
+   - Step 7: `output/runs/<vault_tag>/temp/source-tensions.json`
+   - Step 8: `output/runs/<vault_tag>/corpus-critic-gaps.json`, `output/runs/<vault_tag>/temp/corpus-critic-results.md`
+   - Step 9: `output/runs/<vault_tag>/temp/evidence-digest.md`
+   - Step 10: `output/runs/<vault_tag>/temp/draft-{a,b,c}.md` (or `output/notes/final_report_<vault_tag>.md` for light tier single-pass)
+   - Step 11: `output/runs/<vault_tag>/temp/synthesis-plan.md`, `output/runs/<vault_tag>/temp/synthesis-outline.md`, `output/runs/<vault_tag>/temp/synthesis-pass1.md`, `output/notes/final_report_<vault_tag>.md`
+   - Step 12: `output/runs/<vault_tag>/critic-findings-{dialectic,depth,width,instruction}.json`
+   - Step 13: `output/runs/<vault_tag>/temp/post-critic-fetch-log.md`
+   - Step 14: `output/runs/<vault_tag>/patch-log.json` (and edited final_report.md)
+   - Step 15: `output/runs/<vault_tag>/polish-log.json` (and edited final_report.md)
+   - Step 16: `output/runs/<vault_tag>/readability-recommendations.json`, `output/runs/<vault_tag>/readability-decisions.json` (and edited final_report.md)
 3. **Find the highest-numbered step whose artifact exists.** Resume from the next step.
 4. **Re-invoke this entry skill** if you've lost track entirely: `Skill(skill: "hyperresearch")`. It loads fresh.
 
@@ -213,12 +214,12 @@ If you're ever uncertain what to do next, the answer is: re-read this file and f
 Once step 16 returns, run the integrity check:
 
 ```bash
-for f in research/runs/<vault_tag>/critic-findings-dialectic.json \
-         research/runs/<vault_tag>/critic-findings-depth.json \
-         research/runs/<vault_tag>/critic-findings-width.json \
-         research/runs/<vault_tag>/critic-findings-instruction.json \
-         research/runs/<vault_tag>/patch-log.json \
-         research/runs/<vault_tag>/polish-log.json; do
+for f in output/runs/<vault_tag>/critic-findings-dialectic.json \
+         output/runs/<vault_tag>/critic-findings-depth.json \
+         output/runs/<vault_tag>/critic-findings-width.json \
+         output/runs/<vault_tag>/critic-findings-instruction.json \
+         output/runs/<vault_tag>/patch-log.json \
+         output/runs/<vault_tag>/polish-log.json; do
   test -f "$f" || echo "MISSING: $f"
 done
 ```
@@ -242,7 +243,7 @@ $HPR run finish <vault_tag> --json                  # THE ship gate: verify + ma
 
 Re-run `$HPR run finish <vault_tag> --json` after each fix round. Maximum 3 rounds; if the gate still fails, leave the run `blocked` and report the failing checks to the user honestly — a blocked run with a true manifest beats a shipped report that lies. Optional advisory: `$HPR lint --rule numeric-consistency --json` (warnings only, never blocks).
 
-Ship only after `run finish` reports `"passed": true`: the final report lives at `research/notes/final_report_<vault_tag>.md`.
+Ship only after `run finish` reports `"passed": true`: the final report lives at `output/notes/final_report_<vault_tag>.md`.
 
 ---
 
@@ -252,17 +253,17 @@ Ship only after `run finish` reports `"passed": true`: the final report lives at
 2. **One final report.** Step 11's synthesizer writes the final report ONCE. No re-synthesizing. (Light tier: step 10 writes it once.)
 3. **At least one dialectical locus.** Step 4 must surface ≥1 dialectical locus unless skip is justified.
 4. **Every interim note commits to a position.** Step 5 investigators end with `## Committed position`.
-5. **`research/runs/<vault_tag>/comparisons.md` exists when loci count ≥ 1.** Step 6 is mandatory whenever step 4 produced any loci.
+5. **`output/runs/<vault_tag>/comparisons.md` exists when loci count ≥ 1.** Step 6 is mandatory whenever step 4 produced any loci.
 6. **Steps are sequential at the outermost level, parallel within.** You cannot start step N+1 before step N completes. Within a step, parallelism is mandatory when there are multiple subagents.
 7. **Canonical research query is gospel everywhere.** Every subagent gets the verbatim query.
 8. **Hygiene rules apply to the final report only.** Workspace artifacts (scaffold, loci JSONs, interim notes, comparisons.md, patch log) can look however they need to look.
 9. **NEVER skip a step that the tier gate says to run.** For `full` tier, ALL 16 steps run. For `light`, the prescribed 5 steps run.
-10. **Step 10 triple-draft ensemble is MANDATORY for `full` tier.** You MUST spawn 3 `hyperresearch-draft-orchestrator` subagents. Writing `research/notes/final_report_<vault_tag>.md` directly in step 10 (instead of going through the synthesizer in step 11) is a PIPELINE VIOLATION for these tiers.
+10. **Step 10 triple-draft ensemble is MANDATORY for `full` tier.** You MUST spawn 3 `agent_medium` subagents. Writing `output/notes/final_report_<vault_tag>.md` directly in step 10 (instead of going through the synthesizer in step 11) is a PIPELINE VIOLATION for these tiers.
 11. **Step 11 synthesis is MANDATORY for `full` tier.** The synthesizer subagent (Read+Write tool-locked) writes the final report from the 3 drafts. The orchestrator does NOT write the final report itself for these tiers.
 12. **Subagents read full source text.** Draft sub-orchestrators MUST batch-read every note in their `must_read_note_ids` list before writing. Fetchers MUST chase 3-8 primary sources via citation chains.
 13. **NEVER emit a bare text response while subagent tasks are in flight.**
 14. **A run is complete ONLY when `run finish` reports `passed: true`.** Gate failures are fixed by changing the report, never by re-interpreting, downgrading, or memo-ing away the checks. If 3 fix rounds don't clear the gate, the run stays `blocked` and you say so.
-15. **Shim files are pasted verbatim.** The lever shims under `research/runs/<vault_tag>/shims/` go into spawn prompts whole and unedited, per the spawn contract. The orchestrator never composes, summarizes, or omits shim text, and never gives the cite-checker one.
+15. **Shim files are pasted verbatim.** The lever shims under `output/runs/<vault_tag>/shims/` go into spawn prompts whole and unedited, per the spawn contract. The orchestrator never composes, summarizes, or omits shim text, and never gives the cite-checker one.
 
 ---
 

@@ -12,7 +12,7 @@ from mcp.server.fastmcp import FastMCP
 
 server = FastMCP("hyperresearch", instructions=(
     "hyperresearch is an agent-driven research knowledge base. Use these tools to search, read, "
-    "and navigate research notes with wiki-links, tags, and summaries. Notes live in the research/ "
+    "and navigate research notes with wiki-links, tags, and summaries. Notes live in the output/ "
     "directory as markdown files with YAML frontmatter. To create or edit notes, write "
     "files directly and they will be auto-indexed."
 ))

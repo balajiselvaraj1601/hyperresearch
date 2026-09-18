@@ -156,7 +156,9 @@ class TestRunCli:
         monkeypatch.chdir(tmp_vault.root)
         runner = CliRunner()
 
-        r = runner.invoke(app, ["run", "init", "cli-run-000001", "--profile", "light", "--budget", "50", "--json"])
+        r = runner.invoke(
+            app, ["run", "init", "cli-run-000001", "--profile", "light", "--budget", "50", "--json"]
+        )
         assert r.exit_code == 0
 
         r = runner.invoke(app, ["run", "step", "cli-run-000001", "1", "--status", "done", "--json"])
@@ -169,7 +171,7 @@ class TestRunCli:
         assert data["next_step"] == "2"
         # The full installed slug, not a bare `hyperresearch-2` that the
         # Skill tool cannot resolve (#100).
-        assert data["skill_to_invoke"] == "hyperresearch-2-width-sweep"
+        assert data["next_step_contract"] == "hyperresearch-2-width-sweep"
 
         r = runner.invoke(app, ["run", "abort", "cli-run-000001", "--json"])
         assert r.exit_code == 0
@@ -200,25 +202,27 @@ class TestRunCli:
         assert step_skill_slug(None) is None
         assert step_skill_slug("11g") is None
         r = runner.invoke(app, ["run", "resume", "dis-run-000001", "--json"])
-        assert json.loads(r.stdout)["data"]["skill_to_invoke"] == "hyperresearch-2-width-sweep"
+        assert json.loads(r.stdout)["data"]["next_step_contract"] == "hyperresearch-2-width-sweep"
 
     def test_every_step_id_maps_to_a_shipped_skill(self, tmp_vault):
         """`run resume` must only ever suggest a skill the installer ships:
         every step id in every built-in profile (plus the half-steps 1.5 and
         14.5) maps to a slug whose source template exists under
-        src/hyperresearch/skills/ and which installs as a skill directory."""
+        src/hyperresearch/skills/. As of v8, step skills are retired and
+        not installed as Claude Code agents; pipeline steps run via the
+        external `hyperresearch-runner` agent."""
         from pathlib import Path
 
         import hyperresearch.skills as skills_pkg
         from hyperresearch.core.hooks import (
             STEP_SKILL_BY_ID,
-            _install_hyperresearch_step_skills,
             step_skill_slug,
         )
         from hyperresearch.core.profiles import BUILTIN_PROFILES, resolve_profile
 
         skills_src = Path(skills_pkg.__file__).parent
-        _install_hyperresearch_step_skills(tmp_vault.root)
+        # _install_hyperresearch_step_skills is now a no-op (step skills retired)
+        # _install_hyperresearch_step_skills(tmp_vault.root)
         installed_root = tmp_vault.root / ".claude" / "skills"
 
         wanted: set[str] = {"1.5", "14.5"}
@@ -228,7 +232,10 @@ class TestRunCli:
             slug = step_skill_slug(step_id)
             assert slug, f"step {step_id} has no skill slug"
             assert (skills_src / f"{slug}.md").is_file(), f"{slug}.md missing from package"
-            assert (installed_root / slug / "SKILL.md").is_file(), f"{slug} did not install"
+            # Step skills are retired; they should not be installed as Claude Code agents
+            assert not (installed_root / slug / "SKILL.md").exists(), (
+                f"{slug} should not be installed"
+            )
         # And the map has no entries that don't correspond to a step id
         for step_id, slug in STEP_SKILL_BY_ID.items():
             assert step_id and all(part.isdigit() for part in step_id.split(".")), (step_id, slug)
@@ -294,10 +301,19 @@ class TestChapterRegistration:
         runner.invoke(app, ["run", "init", "ch-cli-000001", "--profile", "dissertation", "--json"])
         runner.invoke(app, ["run", "step", "ch-cli-000001", "1", "--status", "done", "--json"])
         for cid in ("ch1", "ch2", "ch3"):
-            r = runner.invoke(app, [
-                "run", "event", "ch-cli-000001", "--type", "chapter-plan",
-                "--data", json.dumps({"chapter": cid, "title": f"Chapter {cid}"}), "--json",
-            ])
+            r = runner.invoke(
+                app,
+                [
+                    "run",
+                    "event",
+                    "ch-cli-000001",
+                    "--type",
+                    "chapter-plan",
+                    "--data",
+                    json.dumps({"chapter": cid, "title": f"Chapter {cid}"}),
+                    "--json",
+                ],
+            )
             assert r.exit_code == 0, r.stdout
         runner.invoke(app, ["run", "step", "ch-cli-000001", "1.5", "--status", "done", "--json"])
 
@@ -306,7 +322,7 @@ class TestChapterRegistration:
         data = json.loads(r.stdout)["data"]
         assert data["chapters_pending"] == ["ch1", "ch2", "ch3"]
         assert data["next_step"] == "2"
-        assert data["skill_to_invoke"] == "hyperresearch-2-width-sweep"
+        assert data["next_step_contract"] == "hyperresearch-2-width-sweep"
 
 
 class TestWorkspaceIsolation:
@@ -347,7 +363,7 @@ class TestWorkspaceIsolation:
     def test_lint_falls_back_to_legacy_flat_path(self, tmp_vault):
         from hyperresearch.cli.lint import _run_artifact
 
-        flat = tmp_vault.root / "research" / "loci.json"
+        flat = tmp_vault.root / "output" / "loci.json"
         flat.write_text('{"loci": []}', encoding="utf-8")
         assert _run_artifact(tmp_vault, "loci.json") == flat
 
@@ -355,7 +371,7 @@ class TestWorkspaceIsolation:
         from hyperresearch.cli.lint import _query_files
 
         init_run(tmp_vault, "q-000001", query="the question")
-        legacy = tmp_vault.root / "research" / "query-old-tag.md"
+        legacy = tmp_vault.root / "output" / "query-old-tag.md"
         legacy.write_text("old question", encoding="utf-8")
         files = _query_files(tmp_vault)
         names = [f.name for f in files]
@@ -402,8 +418,14 @@ class TestChapterPlanEventHardening:
     def test_extra_payload_keys_never_reach_the_manifest(self, tmp_vault):
         init_run(tmp_vault, "hard-000004", profile="dissertation")
         self._event(
-            tmp_vault, "hard-000004", chapter="ch1", title="T",
-            status="done", steps={"2": {"status": "done"}}, profile_steps=[], spend={"usd": 1},
+            tmp_vault,
+            "hard-000004",
+            chapter="ch1",
+            title="T",
+            status="done",
+            steps={"2": {"status": "done"}},
+            profile_steps=[],
+            spend={"usd": 1},
         )
         manifest = load_manifest(tmp_vault, "hard-000004")
         assert manifest["chapters"]["ch1"] == {"status": "planned", "title": "T"}
@@ -426,5 +448,6 @@ class TestChapterPlanEventHardening:
         mpath.write_text(json.dumps(manifest), encoding="utf-8")
         self._event(tmp_vault, "hard-000005", chapter="ch2", title="Two")
         assert load_manifest(tmp_vault, "hard-000005")["chapters"]["ch2"] == {
-            "status": "planned", "title": "Two",
+            "status": "planned",
+            "title": "Two",
         }

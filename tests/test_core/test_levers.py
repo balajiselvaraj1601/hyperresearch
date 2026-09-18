@@ -186,7 +186,7 @@ class TestRenderCli:
 
 class TestVerifyGate:
     def _report(self, vault, tag: str) -> None:
-        report = vault.root / "research" / "notes" / f"final_report_{tag}.md"
+        report = vault.root / "output" / "notes" / f"final_report_{tag}.md"
         report.write_text(
             "## Findings\n\n" + ("Evidence-bearing sentence [[src]]. " * 80),
             encoding="utf-8",

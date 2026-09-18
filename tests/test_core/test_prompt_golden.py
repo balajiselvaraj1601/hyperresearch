@@ -22,7 +22,7 @@ Deliberate deviations already folded into the goldens (2026-07-19):
     triple-draft 10.2 gained ranked-curation via `search --ranked`; the
     fetcher agent gained the `--utility-score` pass-through section.
   - Phase-3 per-run workspaces (2026-07-19): every run-scoped artifact path
-    moved from flat research/ to research/runs/<vault_tag>/ (query file is
+    moved from flat output/ to output/runs/<vault_tag>/ (query file is
     now runs/<tag>/query.md) across ALL skills and agent prompts; the router
     gained bootstrap step 2.5 (`hpr run init`), manifest-first recovery, and
     the dissertation tier row + step 1.5 (chapter partition).
@@ -71,7 +71,7 @@ Deliberate deviations already folded into the goldens (2026-07-19):
     notes / inference depth and renders them to shim files via `hpr levers
     render`; the router's spawn contract gained item 4 (paste the role's
     shim verbatim) and invariant 15; every spawning skill's spawn template
-    gained a RUN DIRECTIVES paste line (research/drafting/critics/polish
+    gained a RUN DIRECTIVES paste line (output/drafting/critics/polish
     roles); every shim-receiving agent gained a Run-directives acceptance
     paragraph; the dialectic and instruction critics gained
     register-conditional standards. The cite-checker and
@@ -135,20 +135,6 @@ GOLDEN_SKILLS = [
     "hyperresearch-16-readability-audit",
 ]
 
-GOLDEN_AGENTS = [
-    "DIALECTIC_CRITIC_AGENT",
-    "DEPTH_CRITIC_AGENT",
-    "WIDTH_CRITIC_AGENT",
-    "INSTRUCTION_CRITIC_AGENT",
-    "READABILITY_REFORMATTER_AGENT",
-    "RESEARCHER_AGENT",
-    "DEPTH_INVESTIGATOR_AGENT",
-    "LOCI_ANALYST_AGENT",
-    "BROWSER_FETCHER_AGENT",
-    "CITE_CHECKER_AGENT",
-]
-
-
 @pytest.fixture(scope="module")
 def ctx():
     return build_render_context(None, primary="full")
@@ -167,15 +153,6 @@ def test_skill_render_matches_golden(skill_name, ctx):
     )
 
 
-@pytest.mark.parametrize("const_name", GOLDEN_AGENTS)
-def test_agent_render_matches_golden(const_name, ctx):
-    template = getattr(hooks, const_name)
-    rendered = render_prompt(template, ctx)
-    golden = (GOLDEN_DIR / "agents" / f"{const_name.lower()}.md").read_text(encoding="utf-8")
-    assert rendered == golden, (
-        f"render(full) of {const_name} deviates from golden. If the change is "
-        "deliberate, update tests/fixtures/golden_prompts/agents/."
-    )
 
 
 @pytest.mark.parametrize("skill_name", GOLDEN_SKILLS)
@@ -213,7 +190,7 @@ def test_premier_gear_renders_cleanly(skill_name):
     if skill_name == "hyperresearch-4-loci-analysis":
         # premier spawns 3 analysts and clamps to 10 loci; nothing in the
         # prose may still assume two analysts or six loci (#101).
-        assert "Spawn 3 `hyperresearch-loci-analyst`" in rendered
+        assert "Spawns 3 parallel loci-analyst" in rendered
         assert "Wait for all 3." in rendered
         assert "clamp to 10." in rendered
         assert "exceeds 10," in rendered
@@ -227,52 +204,40 @@ def test_premier_gear_renders_cleanly(skill_name):
         assert "8000–16000 words / 24000–48000 chars (CJK)" in rendered
 
 
-def test_premier_gear_agents_carry_premier_numbers():
-    """Agent prompts that used to hardcode full-gear numbers next to a
-    templated sibling must follow the gear too (#101)."""
-    ctx = build_render_context(None, primary="premier")
-    draft = render_prompt(hooks.DRAFT_ORCHESTRATOR_AGENT, ctx)
-    synth = render_prompt(hooks.SYNTHESIZER_AGENT, ctx)
-    # Draft orchestrator and synthesizer now agree on the argumentative target.
-    assert '`"argumentative"`: 8000-16000 words.' in draft
-    assert '| `"argumentative"` | 8000-16000 words |' in synth
-    assert "5000-10000" not in draft
-    assert "120-220\n   total cited-source references" in synth
-    loci = render_prompt(hooks.LOCI_ANALYST_AGENT, ctx)
-    assert "2 other loci-analysts (your parallel siblings)" in loci
-    assert "which of the 3 parallel" in loci
-    assert "clamp\nto 10 loci" in loci
-    critic = render_prompt(hooks.INSTRUCTION_CRITIC_AGENT, ctx)
-    assert "**9 citations per 1000 words**" in critic
-    assert "divide by 3)" in critic
-    for prompt in (draft, synth, loci, critic):
-        assert "<<" not in prompt and ">>" not in prompt
 
 
 def test_install_writes_rendered_prompts_with_header(tmp_vault):
-    """install_hooks renders templates and stamps the provenance header."""
+    """install_hooks renders templates and stamps the provenance header.
+    As of v8, the agent fleet and step skills are retired; only the hook
+    and entry skill are installed."""
     from hyperresearch.core.hooks import install_hooks
 
     install_hooks(tmp_vault.root, hpr_path="hyperresearch")
 
-    critic = (
-        tmp_vault.root / ".claude" / "agents" / "hyperresearch-dialectic-critic.md"
-    ).read_text(encoding="utf-8")
-    assert "At most 12 findings" in critic
-    assert 'rendered from profile "full"' in critic
-    assert "<<" not in critic
+    # No agents should be installed (fleet retired)
+    agents_dir = tmp_vault.root / ".claude" / "agents"
+    if agents_dir.exists():
+        actual_agents = {p.name for p in agents_dir.iterdir() if p.is_file()}
+        assert actual_agents == set(), f"Unexpected agent files: {actual_agents}"
 
-    sweep = (
-        tmp_vault.root / ".claude" / "skills" / "hyperresearch-2-width-sweep" / "SKILL.md"
-    ).read_text(encoding="utf-8")
-    assert "| `full` | 45 | 55–80 | 10–12 | 2–3 |" in sweep
-    assert 'rendered from profile "full"' in sweep
-    # Header must come after the frontmatter, not before it
-    assert sweep.startswith("---")
+    # Step skills should not be installed
+    skills_dir = tmp_vault.root / ".claude" / "skills"
+    if skills_dir.exists():
+        for child in skills_dir.iterdir():
+            if child.is_dir() and child.name.startswith("hyperresearch-") and child.name != "hyperresearch":
+                assert False, f"Unexpected step skill directory: {child}"
+
+    # Entry skill retired too — no router SKILL.md is written
+    assert not (tmp_vault.root / ".claude" / "skills" / "hyperresearch" / "SKILL.md").exists()
+
+    # Hook settings written
+    assert (tmp_vault.root / ".claude" / "settings.json").exists()
+    assert (tmp_vault.root / ".hyperresearch" / "hook.js").exists()
 
 
 def test_install_with_profile_overlay(tmp_vault):
-    """A vault-config profile overlay flows into installed prompts."""
+    """A vault-config profile overlay flows into installed prompts.
+    As of v8, step skills are retired; the entry skill still receives the overlay."""
     from hyperresearch.core.hooks import install_hooks
 
     cfg_path = tmp_vault.config_path
@@ -281,10 +246,16 @@ def test_install_with_profile_overlay(tmp_vault):
         encoding="utf-8",
     )
     install_hooks(tmp_vault.root, hpr_path="hyperresearch")
-    sweep = (
-        tmp_vault.root / ".claude" / "skills" / "hyperresearch-2-width-sweep" / "SKILL.md"
-    ).read_text(encoding="utf-8")
-    assert "| `full` | 200 |" in sweep
+
+    # Nothing skill-shaped is installed any more (entry skill + step skills retired),
+    # so assert the overlay against the renderer directly rather than a written file.
+    from hyperresearch.core.hooks import _read_skill_source, _render_installed, _set_render_state
+
+    _set_render_state("full", cfg_path)
+    source = _read_skill_source("hyperresearch.md")
+    assert source is not None, "step-contract source must still ship in the package"
+    rendered = _render_installed(source)
+    assert "200" in rendered, "profile overlay source_min=200 must reach the rendered contract"
 
 
 # ---------------------------------------------------------------------------
@@ -292,63 +263,6 @@ def test_install_with_profile_overlay(tmp_vault):
 # reach the installed agent frontmatter (they were decorative before 2.0).
 # ---------------------------------------------------------------------------
 
-# Installed agent file -> the ModelMap field that governs its `model:` line.
-AGENT_FILE_MODEL_FIELD = {
-    "hyperresearch-fetcher.md": "fetcher",
-    "hyperresearch-loci-analyst.md": "loci_analyst",
-    "hyperresearch-source-analyst.md": "source_analyst",
-    "hyperresearch-depth-investigator.md": "depth_investigator",
-    "hyperresearch-dialectic-critic.md": "critics",
-    "hyperresearch-depth-critic.md": "critics",
-    "hyperresearch-width-critic.md": "critics",
-    "hyperresearch-instruction-critic.md": "critics",
-    "hyperresearch-patcher.md": "patcher",
-    "hyperresearch-synthesizer.md": "synthesizer",
-    "hyperresearch-polish-auditor.md": "polish_auditor",
-    "hyperresearch-readability-recommender.md": "readability_recommender",
-    "hyperresearch-cite-checker.md": "cite_checker",
-    "hyperresearch-browser-fetcher.md": "browser_fetcher",
-    "hyperresearch-corpus-critic.md": "corpus_critic",
-    "hyperresearch-draft-orchestrator.md": "draft_orchestrator",
-}
-
-
-def _frontmatter_model(path: Path) -> str:
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if line.startswith("model: "):
-            return line.removeprefix("model: ").strip()
-    raise AssertionError(f"{path.name} has no model: frontmatter line")
-
-
-def test_installed_agent_models_come_from_profile(tmp_vault):
-    """Every installed agent's model: line equals its ModelMap assignment."""
-    from hyperresearch.core.hooks import install_hooks
-    from hyperresearch.core.profiles import resolve_profile
-
-    install_hooks(tmp_vault.root, hpr_path="hyperresearch")
-    models = resolve_profile("full").models
-    agents_dir = tmp_vault.root / ".claude" / "agents"
-    for filename, field in AGENT_FILE_MODEL_FIELD.items():
-        path = agents_dir / filename
-        assert path.exists(), f"agent not installed: {filename}"
-        assert _frontmatter_model(path) == getattr(models, field), filename
-
-
-def test_haiku_fetcher_overlay_reaches_installed_agent(tmp_vault):
-    """models = { fetcher = "haiku" } must swap ONLY the fetcher's model."""
-    from hyperresearch.core.hooks import install_hooks
-
-    cfg_path = tmp_vault.config_path
-    cfg_path.write_text(
-        cfg_path.read_text(encoding="utf-8")
-        + '\n[profile.full]\nmodels = { fetcher = "haiku" }\n',
-        encoding="utf-8",
-    )
-    install_hooks(tmp_vault.root, hpr_path="hyperresearch")
-    agents_dir = tmp_vault.root / ".claude" / "agents"
-    assert _frontmatter_model(agents_dir / "hyperresearch-fetcher.md") == "haiku"
-    assert _frontmatter_model(agents_dir / "hyperresearch-source-analyst.md") == "sonnet"
-    assert _frontmatter_model(agents_dir / "hyperresearch-patcher.md") == "opus"
 
 
 def test_no_hardcoded_model_lines_in_agent_templates():
@@ -381,14 +295,6 @@ def _all_skill_names() -> list[str]:
     return sorted(p.name for p in skills_dir.glob("*.md"))
 
 
-ALL_AGENT_CONSTANTS = [
-    "LOCI_ANALYST_AGENT", "DEPTH_INVESTIGATOR_AGENT", "DIALECTIC_CRITIC_AGENT",
-    "DEPTH_CRITIC_AGENT", "WIDTH_CRITIC_AGENT", "INSTRUCTION_CRITIC_AGENT",
-    "PATCHER_AGENT", "POLISH_AUDITOR_AGENT", "DRAFT_ORCHESTRATOR_AGENT",
-    "SYNTHESIZER_AGENT", "READABILITY_REFORMATTER_AGENT", "SOURCE_ANALYST_AGENT",
-    "RESEARCHER_AGENT", "CORPUS_CRITIC_AGENT", "BROWSER_FETCHER_AGENT",
-    "CITE_CHECKER_AGENT",
-]
 
 
 @pytest.mark.parametrize("skill_file", _all_skill_names())
@@ -398,11 +304,6 @@ def test_rendered_skills_have_no_cost_or_model_claims(skill_file, ctx):
     assert not _MODEL_CLAIM.search(rendered), f"hardcoded model claim in {skill_file}"
 
 
-@pytest.mark.parametrize("const_name", ALL_AGENT_CONSTANTS)
-def test_rendered_agents_have_no_cost_or_model_claims(const_name, ctx):
-    rendered = render_prompt(getattr(hooks, const_name), ctx)
-    assert not _DOLLAR_RANGE.search(rendered), f"dollar-cost range in {const_name}"
-    assert not _MODEL_CLAIM.search(rendered), f"hardcoded model claim in {const_name}"
 
 
 # ---------------------------------------------------------------------------
@@ -447,26 +348,3 @@ def test_cite_check_skill_gets_no_shim(ctx):
 # ---------------------------------------------------------------------------
 
 
-def test_synthesizer_carries_coverage_before_elegance_guards(ctx):
-    rendered = render_prompt(hooks.SYNTHESIZER_AGENT, ctx)
-    # pass-1 item 12: coverage + mechanism depth are load-bearing content
-    assert "load-bearing content" in rendered
-    assert "Elegance is spent on the words BETWEEN points" in rendered
-    # reframed selectivity: pick sources, not points
-    assert "which SOURCES to cite for a" in rendered
-    assert "not which POINTS to make" in rendered
-    # length discipline: never cut a point to hit the ceiling
-    assert "Cut prose, never points" in rendered
-
-
-def test_depth_critic_flags_compressed_mechanisms(ctx):
-    rendered = render_prompt(hooks.DEPTH_CRITIC_AGENT, ctx)
-    assert "compressed to a bare mention" in rendered
-    assert "highest-insight loss" in rendered
-
-
-def test_instruction_critic_has_comparison_axis_check(ctx):
-    rendered = render_prompt(hooks.INSTRUCTION_CRITIC_AGENT, ctx)
-    assert "missing-comparison-dimensions" in rendered
-    # must be register-independent (applies in analyze/survey/advocate alike)
-    assert "register-INDEPENDENT" in rendered

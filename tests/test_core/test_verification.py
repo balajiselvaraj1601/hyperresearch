@@ -21,13 +21,22 @@ def cited_vault(seeded_vault):
     """Seeded vault + claims + a source row so citations resolve."""
     from hyperresearch.core.claims import ingest_claims_dir
 
-    temp = seeded_vault.root / "research" / "temp"
+    temp = seeded_vault.root / "output" / "temp"
     temp.mkdir(parents=True, exist_ok=True)
-    (temp / "claims-python-async-patterns.json").write_text(json.dumps([
-        {"claim": "Async improves throughput by 10x for network-bound workloads",
-         "quoted_support": "async/await syntax enables concurrent I/O with a 10x gain",
-         "numbers": ["10x"], "confidence": "high", "evidence_type": "empirical"},
-    ]), encoding="utf-8")
+    (temp / "claims-python-async-patterns.json").write_text(
+        json.dumps(
+            [
+                {
+                    "claim": "Async improves throughput by 10x for network-bound workloads",
+                    "quoted_support": "async/await syntax enables concurrent I/O with a 10x gain",
+                    "numbers": ["10x"],
+                    "confidence": "high",
+                    "evidence_type": "empirical",
+                },
+            ]
+        ),
+        encoding="utf-8",
+    )
     ingest_claims_dir(seeded_vault, vault_tag="cc-run")
     seeded_vault.db.execute(
         "INSERT OR IGNORE INTO sources (url, note_id, domain, fetched_at, provider, content_hash) "
@@ -39,7 +48,9 @@ def cited_vault(seeded_vault):
 
 class TestCiteCheckExtraction:
     def test_wikilink_pairs(self, cited_vault):
-        report = "Async gives a 10x gain [[python-async-patterns]]. Rust is safe [[rust-ownership]]."
+        report = (
+            "Async gives a 10x gain [[python-async-patterns]]. Rust is safe [[rust-ownership]]."
+        )
         pairs = extract_pairs(report, cited_vault.db)
         assert len(pairs) == 2
         assert pairs[0]["note_id"] == "python-async-patterns"
@@ -101,8 +112,8 @@ class TestCiteCheckExtraction:
         sampled = sample_needs_llm(pairs, sample_rate=0.5)
         strong = [p for p in sampled if p["strong"]]
         weak = [p for p in sampled if not p["strong"]]
-        assert len(strong) == 5      # 100% of number-bearing
-        assert len(weak) == 5        # every 2nd weak pair
+        assert len(strong) == 5  # 100% of number-bearing
+        assert len(weak) == 5  # every 2nd weak pair
 
     def test_citecheck_cli(self, cited_vault, monkeypatch):
         from typer.testing import CliRunner
@@ -110,7 +121,7 @@ class TestCiteCheckExtraction:
         from hyperresearch.cli import app
 
         init_run(cited_vault, "cc-run")
-        report = cited_vault.root / "research" / "notes" / "final_report_cc-run.md"
+        report = cited_vault.root / "output" / "notes" / "final_report_cc-run.md"
         report.write_text(
             "Async improves throughput by 10x [[python-async-patterns]]. "
             "Also a dangling one [[ghost-note]].",
@@ -195,7 +206,7 @@ class TestVerificationLints:
         return json.loads(r.stdout)
 
     def test_quote_integrity_catches_fabrication(self, seeded_vault, monkeypatch):
-        report = seeded_vault.root / "research" / "notes" / "final_report_q.md"
+        report = seeded_vault.root / "output" / "notes" / "final_report_q.md"
         report.write_text(
             'The paper concludes that "quantum entanglement reverses causality in every measurable frame of reference".',
             encoding="utf-8",
@@ -206,7 +217,7 @@ class TestVerificationLints:
         assert issues[0]["severity"] == "error"
 
     def test_quote_integrity_passes_real_quote(self, seeded_vault, monkeypatch):
-        report = seeded_vault.root / "research" / "notes" / "final_report_q.md"
+        report = seeded_vault.root / "output" / "notes" / "final_report_q.md"
         # This sentence exists verbatim in the seeded python-async-patterns note
         report.write_text(
             'As the note says, "Python\'s async/await syntax enables concurrent I/O" today.',
@@ -219,7 +230,7 @@ class TestVerificationLints:
     def test_quote_integrity_skips_short_quotes_without_false_positive(
         self, seeded_vault, monkeypatch
     ):
-        report = seeded_vault.root / "research" / "notes" / "final_report_q.md"
+        report = seeded_vault.root / "output" / "notes" / "final_report_q.md"
         report.write_text(
             'The analysis covers "TVL", "Low Security", "reasonable use", '
             '"6x Exits", and "registered entity" throughout the report body. '
@@ -231,10 +242,8 @@ class TestVerificationLints:
         issues = [i for i in payload["data"]["issues"] if i["rule"] == "quote-integrity"]
         assert issues == []
 
-    def test_quote_integrity_short_quote_before_long_fabrication(
-        self, seeded_vault, monkeypatch
-    ):
-        report = seeded_vault.root / "research" / "notes" / "final_report_q.md"
+    def test_quote_integrity_short_quote_before_long_fabrication(self, seeded_vault, monkeypatch):
+        report = seeded_vault.root / "output" / "notes" / "final_report_q.md"
         report.write_text(
             'The report discusses "Low Security" instruments with intervening prose '
             "that must not be treated as part of a quoted span.\n"
@@ -248,8 +257,10 @@ class TestVerificationLints:
         assert "Low Security" not in issues[0]["message"]
 
     def test_numeric_consistency_flags_untraceable(self, cited_vault, monkeypatch):
-        report = cited_vault.root / "research" / "notes" / "final_report_n.md"
-        report.write_text("Revenue grew 47.3% while costs fell 1,234,567 dollars.", encoding="utf-8")
+        report = cited_vault.root / "output" / "notes" / "final_report_n.md"
+        report.write_text(
+            "Revenue grew 47.3% while costs fell 1,234,567 dollars.", encoding="utf-8"
+        )
         payload = self._lint(cited_vault, "numeric-consistency", monkeypatch)
         issues = [i for i in payload["data"]["issues"] if i["rule"] == "numeric-consistency"]
         assert len(issues) == 2
@@ -259,7 +270,7 @@ class TestVerificationLints:
         conn = seeded_vault.db
         conn.execute("UPDATE notes SET is_retracted = 1 WHERE id = 'rust-ownership'")
         conn.commit()
-        report = seeded_vault.root / "research" / "notes" / "final_report_r.md"
+        report = seeded_vault.root / "output" / "notes" / "final_report_r.md"
         report.write_text("Rust guarantees safety [[rust-ownership]].", encoding="utf-8")
         payload = self._lint(seeded_vault, "retracted-citations", monkeypatch)
         issues = [i for i in payload["data"]["issues"] if i["rule"] == "retracted-citations"]
@@ -277,25 +288,36 @@ class TestVerificationLints:
 
 class TestIndependence:
     def test_canonical_url(self):
-        assert canonical_url("https://www.Example.com/a/?utm_source=x") == canonical_url("http://example.com/a")
+        assert canonical_url("https://www.Example.com/a/?utm_source=x") == canonical_url(
+            "http://example.com/a"
+        )
 
     def test_wire_cluster_discounts_members(self, tmp_vault):
         from hyperresearch.core.note import write_note
         from hyperresearch.core.sync import compute_sync_plan, execute_sync
 
         pr = "NEW YORK, PRNewswire — MegaCorp announces quantum widget breakthrough today."
-        for i, (title, when) in enumerate([("MegaCorp Breakthrough", "2026-01-01"),
-                                           ("MegaCorp Announces Widget", "2026-01-02"),
-                                           ("Quantum Widget from MegaCorp", "2026-01-03")]):
+        for i, (title, when) in enumerate(
+            [
+                ("MegaCorp Breakthrough", "2026-01-01"),
+                ("MegaCorp Announces Widget", "2026-01-02"),
+                ("Quantum Widget from MegaCorp", "2026-01-03"),
+            ]
+        ):
             write_note(
-                tmp_vault.notes_dir, title, body=pr + f" Outlet {i} adds a sentence.",
-                source=f"https://outlet{i}.com/story", tags=["ind-run"],
+                tmp_vault.notes_dir,
+                title,
+                body=pr + f" Outlet {i} adds a sentence.",
+                source=f"https://outlet{i}.com/story",
+                tags=["ind-run"],
                 extra_frontmatter={"created": when + "T00:00:00+00:00"},
             )
         write_note(
-            tmp_vault.notes_dir, "Independent Analysis",
+            tmp_vault.notes_dir,
+            "Independent Analysis",
             body="A genuinely independent, differently-worded long analysis of quantum widgets and their many limitations in practice.",
-            source="https://analyst.com/deep-dive", tags=["ind-run"],
+            source="https://analyst.com/deep-dive",
+            tags=["ind-run"],
         )
         plan = compute_sync_plan(tmp_vault, force=True)
         execute_sync(tmp_vault, plan)
@@ -306,9 +328,12 @@ class TestIndependence:
         assert cluster["size"] == 3
         assert "wire" in cluster["kind"]
 
-        scores = {r["id"]: r["independence"] for r in tmp_vault.db.execute(
-            "SELECT id, independence FROM notes WHERE independence IS NOT NULL"
-        )}
+        scores = {
+            r["id"]: r["independence"]
+            for r in tmp_vault.db.execute(
+                "SELECT id, independence FROM notes WHERE independence IS NOT NULL"
+            )
+        }
         assert scores[cluster["root"]] == 1.0
         assert scores["independent-analysis"] == 1.0
         for member in cluster["members"]:
@@ -318,10 +343,18 @@ class TestIndependence:
         from hyperresearch.core.note import write_note
         from hyperresearch.core.sync import compute_sync_plan, execute_sync
 
-        write_note(tmp_vault.notes_dir, "Copy A", body="Some words here for the body.",
-                   source="https://www.site.com/story?utm_source=feed")
-        write_note(tmp_vault.notes_dir, "Copy B", body="Entirely different words in this body text.",
-                   source="https://site.com/story/")
+        write_note(
+            tmp_vault.notes_dir,
+            "Copy A",
+            body="Some words here for the body.",
+            source="https://www.site.com/story?utm_source=feed",
+        )
+        write_note(
+            tmp_vault.notes_dir,
+            "Copy B",
+            body="Entirely different words in this body text.",
+            source="https://site.com/story/",
+        )
         plan = compute_sync_plan(tmp_vault, force=True)
         execute_sync(tmp_vault, plan)
         result = compute_independence(tmp_vault)
@@ -368,21 +401,24 @@ class TestCJKLengthCheck:
             "[[dagitty-a-graphical-tool-for-analyzing-causal-diagrams-semantic-scholar]] " * 15
         )
 
-    def test_verify_passes_cjk_report_within_char_target_despite_low_word_count(
-        self, tmp_vault
-    ):
+    def test_verify_passes_cjk_report_within_char_target_despite_low_word_count(self, tmp_vault):
         init_run(tmp_vault, "cjk-01", profile="light")
         run_dir = tmp_vault.run_dir("cjk-01")
-        (run_dir / "prompt-decomposition.json").write_text(json.dumps({
-            "response_format": "short",
-            "required_section_headings": ["## 結果"],
-        }), encoding="utf-8")
+        (run_dir / "prompt-decomposition.json").write_text(
+            json.dumps(
+                {
+                    "response_format": "short",
+                    "required_section_headings": ["## 結果"],
+                }
+            ),
+            encoding="utf-8",
+        )
         (run_dir / "polish-log.json").write_text('{"applied": []}', encoding="utf-8")
         # light/short CJK char target is 1500-6000; this Japanese sentence
         # has almost no ASCII whitespace, so str.split() would count only a
         # handful of "words" despite being solidly in-range by characters.
         sentence = "これは実質的な証拠を伴う文章である[[src-note]]。"
-        report = tmp_vault.root / "research" / "notes" / "final_report_cjk-01.md"
+        report = tmp_vault.root / "output" / "notes" / "final_report_cjk-01.md"
         body = "## 結果\n\n" + (sentence * 90)
         report.write_text(body, encoding="utf-8")
 
@@ -398,13 +434,18 @@ class TestCJKLengthCheck:
     def test_verify_still_fails_cjk_report_far_outside_char_target(self, tmp_vault):
         init_run(tmp_vault, "cjk-02", profile="light")
         run_dir = tmp_vault.run_dir("cjk-02")
-        (run_dir / "prompt-decomposition.json").write_text(json.dumps({
-            "response_format": "short",
-            "required_section_headings": ["## 結果"],
-        }), encoding="utf-8")
+        (run_dir / "prompt-decomposition.json").write_text(
+            json.dumps(
+                {
+                    "response_format": "short",
+                    "required_section_headings": ["## 結果"],
+                }
+            ),
+            encoding="utf-8",
+        )
         # Well under the 1500-char floor (even with the 20% tolerance) --
         # the CJK branch must still be a real length check, not a bypass.
-        report = tmp_vault.root / "research" / "notes" / "final_report_cjk-02.md"
+        report = tmp_vault.root / "output" / "notes" / "final_report_cjk-02.md"
         report.write_text("## 結果\n\n短い。", encoding="utf-8")
 
         result = verify_run(tmp_vault, "cjk-02")
@@ -421,22 +462,29 @@ class TestCJKLengthCheck:
         support a script this project has no real usage data for."""
         cfg_dir = tmp_vault.root / ".hyperresearch"
         cfg_dir.mkdir(parents=True, exist_ok=True)
-        (cfg_dir / "config.toml").write_text(
-            "[profile.light]\n"
-            "char_targets_no_word_boundary = { short = [300, 900] }\n",
+        cfg = cfg_dir / "config.toml"
+        existing = cfg.read_text(encoding="utf-8")
+        cfg.write_text(
+            existing
+            + "\n[profile.light]\nchar_targets_no_word_boundary = { short = [300, 900] }\n",
             encoding="utf-8",
         )
         init_run(tmp_vault, "th-01", profile="light")
         run_dir = tmp_vault.run_dir("th-01")
-        (run_dir / "prompt-decomposition.json").write_text(json.dumps({
-            "response_format": "short",
-            "required_section_headings": ["## Results"],
-        }), encoding="utf-8")
+        (run_dir / "prompt-decomposition.json").write_text(
+            json.dumps(
+                {
+                    "response_format": "short",
+                    "required_section_headings": ["## Results"],
+                }
+            ),
+            encoding="utf-8",
+        )
         (run_dir / "polish-log.json").write_text('{"applied": []}', encoding="utf-8")
         # A spaceless Thai-script blob: within the overridden 300-900 char
         # target, but far below the shipped CJK default's 1500-char floor --
         # this only passes if the override is actually being read.
-        report = tmp_vault.root / "research" / "notes" / "final_report_th-01.md"
+        report = tmp_vault.root / "output" / "notes" / "final_report_th-01.md"
         report.write_text("## Results\n\n" + ("คำ" * 250), encoding="utf-8")
 
         result = verify_run(tmp_vault, "th-01")
@@ -461,11 +509,9 @@ class TestClassifiedTierArtifacts:
         }
         if tier is not None:
             decomp["pipeline_tier"] = tier
-        (run_dir / "prompt-decomposition.json").write_text(
-            json.dumps(decomp), encoding="utf-8"
-        )
+        (run_dir / "prompt-decomposition.json").write_text(json.dumps(decomp), encoding="utf-8")
         (run_dir / "polish-log.json").write_text('{"applied": []}', encoding="utf-8")
-        report = tmp_vault.root / "research" / "notes" / f"final_report_{tag}.md"
+        report = tmp_vault.root / "output" / "notes" / f"final_report_{tag}.md"
         report.write_text(
             "## Findings\n\n"
             + ("Substantive sentence with real evidence attached [[src-note]]. " * 80),
@@ -514,13 +560,20 @@ class TestTelemetryAndVerify:
     def test_verify_passes_well_formed_light_run(self, tmp_vault):
         init_run(tmp_vault, "vf-01", profile="light")
         run_dir = tmp_vault.run_dir("vf-01")
-        (run_dir / "prompt-decomposition.json").write_text(json.dumps({
-            "response_format": "short",
-            "required_section_headings": ["## Findings"],
-        }), encoding="utf-8")
+        (run_dir / "prompt-decomposition.json").write_text(
+            json.dumps(
+                {
+                    "response_format": "short",
+                    "required_section_headings": ["## Findings"],
+                }
+            ),
+            encoding="utf-8",
+        )
         (run_dir / "polish-log.json").write_text('{"applied": []}', encoding="utf-8")
-        report = tmp_vault.root / "research" / "notes" / "final_report_vf-01.md"
-        body = "## Findings\n\n" + ("Substantive sentence with real evidence attached [[src-note]]. " * 80)
+        report = tmp_vault.root / "output" / "notes" / "final_report_vf-01.md"
+        body = "## Findings\n\n" + (
+            "Substantive sentence with real evidence attached [[src-note]]. " * 80
+        )
         report.write_text(body, encoding="utf-8")
 
         result = verify_run(tmp_vault, "vf-01")
@@ -534,11 +587,16 @@ class TestTelemetryAndVerify:
     def test_verify_density_counts_each_grouped_source(self, tmp_vault):
         init_run(tmp_vault, "vf-04", profile="light")
         run_dir = tmp_vault.run_dir("vf-04")
-        (run_dir / "prompt-decomposition.json").write_text(json.dumps({
-            "response_format": "short",
-            "required_section_headings": ["## Findings"],
-        }), encoding="utf-8")
-        report = tmp_vault.root / "research" / "notes" / "final_report_vf-04.md"
+        (run_dir / "prompt-decomposition.json").write_text(
+            json.dumps(
+                {
+                    "response_format": "short",
+                    "required_section_headings": ["## Findings"],
+                }
+            ),
+            encoding="utf-8",
+        )
+        report = tmp_vault.root / "output" / "notes" / "final_report_vf-04.md"
         filler = "Substantive analysis continues with replicated evidence in view. " * 14
         block = filler + "The consensus across measurements holds [1, 2, 3]. "
         report.write_text("## Findings\n\n" + block * 8, encoding="utf-8")
@@ -555,11 +613,16 @@ class TestTelemetryAndVerify:
     def _density_check(tmp_vault, tag: str, body: str, heading: str = "## Findings") -> dict:
         init_run(tmp_vault, tag, profile="light")
         run_dir = tmp_vault.run_dir(tag)
-        (run_dir / "prompt-decomposition.json").write_text(json.dumps({
-            "response_format": "short",
-            "required_section_headings": [heading],
-        }), encoding="utf-8")
-        report = tmp_vault.root / "research" / "notes" / f"final_report_{tag}.md"
+        (run_dir / "prompt-decomposition.json").write_text(
+            json.dumps(
+                {
+                    "response_format": "short",
+                    "required_section_headings": [heading],
+                }
+            ),
+            encoding="utf-8",
+        )
+        report = tmp_vault.root / "output" / "notes" / f"final_report_{tag}.md"
         report.write_text(body, encoding="utf-8")
         result = verify_run(tmp_vault, tag)
         return {c["name"]: c for c in result["checks"]}["citation-density"]
@@ -595,15 +658,21 @@ class TestTelemetryAndVerify:
         per ~600 characters (~5 per 1000 words) fails — even though the
         old per-character floor (1.67 per 1000 chars) would have passed it.
         The floor now means the same amount of content in every script."""
-        dense = "この文章は再現された測定結果に基づく実質的な証拠を示している[1]。"  # ~34 chars, 1 cite
+        dense = (
+            "この文章は再現された測定結果に基づく実質的な証拠を示している[1]。"  # ~34 chars, 1 cite
+        )
         assert 30 <= len(dense) <= 40
         body = "## 結果\n\n" + dense * 60
         ok = self._density_check(tmp_vault, "den-ja-1", body, heading="## 結果")
         assert ok["ok"] is True, ok
         assert "no word boundaries" in ok["detail"]
 
-        sparse_filler = "この文章は再現された測定結果に基づく実質的な証拠を示している。"  # ~31 chars
-        sparse = sparse_filler * 18 + "この文章は再現された測定結果に基づく実質的な証拠を示している[1]。"
+        sparse_filler = (
+            "この文章は再現された測定結果に基づく実質的な証拠を示している。"  # ~31 chars
+        )
+        sparse = (
+            sparse_filler * 18 + "この文章は再現された測定結果に基づく実質的な証拠を示している[1]。"
+        )
         assert 560 <= len(sparse) <= 640
         from hyperresearch.core.runs import _lacks_word_boundaries
 
@@ -617,7 +686,9 @@ class TestTelemetryAndVerify:
     def test_density_korean_takes_the_word_path(self, tmp_vault):
         """Korean is space-delimited, so it is counted by words like English
         — the detail names plain words, not the chars/ratio denominator."""
-        sentence = "이 문장은 반복된 측정에서 확인된 실질적인 근거를 제시한다 [1]. "  # 9 tokens, 1 cite
+        sentence = (
+            "이 문장은 반복된 측정에서 확인된 실질적인 근거를 제시한다 [1]. "  # 9 tokens, 1 cite
+        )
         body = "## 결과\n\n" + sentence * 60
         from hyperresearch.core.runs import _lacks_word_boundaries
 
@@ -634,10 +705,14 @@ class TestTelemetryAndVerify:
         from hyperresearch.core.patterns import WIKI_LINK_RE
 
         plain = "Replicated measurements support the committed position here too. "
-        body = "## Findings\n\n" + (
-            "Evidence sits in the vault [[src-note-alpha]] and [[src-note-beta|Beta]]. "
-            + plain * 3
-        ) * 20
+        body = (
+            "## Findings\n\n"
+            + (
+                "Evidence sits in the vault [[src-note-alpha]] and [[src-note-beta|Beta]]. "
+                + plain * 3
+            )
+            * 20
+        )
         expected = len(WIKI_LINK_RE.findall(body))
         assert expected == 40
         res = self._density_check(tmp_vault, "den-wl-1", body)
@@ -650,15 +725,26 @@ class TestTelemetryAndVerify:
         overlay must now move the gate."""
         cfg = tmp_vault.root / ".hyperresearch" / "config.toml"
         cfg.parent.mkdir(parents=True, exist_ok=True)
-        cfg.write_text("[profile.light]\ncitation_density_min = 10000\n", encoding="utf-8")
+        existing = cfg.read_text(encoding="utf-8") if cfg.exists() else ""
+        cfg.write_text(
+            existing + "\n[profile.light]\ncitation_density_min = 10000\n",
+            encoding="utf-8",
+        )
         init_run(tmp_vault, "vf-05", profile="light")
         run_dir = tmp_vault.run_dir("vf-05")
-        (run_dir / "prompt-decomposition.json").write_text(json.dumps({
-            "response_format": "short",
-            "required_section_headings": ["## Findings"],
-        }), encoding="utf-8")
-        report = tmp_vault.root / "research" / "notes" / "final_report_vf-05.md"
-        body = "## Findings\n\n" + ("Substantive sentence with real evidence attached [[src-note]]. " * 80)
+        (run_dir / "prompt-decomposition.json").write_text(
+            json.dumps(
+                {
+                    "response_format": "short",
+                    "required_section_headings": ["## Findings"],
+                }
+            ),
+            encoding="utf-8",
+        )
+        report = tmp_vault.root / "output" / "notes" / "final_report_vf-05.md"
+        body = "## Findings\n\n" + (
+            "Substantive sentence with real evidence attached [[src-note]]. " * 80
+        )
         report.write_text(body, encoding="utf-8")
 
         result = verify_run(tmp_vault, "vf-05")
@@ -691,12 +777,17 @@ class TestFinishGate:
     def _well_formed_light_run(self, tmp_vault, tag: str, body: str | None = None):
         init_run(tmp_vault, tag, profile="light")
         run_dir = tmp_vault.run_dir(tag)
-        (run_dir / "prompt-decomposition.json").write_text(json.dumps({
-            "response_format": "short",
-            "required_section_headings": ["## Findings"],
-        }), encoding="utf-8")
+        (run_dir / "prompt-decomposition.json").write_text(
+            json.dumps(
+                {
+                    "response_format": "short",
+                    "required_section_headings": ["## Findings"],
+                }
+            ),
+            encoding="utf-8",
+        )
         (run_dir / "polish-log.json").write_text('{"applied": []}', encoding="utf-8")
-        report = tmp_vault.root / "research" / "notes" / f"final_report_{tag}.md"
+        report = tmp_vault.root / "output" / "notes" / f"final_report_{tag}.md"
         if body is None:
             body = "## Findings\n\n" + (
                 "Substantive sentence with real evidence attached [[src-note]]. " * 80
@@ -719,9 +810,11 @@ class TestFinishGate:
     def test_finish_blocks_hallucinated_quote(self, tmp_vault):
         from hyperresearch.core.runs import finish_run, load_manifest
 
-        body = "## Findings\n\n" + (
-            "Substantive sentence with real evidence attached [[src-note]]. " * 80
-        ) + '\n\nAs one expert put it, "this quotation was never fetched into any vault note anywhere."\n'
+        body = (
+            "## Findings\n\n"
+            + ("Substantive sentence with real evidence attached [[src-note]]. " * 80)
+            + '\n\nAs one expert put it, "this quotation was never fetched into any vault note anywhere."\n'
+        )
         self._well_formed_light_run(tmp_vault, "fin-02", body=body)
         result = finish_run(tmp_vault, "fin-02")
         assert result["verify"]["passed"] is False
@@ -752,9 +845,11 @@ class TestFinishGate:
         """The intended loop: blocked -> fix the report -> finish passes."""
         from hyperresearch.core.runs import finish_run, load_manifest
 
-        body = "## Findings\n\n" + (
-            "Substantive sentence with real evidence attached [[src-note]]. " * 80
-        ) + '\n\nAs one expert put it, "this quotation was never fetched into any vault note anywhere."\n'
+        body = (
+            "## Findings\n\n"
+            + ("Substantive sentence with real evidence attached [[src-note]]. " * 80)
+            + '\n\nAs one expert put it, "this quotation was never fetched into any vault note anywhere."\n'
+        )
         report = self._well_formed_light_run(tmp_vault, "fin-04", body=body)
         assert finish_run(tmp_vault, "fin-04")["verify"]["passed"] is False
 
@@ -802,9 +897,7 @@ class TestFinishGate:
             self._well_formed_light_run(tmp_vault, tag)
             run_dir = tmp_vault.run_dir(tag)
             set_step(tmp_vault, tag, "14.5", "done")
-            (run_dir / "cite-check-findings.json").write_text(
-                json.dumps(payload), encoding="utf-8"
-            )
+            (run_dir / "cite-check-findings.json").write_text(json.dumps(payload), encoding="utf-8")
             result = verify_run(tmp_vault, tag)  # must not raise
             by_name = {c["name"]: c for c in result["checks"]}
             # A critical finding with no patch log fails the check cleanly.
@@ -813,18 +906,3 @@ class TestFinishGate:
             result = verify_run(tmp_vault, tag)
             by_name = {c["name"]: c for c in result["checks"]}
             assert by_name["cite-check-resolved"]["ok"] is True
-
-
-class TestCiteCheckerAgentInstall:
-    def test_agent_installs(self, tmp_vault):
-        from hyperresearch.core.hooks import _install_cite_checker_agent
-
-        result = _install_cite_checker_agent(tmp_vault.root, "hyperresearch")
-        assert result is not None
-        body = (tmp_vault.root / ".claude" / "agents" / "hyperresearch-cite-checker.md").read_text(encoding="utf-8")
-        assert "name: hyperresearch-cite-checker" in body
-        assert "model: sonnet" in body
-        assert "wrong-source" in body
-        assert "SKEPTICAL" in body
-        assert "{hpr_path}" not in body
-        assert "<<" not in body

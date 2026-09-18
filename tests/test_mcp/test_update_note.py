@@ -43,7 +43,7 @@ def test_update_note_rejects_invalid_status(mcp_vault):
 
     from hyperresearch.core.frontmatter import parse_frontmatter
 
-    content = (mcp_vault / "research/notes/alpha-note.md").read_text(encoding="utf-8")
+    content = (mcp_vault / "output/notes/alpha-note.md").read_text(encoding="utf-8")
     meta, _ = parse_frontmatter(content)
     assert meta.status == "draft"
 
@@ -54,6 +54,6 @@ def test_update_note_accepts_valid_status(mcp_vault):
 
     from hyperresearch.core.frontmatter import parse_frontmatter
 
-    content = (mcp_vault / "research/notes/alpha-note.md").read_text(encoding="utf-8")
+    content = (mcp_vault / "output/notes/alpha-note.md").read_text(encoding="utf-8")
     meta, _ = parse_frontmatter(content)
     assert meta.status == "evergreen"

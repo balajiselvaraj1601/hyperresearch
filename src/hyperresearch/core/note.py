@@ -18,7 +18,7 @@ from hyperresearch.models.note import Note, NoteMeta, slugify
 
 # Summary prefix that marks a resolver-minted stub (`repair --stub`,
 # `graph stub`). Both minting sites write `summary="Stub for [[<id>]]"` and
-# sideline the file under research/temp/. The summary is the marker the
+# sideline the file under output/temp/. The summary is the marker the
 # rankers key on: it survives `repair`'s enrich pass (which only fills EMPTY
 # summaries), needs no vault context to test from a bare DB connection, and
 # self-clears the moment a human rewrites the summary — i.e. when the stub
@@ -129,7 +129,7 @@ def write_note(
     # Determine output path, avoid collisions. Vault layout is FLAT —
     # `parent:` lives in frontmatter (DB-indexed) but does NOT drive the
     # filesystem path. Nested dirs hurt Windows MAX_PATH, hide notes from
-    # simple `research/notes/*.md` globs, and conflict with the shared-
+    # simple `output/notes/*.md` globs, and conflict with the shared-
     # vault ensemble design where sub-runs need flat listings.
     target_dir = notes_dir
     target_dir.mkdir(parents=True, exist_ok=True)

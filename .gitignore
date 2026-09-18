@@ -26,7 +26,12 @@ CLAUDE.md
 AGENTS.md
 GEMINI.md
 
-# Per-vault research output
+# Per-vault research output. Never commit: this is run data, not source.
+output/
 research/
 
 .knack/
+.agents/
+.cursor/
+.mcp.json
+SOUL.md

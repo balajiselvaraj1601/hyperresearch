@@ -2,7 +2,7 @@
 
 When `/hyperresearch` runs a second time in the same vault, it overwrites the
 unnamespaced scaffold / loci / comparisons / critic-findings / patch-log /
-polish-log / prompt-decomposition + the entire research/temp/ scratch tree.
+polish-log / prompt-decomposition + the entire output/temp/ scratch tree.
 Final reports and canonical query files are namespaced by vault_tag and stay
 in place; everything else gets clobbered. This command preserves the prior
 run's artifacts before the next run's bootstrap writes over them.
@@ -23,7 +23,7 @@ import typer
 from hyperresearch.cli._output import console, output
 from hyperresearch.models.output import error, success
 
-# Per-run artifacts the orchestrator and step skills write at research/ root.
+# Per-run artifacts the orchestrator and step skills write at output/ root.
 # Final reports (final_report_<tag>.md) and queries (query-<tag>.md) are
 # already namespaced and stay in place.
 _ROOT_ARTIFACTS: tuple[str, ...] = (
@@ -96,15 +96,15 @@ def _unique_archive_dir(base: Path) -> Path:
 def archive_run(
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
 ) -> None:
-    """Archive prior per-run artifacts to research/runs/archive-*/.
+    """Archive prior per-run artifacts to output/runs/archive-*/.
 
     Run this BEFORE starting a new /hyperresearch session to preserve any
     in-progress or completed prior run's scaffold, loci, comparisons,
-    critic findings, patch/polish logs, and the entire research/temp/
+    critic findings, patch/polish logs, and the entire output/temp/
     scratch tree. Without this step, the next run silently overwrites them.
 
-    Final reports (research/notes/final_report_<tag>.md) and canonical query
-    files (research/query-<tag>.md) are already namespaced by vault_tag and
+    Final reports (output/notes/final_report_<tag>.md) and canonical query
+    files (output/query-<tag>.md) are already namespaced by vault_tag and
     are left in place.
     """
     from hyperresearch.core.vault import Vault, VaultError
@@ -124,7 +124,7 @@ def archive_run(
         if json_output:
             output(success(data, vault=str(vault.root)), json_mode=True)
         else:
-            console.print("[dim]Nothing to archive: research/ does not exist.[/]")
+            console.print("[dim]Nothing to archive: output/ does not exist.[/]")
         return
 
     to_move: list[Path] = []
@@ -160,7 +160,7 @@ def archive_run(
             "to": dest.relative_to(vault.root).as_posix(),
         })
 
-    # Recreate the now-empty research/temp/ so subsequent skill steps don't
+    # Recreate the now-empty output/temp/ so subsequent skill steps don't
     # need to remember to mkdir it.
     (research_dir / "temp").mkdir(exist_ok=True)
 

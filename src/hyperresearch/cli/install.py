@@ -18,12 +18,12 @@ def install(
         False,
         "--global",
         "-g",
-        help="Install Claude Code entry skill + agents to ~/.claude/ so /hyperresearch works in every Claude Code session anywhere. Skips vault init, CLAUDE.md, and the 16 step skills (those happen per-project on first /hyperresearch run).",
+        help="Install Claude Code entry skill + agents to ~/.claude/ so /hyperresearch works in every Claude Code session anywhere. Skips vault init, CLAUDE.md, and step skills (retired as of v8; pipeline steps run via hyperresearch-runner agent).",
     ),
     steps_only: bool = typer.Option(
         False,
         "--steps-only",
-        help="Install only the 16 step skills to <PATH>/.claude/skills/. Used internally by the entry skill bootstrap on first /hyperresearch invocation in a project. Not normally invoked by users.",
+        help="Step skills are retired as of v8. Pipeline steps run via the external `hyperresearch-runner` agent. This flag is kept for compatibility but does nothing.",
     ),
     profile: str | None = typer.Option(
         None,
@@ -35,8 +35,6 @@ def install(
     import sys
 
     from hyperresearch.core.hooks import (
-        _install_hyperresearch_step_skills,
-        _set_render_state,
         install_global_hooks,
         install_hooks,
     )
@@ -67,36 +65,33 @@ def install(
                 console.print(f"[red]Error:[/] {e}")
             raise typer.Exit(1)
 
-    # Steps-only path: lazy install of the 16 step skills to a project's
-    # .claude/skills/. Called by the entry skill's bootstrap on first
-    # /hyperresearch in a project (after a global install). Cheap no-op
-    # on subsequent invocations.
+    # Steps-only path: step skills are retired as of v8. Pipeline steps
+    # run via the external `hyperresearch-runner` agent. This flag is kept
+    # for compatibility but is a no-op.
     if steps_only:
-        target = Path(path).resolve()
-        steps_config = target / ".hyperresearch" / "config.toml"
-        steps_config_path = steps_config if steps_config.exists() else None
-        steps_profile = _default_profile(steps_config_path)
-        _check_profile(steps_profile, steps_config_path)
-        _set_render_state(steps_profile, steps_config_path)
-        result = _install_hyperresearch_step_skills(target)
         if json_output:
             output(
-                success({"steps_installed": result, "target": str(target)}, vault=None),
+                success(
+                    {
+                        "steps_installed": None,
+                        "target": str(Path(path).resolve()),
+                        "notice": "Step skills retired; pipeline steps run via hyperresearch-runner agent",
+                    },
+                    vault=None,
+                ),
                 json_mode=True,
             )
             return
-        if result:
-            console.print(f"[green]Step skills installed:[/] {target}/.claude/skills/")
-            console.print(f"  {result}")
-        else:
-            console.print(f"[dim]Step skills already installed at {target}/.claude/skills/[/]")
+        console.print(
+            "[yellow]Notice:[/] Step skills are retired. Pipeline steps run via the external `hyperresearch-runner` agent."
+        )
         return
 
     # Global install path: only the user-level Claude Code entry skill +
     # agents. No vault, no CLAUDE.md, no step skills — pure "make the
-    # slash command available everywhere" mode. Step skills install
-    # per-project, lazily, when the entry skill bootstrap calls
-    # `hyperresearch install --steps-only .` on first invocation.
+    # slash command available everywhere" mode. Step skills are retired as
+    # of v8; pipeline steps run via the external `hyperresearch-runner`
+    # agent.
     if global_install:
         from hyperresearch.core.agent_docs import _resolve_executable
 
@@ -126,7 +121,7 @@ def install(
             "\n[bold]Ready.[/] /hyperresearch is now available in every Claude Code session."
         )
         console.print(
-            "[dim]On first /hyperresearch run in a project, the vault, research/ folder, "
+            "[dim]On first /hyperresearch run in a project, the vault, output/ folder, "
             "and the 16 step skills are created in that project's .claude/.[/]"
         )
         return
@@ -215,8 +210,12 @@ def install(
                 "For local headless browsing: pip install hyperresearch[crawl4ai]"
             )
 
-        console.print("\n[bold]Ready.[/] Agents will now check the research base before web searches.")
-        console.print("[dim]Tip: Run 'hyperresearch setup' for interactive configuration (profile, stealth, etc.)[/]")
+        console.print(
+            "\n[bold]Ready.[/] Agents will now check the research base before web searches."
+        )
+        console.print(
+            "[dim]Tip: Run 'hyperresearch setup' for interactive configuration (profile, stealth, etc.)[/]"
+        )
 
 
 def _setup_crawl4ai(vault) -> str:

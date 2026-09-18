@@ -40,7 +40,7 @@ def _append_suggested_by_to_existing(
     in the body, it is not re-added. Returns the number of new breadcrumbs
     actually added.
     """
-    # Find the note file — scan research/notes/ for `<note-id>.md` or walk subdirs
+    # Find the note file — scan output/notes/ for `<note-id>.md` or walk subdirs
     from hyperresearch.core.frontmatter import parse_frontmatter, serialize_frontmatter
 
     note_path = None
@@ -507,7 +507,7 @@ def fetch(
         }
         ext = ext_map.get(result.raw_content_type, "")
         if ext:
-            raw_dir = vault.root / "research" / "raw"
+            raw_dir = vault.research_dir / "raw"
             raw_dir.mkdir(parents=True, exist_ok=True)
             raw_filename = note_path.stem + ext
             raw_file = raw_dir / raw_filename
@@ -575,7 +575,7 @@ def fetch(
         # the orphaned-raw-files lint flags raw/<our-id>.<ext> on the
         # next run and disk leaks accumulate.
         if raw_file_path:
-            orphan_raw = vault.root / "research" / raw_file_path
+            orphan_raw = vault.research_dir / raw_file_path
             if orphan_raw.exists():
                 try:
                     orphan_raw.unlink()
@@ -596,7 +596,7 @@ def fetch(
     # Save assets (screenshot + images) — only when requested
     saved_assets: list[dict] = []
     if save_assets:
-        assets_dir = vault.root / "research" / "assets" / note_id
+        assets_dir = vault.research_dir / "assets" / note_id
         saved_assets = _save_assets(
             conn, result, note_id, assets_dir,
             settings=vault.config.assets, image_timeout_s=vault.config.fetch.image_timeout_s,
@@ -650,7 +650,7 @@ def fetch(
                 )
         console.print(f"  Words: {data['word_count']}")
         if saved_assets:
-            console.print(f"  Assets: {len(saved_assets)} saved to research/assets/{note_id}/")
+            console.print(f"  Assets: {len(saved_assets)} saved to output/assets/{note_id}/")
 
 
 def _escalate_blocked(
