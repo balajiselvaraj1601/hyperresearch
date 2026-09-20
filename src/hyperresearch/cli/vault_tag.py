@@ -4,8 +4,8 @@ The entry skill's bootstrap turns the canonical research query into a short
 topical slug (e.g. `efield-dft-sac`). On its own that slug is not unique:
 two different queries can slug-collide on shared lexical material, and a
 re-run of the same query produces the same slug. Either case would cause
-the next run's `research/query-<tag>.md` and final
-`research/notes/final_report_<tag>.md` to overwrite the prior run's, since
+the next run's `output/query-<tag>.md` and final
+`output/reports/<tag>/final_report_<tag>.md` to overwrite the prior run's, since
 those are the two filenames the pipeline keys off the vault_tag.
 
 This command takes the topical slug and appends a random 6-hex-char suffix
@@ -46,10 +46,10 @@ def _existing_tags(vault_root: Path, research_dir: Path) -> set[str]:
     """Collect every vault_tag the vault already references on disk.
 
     Sources:
-      - `research/query-*.md` — canonical query files (one per run)
-      - `research/notes/final_report_*.md` — final reports
+      - `output/query-*.md` — canonical query files (one per run)
+      - `output/reports/*/final_report_*.md` — final reports
 
-    Archived runs under `research/runs/archive-*/` are deliberately ignored:
+    Archived runs under `output/runs/archive-*/` are deliberately ignored:
     those filenames embed the OLD tag, but they don't collide with NEW
     filenames because the new ones live at the research root and the
     notes dir. Including them would only narrow the suffix space for no
@@ -61,13 +61,13 @@ def _existing_tags(vault_root: Path, research_dir: Path) -> set[str]:
             m = _QUERY_FILE_RE.match(p.name)
             if m:
                 tags.add(m.group(1))
-    notes_dir = research_dir / "notes"
-    if notes_dir.is_dir():
-        for p in notes_dir.glob("final_report_*.md"):
+    reports_dir = research_dir / "reports"
+    if reports_dir.is_dir():
+        for p in reports_dir.rglob("final_report_*.md"):
             m = _REPORT_FILE_RE.match(p.name)
             if m:
                 tags.add(m.group(1))
-    # 3.0 per-run workspaces: every research/runs/<tag>/ directory IS a tag
+    # 3.0 per-run workspaces: every output/runs/<tag>/ directory IS a tag
     # (excluding archive-* dirs from `archive-run`, which embed old tags with
     # a prefix that can't collide with fresh mints).
     runs_dir = research_dir / "runs"

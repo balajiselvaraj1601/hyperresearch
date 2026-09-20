@@ -19,7 +19,9 @@ def fetch_batch(
     tags: list[str] = typer.Option([], "--tag", "-t", help="Tags for all notes"),
     parent: str | None = typer.Option(None, "--parent", "-p", help="Parent topic"),
     provider_name: str | None = typer.Option(None, "--provider", help="Web provider override"),
-    save_assets: bool = typer.Option(False, "--save-assets", "-a", help="Download images and screenshots"),
+    save_assets: bool = typer.Option(
+        False, "--save-assets", "-a", help="Download images and screenshots"
+    ),
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
 ) -> None:
     """Fetch multiple URLs and save each as a research note. Batched sync for speed."""
@@ -90,7 +92,10 @@ def fetch_batch(
 
     if not new_urls:
         if json_output:
-            output(success({"notes_created": [], "skipped": len(all_urls)}, vault=str(vault.root)), json_mode=True)
+            output(
+                success({"notes_created": [], "skipped": len(all_urls)}, vault=str(vault.root)),
+                json_mode=True,
+            )
         else:
             console.print("[dim]All URLs already fetched.[/]")
         return
@@ -177,8 +182,7 @@ def fetch_batch(
         rescued_urls.add(burl)
         if not json_output:
             console.print(
-                f"  [cyan]Blocked — recovered an open-access copy:[/] {burl} "
-                f"(via {loc.resolver})"
+                f"  [cyan]Blocked — recovered an open-access copy:[/] {burl} (via {loc.resolver})"
             )
 
     # A rescued URL is no longer lost, so it should not still be reported as a
@@ -219,14 +223,10 @@ def fetch_batch(
         body_content = result.content
         if oa_location is not None:
             extra_meta.update(
-                oa_frontmatter(
-                    oa_location, kind="rescued" if rescue_reason else "substituted"
-                )
+                oa_frontmatter(oa_location, kind="rescued" if rescue_reason else "substituted")
             )
             body_content = (
-                recovery_notice(
-                    oa_location, url, original_chars, blocked_reason=rescue_reason
-                )
+                recovery_notice(oa_location, url, original_chars, blocked_reason=rescue_reason)
                 + "\n"
                 + body_content
             )
@@ -240,6 +240,7 @@ def fetch_batch(
             source=url,
             parent=parent,
             extra_frontmatter=extra_meta,
+            run_tag=tags[0] if tags else None,
         )
 
         # Auto-enrich before sync
@@ -286,9 +287,12 @@ def fetch_batch(
         if save_assets:
             from hyperresearch.cli.fetch import _save_assets as _save_assets_fn
 
-            assets_dir = vault.root / "research" / "assets" / note_id
+            assets_dir = vault.research_dir / "assets" / note_id
             _save_assets_fn(
-                conn, result, note_id, assets_dir,
+                conn,
+                result,
+                note_id,
+                assets_dir,
                 settings=vault.config.assets,
                 image_timeout_s=vault.config.fetch.image_timeout_s,
             )

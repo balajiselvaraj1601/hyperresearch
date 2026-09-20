@@ -183,7 +183,22 @@ hyperresearch profile use mimo --json   # re-renders installed prompts; next run
 hyperresearch profile use full          # revert
 ```
 
-Worker rules baked into every agent prompt: one job per call, inputs pasted
+Since v8 no agent files are installed. Workers are generic `agent_medium`
+spawns; what makes one a fetcher or a critic is its **role brief**, rendered
+per run and pasted verbatim at the end of the spawn prompt:
+
+```bash
+hyperresearch run contract <vault_tag> <N>              # the step's procedure, rendered
+hyperresearch run contract <vault_tag> --role fetcher   # a worker's role brief
+hyperresearch run contract <vault_tag> --list-roles
+```
+
+Rendering fills profile numbers (`<< p.x >>`), the CLI path (`$HPR`), the
+tag, and makes run paths absolute. The raw `src/hyperresearch/skills/*.md`
+files are templates; reading them directly leaves those unresolved. Role
+briefs live in `src/hyperresearch/skills/roles/`.
+
+Worker rules baked into every role brief: one job per call, inputs pasted
 verbatim (workers never survey the vault), JSON/digest-only capped returns,
 verbatim note IDs, explicit stop conditions, thinking minimal. LiteLLM
 constraints respected: chat-completions URL mode, session-header injection,
@@ -192,7 +207,11 @@ short outputs, 60s cooldowns, Gemini lite→flash overflow for account caps.
 ## What is structurally enforced
 
 - Verbatim prompt as gospel; locus coverage (every locus gets an interim note).
-- Patch-only modification after synthesis; critical findings never silently skip.
+- Patch-only modification after synthesis; critical findings never silently skip:
+  `run verify` fails unless every critical critic finding is applied or skipped
+  by name in `patch-log.json`.
+- Reopening a step on a shipped run (`run step <tag> <N> --status pending`)
+  puts the run back to `running` and clears the old verify verdict.
 - Quoted text must exist verbatim in a vault note; retractions block the ship.
 - Fetched web text is fenced as data, never instructions (`<untrusted-source>`).
 - Template structure lint: step skills and agent prompts follow a fixed
@@ -200,6 +219,20 @@ short outputs, 60s cooldowns, Gemini lite→flash overflow for account caps.
 - The gate's verdict is final: `run finish` must report `"passed": true`
   (max 3 fix rounds, then honestly blocked) — checks are fixed by changing
   the report, never reinterpreted away.
+
+## Output layout
+
+Each run keeps its own tree under `output/`:
+
+```
+output/
+  reports/<vault_tag>/final_report_<vault_tag>.md
+  notes/<vault_tag>/<note-id>.md
+  runs/<vault_tag>/   # scaffold, critics, patch logs, temp drafts
+```
+
+`hyperresearch fetch --tag <vault_tag>` writes notes into that run's notes
+subdir. Sync skips `output/reports/` (reports are not vault notes).
 
 ## Install
 

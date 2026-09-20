@@ -17,7 +17,7 @@ runner = CliRunner()
 @pytest.fixture
 def vault_with_notes(tmp_path: Path) -> Path:
     vault_dir = tmp_path / "kb"
-    runner.invoke(app, ["init", str(vault_dir)])
+    runner.invoke(app, ["init", str(vault_dir), "--dir", "output"])
     os.chdir(vault_dir)
     runner.invoke(app, ["note", "new", "Alpha Note", "--tag", "test"])
     runner.invoke(app, ["note", "new", "Beta Note", "--tag", "test"])
@@ -49,6 +49,7 @@ def test_note_rm_cleans_raw_file_and_assets(vault_with_notes):
     # Seed a note with raw_file in its frontmatter and an assets directory.
     from hyperresearch.core.note import write_note
     from hyperresearch.core.vault import Vault
+
     vault = Vault.discover()
 
     write_note(
@@ -61,12 +62,12 @@ def test_note_rm_cleans_raw_file_and_assets(vault_with_notes):
         extra_frontmatter={"raw_file": "raw/pdf-source.pdf"},
     )
 
-    raw_dir = vault_root / "research" / "raw"
+    raw_dir = vault_root / "output" / "raw"
     raw_dir.mkdir(parents=True, exist_ok=True)
     raw_file = raw_dir / "pdf-source.pdf"
     raw_file.write_bytes(b"%PDF-1.4 test")
 
-    assets_dir = vault_root / "research" / "assets" / "pdf-source"
+    assets_dir = vault_root / "output" / "assets" / "pdf-source"
     assets_dir.mkdir(parents=True, exist_ok=True)
     (assets_dir / "screenshot.png").write_bytes(b"PNG fake")
     (assets_dir / "figure-1.jpg").write_bytes(b"JPG fake")
@@ -79,7 +80,7 @@ def test_note_rm_cleans_raw_file_and_assets(vault_with_notes):
     data = json.loads(result.output)
     assert data["ok"] is True
     assert data["data"]["deleted"] == "pdf-source"
-    assert data["data"].get("removed_raw") == "research/raw/pdf-source.pdf"
+    assert data["data"].get("removed_raw") == "output/raw/pdf-source.pdf"
     assert len(data["data"].get("removed_assets", [])) == 2
 
     # Verify the files are actually gone from disk.
@@ -88,9 +89,7 @@ def test_note_rm_cleans_raw_file_and_assets(vault_with_notes):
 
 
 def test_note_mv(vault_with_notes):
-    result = runner.invoke(
-        app, ["note", "mv", "beta-note", "notes/moved/beta-note.md", "--json"]
-    )
+    result = runner.invoke(app, ["note", "mv", "beta-note", "notes/moved/beta-note.md", "--json"])
     assert result.exit_code == 0
     data = json.loads(result.output)
     assert data["data"]["new_path"] == "notes/moved/beta-note.md"
@@ -142,16 +141,14 @@ def test_note_update_rejects_invalid_status(vault_with_notes):
     # The note on disk must be untouched and still parseable.
     from hyperresearch.core.frontmatter import parse_frontmatter
 
-    content = (vault_with_notes / "research/notes/alpha-note.md").read_text(encoding="utf-8")
+    content = (vault_with_notes / "output/notes/alpha-note.md").read_text(encoding="utf-8")
     meta, _ = parse_frontmatter(content)
     assert meta.status == "draft"
 
 
 def test_note_update_accepts_valid_status_and_stays_indexed(vault_with_notes):
     """The happy path must still write, and the note must survive a resync."""
-    result = runner.invoke(
-        app, ["note", "update", "alpha-note", "--status", "evergreen", "--json"]
-    )
+    result = runner.invoke(app, ["note", "update", "alpha-note", "--status", "evergreen", "--json"])
     assert result.exit_code == 0
     assert json.loads(result.output)["ok"] is True
 

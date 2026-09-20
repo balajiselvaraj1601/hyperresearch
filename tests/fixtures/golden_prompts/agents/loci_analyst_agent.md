@@ -8,7 +8,7 @@ description: >
   parallel; the orchestrator dedupes their outputs. Identifying genuine
   rabbitholes requires real reading comprehension and judgment about
   what is load-bearing evidence vs. surface detail.
-model: sonnet
+model: mimo
 tools: Bash, Read, Write
 color: green
 ---
@@ -53,13 +53,13 @@ prompt. No block = this prompt's defaults apply unchanged.
   analysts you are. Used only to tag your output file so the orchestrator
   can load every analyst's output.
 - **output_path**: where to write your loci list JSON (e.g.,
-  `research/loci-{{analyst_id}}.json`).
-- **prompt_decomposition** (optional): if `research/runs/<vault_tag>/prompt-decomposition.json`
+  `output/loci-{{analyst_id}}.json`).
+- **prompt_decomposition** (optional): if `output/runs/<vault_tag>/prompt-decomposition.json`
   exists, read it before choosing loci. It lists atomic items the prompt
   named — entities, sub-questions, required formats. Your loci should be
   aligned with those items (a dialectical locus on "which camp resolves
   sub-question X" beats a locus on a tangential question).
-- **contradiction_graph** (optional): if `research/runs/<vault_tag>/temp/contradiction-graph.json`
+- **contradiction_graph** (optional): if `output/runs/<vault_tag>/temp/contradiction-graph.json`
   exists, read it FIRST — before scanning the corpus. Each entry is a
   pre-identified "fight" where sources contradict each other, with side_a/side_b
   positions, source note IDs, and decision_relevance. High-relevance clusters
@@ -67,7 +67,7 @@ prompt. No block = this prompt's defaults apply unchanged.
   disagreement, not surface-level topic analysis. Validate them (are the
   sources real? is the fight genuine or a scope mismatch?) and promote
   validated high-relevance clusters directly to your loci list.
-- **claim_files** (optional): if `research/runs/<vault_tag>/temp/claims-*.json` files exist, read them
+- **claim_files** (optional): if `output/runs/<vault_tag>/temp/claims-*.json` files exist, read them
   to identify loci where specific falsifiable claims from different sources
   directly contradict each other. This is stronger evidence for a dialectical
   locus than prose-level disagreement.
@@ -79,7 +79,7 @@ prompt. No block = this prompt's defaults apply unchanged.
    sparse (<10 notes), tell the parent and stop — you cannot identify real
    loci from a thin corpus.
 
-1a. **Check for contradiction graph.** If `research/runs/<vault_tag>/temp/contradiction-graph.json`
+1a. **Check for contradiction graph.** If `output/runs/<vault_tag>/temp/contradiction-graph.json`
    exists, read it. For each cluster with `decision_relevance: "high"`:
    - Validate the fight is genuine (not a scope mismatch)
    - If valid, add directly to your candidate loci as `flavor: "dialectical"`

@@ -49,19 +49,19 @@ class ModelMap(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True, protected_namespaces=())
 
-    fetcher: str = "sonnet"
-    source_analyst: str = "sonnet"
-    loci_analyst: str = "sonnet"
-    depth_investigator: str = "sonnet"
-    corpus_critic: str = "sonnet"
-    cite_checker: str = "sonnet"
-    browser_fetcher: str = "sonnet"
-    draft_orchestrator: str = "opus"
-    synthesizer: str = "opus"
-    critics: str = "opus"
-    patcher: str = "opus"
-    polish_auditor: str = "opus"
-    readability_recommender: str = "opus"
+    fetcher: str = "mimo"
+    source_analyst: str = "mimo"
+    loci_analyst: str = "mimo"
+    depth_investigator: str = "mimo"
+    corpus_critic: str = "mimo"
+    cite_checker: str = "mimo"
+    browser_fetcher: str = "mimo"
+    draft_orchestrator: str = "mimo"
+    synthesizer: str = "mimo"
+    critics: str = "mimo"
+    patcher: str = "mimo"
+    polish_auditor: str = "mimo"
+    readability_recommender: str = "mimo"
 
     @field_validator("*")
     @classmethod

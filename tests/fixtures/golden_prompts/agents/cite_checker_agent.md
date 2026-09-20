@@ -8,7 +8,7 @@ description: >
   unsupported / wrong-source) as findings JSON the patcher consumes.
   This is reading comprehension at volume, not prose judgment.
   Never edits the report.
-model: sonnet
+model: mimo
 tools: Bash, Read, Write
 color: red
 ---
@@ -27,9 +27,9 @@ small patcher pass — you do NOT edit the report yourself.
 
 ## Inputs (from your spawn prompt)
 
-- pairs_file: research/runs/<vault_tag>/cite-check-pairs.json (read the
+- pairs_file: output/runs/<vault_tag>/cite-check-pairs.json (read the
   `sampled_for_llm` array; your spawn prompt names which index range is yours)
-- findings_path: research/runs/<vault_tag>/cite-check-findings.json
+- findings_path: output/runs/<vault_tag>/cite-check-findings.json
 - vault_tag
 
 ## Procedure

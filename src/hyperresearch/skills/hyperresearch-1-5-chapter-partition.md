@@ -21,9 +21,9 @@ description: >
 ## Recover state
 
 Read these inputs:
-- `research/runs/<vault_tag>/scaffold.md` — run config
-- `research/runs/<vault_tag>/prompt-decomposition.json` — atomic items, required_section_headings
-- `research/runs/<vault_tag>/query.md` — canonical query
+- `output/runs/<vault_tag>/scaffold.md` — run config
+- `output/runs/<vault_tag>/prompt-decomposition.json` — atomic items, required_section_headings
+- `output/runs/<vault_tag>/query.md` — canonical query
 
 ---
 
@@ -35,7 +35,7 @@ Read these inputs:
    - When `required_section_headings` already implies a chapter structure (the prompt asked for named parts), FOLLOW IT — chapters must map 1:1 onto required top-level headings when they exist.
    - Fewer than ~12 atomic items → the query doesn't need chaptering; record 1 chapter and note the pipeline degenerates to the flat `full` shape.
 
-2. **Write the chapter plan** to `research/runs/<vault_tag>/chapter-plan.json`:
+2. **Write the chapter plan** to `output/runs/<vault_tag>/chapter-plan.json`:
    ```json
    {
      "chapters": [
@@ -51,7 +51,7 @@ Read these inputs:
    ```
    `depends_on` lists chapters whose findings this chapter builds on (usually empty; used to order execution).
 
-3. **Scaffold chapter workspaces.** For each chapter, create `research/runs/<vault_tag>/chapters/<id>/` with an empty `temp/` subdirectory. Chapter-scoped step artifacts (loci.json, comparisons.md, claims, drafts) live there; the flat run-root copies are NOT used on chaptered runs.
+3. **Scaffold chapter workspaces.** For each chapter, create `output/runs/<vault_tag>/chapters/<id>/` with an empty `temp/` subdirectory. Chapter-scoped step artifacts (loci.json, comparisons.md, claims, drafts) live there; the flat run-root copies are NOT used on chaptered runs.
 
 4. **Register chapters in the manifest.** For each chapter in the plan:
    ```bash
@@ -73,11 +73,11 @@ For each chapter (respecting `depends_on`, up to << dissertation.chapter_concurr
 
 1. Invoke steps 2 → 10 with the chapter as scope:
    - The "research query" for chapter-scoped subagent spawns is the verbatim canonical query PLUS a chapter assignment block naming the chapter's title and atomic items.
-   - Artifact paths swap `research/runs/<vault_tag>/` for `research/runs/<vault_tag>/chapters/<id>/` (each chapter has its own loci.json, comparisons.md, temp/).
+   - Artifact paths swap `output/runs/<vault_tag>/` for `output/runs/<vault_tag>/chapters/<id>/` (each chapter has its own loci.json, comparisons.md, temp/).
    - Source targets come from `chapter_source_target`, not the global `source_target`.
-   - Step 10 writes ONE draft per chapter to `research/runs/<vault_tag>/chapters/<id>/draft.md` (draft_count is 1 for chaptered profiles — angle diversity comes from the chapters themselves).
+   - Step 10 writes ONE draft per chapter to `output/runs/<vault_tag>/chapters/<id>/draft.md` (draft_count is 1 for chaptered profiles — angle diversity comes from the chapters themselves).
 2. Record progress: `$HPR run step <vault_tag> <N> --status done --chapter <id> -j` after each chapter-step completes.
-3. After ALL chapters finish step 10, proceed to the global layers: step 6 re-runs GLOBALLY (cross-CHAPTER tensions from the chapters' comparisons.md files → `research/runs/<vault_tag>/comparisons.md`), then step 11 synthesizes the chapter drafts into the final document (chapter titles become H1s), then steps 12-16 run once against the whole document.
+3. After ALL chapters finish step 10, proceed to the global layers: step 6 re-runs GLOBALLY (cross-CHAPTER tensions from the chapters' comparisons.md files → `output/runs/<vault_tag>/comparisons.md`), then step 11 synthesizes the chapter drafts into the final document (chapter titles become H1s), then steps 12-16 run once against the whole document.
 
 **Budget check at every chapter boundary:** `$HPR run status <vault_tag> -j`. If `status` is `blocked` with `blocked_on: "budget"`, STOP spawning and surface to the user. Never silently skip profile-mandated steps — shrink the NEXT chapter's fan-out (fewer wave-2 fetchers, lower depth budgets) when `budget_remaining_usd` is under ~30% instead.
 
@@ -85,8 +85,8 @@ For each chapter (respecting `depends_on`, up to << dissertation.chapter_concurr
 
 ## Exit criterion
 
-- `research/runs/<vault_tag>/chapter-plan.json` exists with every atomic item assigned to exactly one chapter
-- Chapter workspaces exist under `research/runs/<vault_tag>/chapters/`
+- `output/runs/<vault_tag>/chapter-plan.json` exists with every atomic item assigned to exactly one chapter
+- Chapter workspaces exist under `output/runs/<vault_tag>/chapters/`
 - Manifest step 1.5 marked done, chapters registered
 
 ## Next step

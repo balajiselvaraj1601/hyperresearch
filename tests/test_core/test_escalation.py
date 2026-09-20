@@ -20,7 +20,9 @@ from hyperresearch.core.escalation import (
 class TestQueueBasics:
     def test_enqueue_and_list(self, tmp_vault):
         conn = tmp_vault.db
-        item_id = enqueue(conn, "https://x.com/a", "login_wall", vault_tag="run-1", utility_score=14)
+        item_id = enqueue(
+            conn, "https://x.com/a", "login_wall", vault_tag="run-1", utility_score=14
+        )
         assert item_id is not None
         items = list_items(conn, vault_tag="run-1")
         assert len(items) == 1
@@ -84,30 +86,51 @@ class TestClaimSemantics:
 
 class TestChromePolicy:
     def test_low_utility_declined(self, tmp_vault):
-        assert maybe_enqueue_blocked_fetch(tmp_vault, "https://x.com", "bot_block", utility_score=3.0) is None
-        assert maybe_enqueue_blocked_fetch(tmp_vault, "https://x.com", "bot_block", utility_score=9.0) is not None
+        assert (
+            maybe_enqueue_blocked_fetch(tmp_vault, "https://x.com", "bot_block", utility_score=3.0)
+            is None
+        )
+        assert (
+            maybe_enqueue_blocked_fetch(tmp_vault, "https://x.com", "bot_block", utility_score=9.0)
+            is not None
+        )
 
     def test_unscored_urls_pass(self, tmp_vault):
         assert maybe_enqueue_blocked_fetch(tmp_vault, "https://y.com", "login_wall") is not None
 
     def test_disabled_lane_declines(self, tmp_vault):
         cfg = tmp_vault.config_path
-        cfg.write_text(cfg.read_text(encoding="utf-8").replace(
-            "[chrome]\nenabled = true", "[chrome]\nenabled = false"
-        ), encoding="utf-8")
+        cfg.write_text(
+            cfg.read_text(encoding="utf-8").replace(
+                "[chrome]\nenabled = true", "[chrome]\nenabled = false"
+            ),
+            encoding="utf-8",
+        )
         vault = type(tmp_vault).discover(tmp_vault.root)
         assert vault.config.chrome.enabled is False
         assert maybe_enqueue_blocked_fetch(vault, "https://z.com", "login_wall") is None
 
     def test_per_run_cap(self, tmp_vault):
         cfg = tmp_vault.config_path
-        cfg.write_text(cfg.read_text(encoding="utf-8").replace(
-            "max_items_per_run = 25", "max_items_per_run = 2"
-        ), encoding="utf-8")
+        cfg.write_text(
+            cfg.read_text(encoding="utf-8").replace(
+                "max_items_per_run = 25", "max_items_per_run = 2"
+            ),
+            encoding="utf-8",
+        )
         vault = type(tmp_vault).discover(tmp_vault.root)
-        assert maybe_enqueue_blocked_fetch(vault, "https://a.com", "login_wall", vault_tag="capped") is not None
-        assert maybe_enqueue_blocked_fetch(vault, "https://b.com", "login_wall", vault_tag="capped") is not None
-        assert maybe_enqueue_blocked_fetch(vault, "https://c.com", "login_wall", vault_tag="capped") is None
+        assert (
+            maybe_enqueue_blocked_fetch(vault, "https://a.com", "login_wall", vault_tag="capped")
+            is not None
+        )
+        assert (
+            maybe_enqueue_blocked_fetch(vault, "https://b.com", "login_wall", vault_tag="capped")
+            is not None
+        )
+        assert (
+            maybe_enqueue_blocked_fetch(vault, "https://c.com", "login_wall", vault_tag="capped")
+            is None
+        )
 
 
 class TestFetchGateIntegration:
@@ -125,7 +148,9 @@ class TestFetchGateIntegration:
             def fetch(self, url):
                 return WebResult(url=url, title="Sign in to continue", content="Please log in.")
 
-        monkeypatch.setattr(fetch_mod, "get_provider", lambda *a, **k: WallProvider(), raising=False)
+        monkeypatch.setattr(
+            fetch_mod, "get_provider", lambda *a, **k: WallProvider(), raising=False
+        )
         # cli.fetch imports get_provider inside the function from web.base
         import hyperresearch.web.base as base_mod
 
@@ -133,8 +158,18 @@ class TestFetchGateIntegration:
 
         monkeypatch.chdir(tmp_vault.root)
         runner = CliRunner()
-        r = runner.invoke(app, ["fetch", "https://walled.example.com/article",
-                                "--tag", "esc-run", "--utility-score", "15", "--json"])
+        r = runner.invoke(
+            app,
+            [
+                "fetch",
+                "https://walled.example.com/article",
+                "--tag",
+                "esc-run",
+                "--utility-score",
+                "15",
+                "--json",
+            ],
+        )
         assert r.exit_code == 1
         payload = json.loads(r.stdout)
         assert payload["error_code"] == "AUTH_REQUIRED_ESCALATED"
@@ -155,9 +190,21 @@ class TestEscalationCli:
         monkeypatch.chdir(tmp_vault.root)
         runner = CliRunner()
 
-        r = runner.invoke(app, ["escalation", "add", "https://gated.example.com/paper",
-                                "--reason", "interactive_needed", "--tag", "cli-esc",
-                                "--utility", "12", "--json"])
+        r = runner.invoke(
+            app,
+            [
+                "escalation",
+                "add",
+                "https://gated.example.com/paper",
+                "--reason",
+                "interactive_needed",
+                "--tag",
+                "cli-esc",
+                "--utility",
+                "12",
+                "--json",
+            ],
+        )
         assert r.exit_code == 0
         item_id = json.loads(r.stdout)["data"]["id"]
 
@@ -167,8 +214,19 @@ class TestEscalationCli:
 
         body = tmp_vault.root / "scratch-body.md"
         body.write_text("Extracted page content with plenty of real words in it.", encoding="utf-8")
-        r = runner.invoke(app, ["escalation", "ingest", str(item_id),
-                                "--title", "Gated Paper", "--body-file", str(body), "--json"])
+        r = runner.invoke(
+            app,
+            [
+                "escalation",
+                "ingest",
+                str(item_id),
+                "--title",
+                "Gated Paper",
+                "--body-file",
+                str(body),
+                "--json",
+            ],
+        )
         assert r.exit_code == 0
         data = json.loads(r.stdout)["data"]
         note_id = data["note_id"]
@@ -181,7 +239,10 @@ class TestEscalationCli:
         ).fetchone()
         assert src["provider"] == "chrome"
         assert src["note_id"] == note_id
-        tags = {t["tag"] for t in tmp_vault.db.execute("SELECT tag FROM tags WHERE note_id = ?", (note_id,))}
+        tags = {
+            t["tag"]
+            for t in tmp_vault.db.execute("SELECT tag FROM tags WHERE note_id = ?", (note_id,))
+        }
         assert "cli-esc" in tags
         note_text = (tmp_vault.root / data["path"]).read_text(encoding="utf-8")
         assert "fetch_provider: chrome" in note_text
@@ -196,12 +257,23 @@ class TestEscalationCli:
 
         monkeypatch.chdir(tmp_vault.root)
         runner = CliRunner()
-        runner.invoke(app, ["escalation", "add", "https://c.example.com", "--reason", "captcha", "--json"])
+        runner.invoke(
+            app, ["escalation", "add", "https://c.example.com", "--reason", "captcha", "--json"]
+        )
         r = runner.invoke(app, ["escalation", "claim", "--json"])
         item_id = json.loads(r.stdout)["data"]["item"]["id"]
 
-        r = runner.invoke(app, ["escalation", "human", str(item_id),
-                                "--detail", "solve CAPTCHA on c.example.com", "--json"])
+        r = runner.invoke(
+            app,
+            [
+                "escalation",
+                "human",
+                str(item_id),
+                "--detail",
+                "solve CAPTCHA on c.example.com",
+                "--json",
+            ],
+        )
         assert r.exit_code == 0
         r = runner.invoke(app, ["escalation", "retry", str(item_id), "--json"])
         assert r.exit_code == 0
@@ -217,7 +289,9 @@ class TestRunStatusIntegration:
 
         init_run(tmp_vault, "esc-status-01")
         enqueue(tmp_vault.db, "https://q.example.com", "login_wall", vault_tag="esc-status-01")
-        item_id = enqueue(tmp_vault.db, "https://h.example.com", "captcha", vault_tag="esc-status-01")
+        item_id = enqueue(
+            tmp_vault.db, "https://h.example.com", "captcha", vault_tag="esc-status-01"
+        )
         resolve(tmp_vault.db, item_id, "needs_human", detail="x")
 
         monkeypatch.chdir(tmp_vault.root)
@@ -227,19 +301,3 @@ class TestRunStatusIntegration:
         esc = json.loads(r.stdout)["data"]["escalations"]
         assert esc["queued"] == 1
         assert esc["needs_human"] == 1
-
-
-class TestBrowserFetcherAgent:
-    def test_agent_installs_with_boundary(self, tmp_vault):
-        from hyperresearch.core.hooks import _install_browser_fetcher_agent
-
-        result = _install_browser_fetcher_agent(tmp_vault.root, "hyperresearch")
-        assert result is not None
-        body = (tmp_vault.root / ".claude" / "agents" / "hyperresearch-browser-fetcher.md").read_text(encoding="utf-8")
-        assert "name: hyperresearch-browser-fetcher" in body
-        assert "model: sonnet" in body
-        assert "NEVER" in body and "CAPTCHA" in body
-        assert "escalation human" in body
-        assert "escalation ingest" in body
-        assert "scholar.google.com" in body
-        assert "<<" not in body  # fully rendered

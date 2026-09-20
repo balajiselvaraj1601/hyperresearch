@@ -1,8 +1,8 @@
 """Claims persistence — fetcher-extracted claims as queryable DB rows.
 
-Fetchers write `research/runs/<vault_tag>/temp/claims-<note-id>.json` files
+Fetchers write `output/runs/<vault_tag>/temp/claims-<note-id>.json` files
 during step 2 (and step 13's gap fetch); the legacy flat location
-`research/temp/claims-*.json` is still honoured. This module ingests them
+`output/temp/claims-*.json` is still honoured. This module ingests them
 into the `claims` (+ `claims_fts`) tables, keyed to their source notes, so
 downstream consumers can ask "which source best supports X" as a query
 instead of re-parsing JSON files. This is the substrate for phase-5
@@ -165,17 +165,17 @@ def default_claims_dirs(vault, vault_tag: str | None = None) -> list[Path]:
     """Directories a default (no explicit `temp_dir`) ingest scans.
 
     With a `vault_tag` whose run workspace exists, exactly that run's
-    `research/runs/<vault_tag>/temp/`. Otherwise the union of the legacy
-    flat `research/temp/` and every `research/runs/*/temp/` — the fetcher
+    `output/runs/<vault_tag>/temp/`. Otherwise the union of the legacy
+    flat `output/temp/` and every `output/runs/*/temp/` — the fetcher
     contract writes claims into the run workspace, so a scan limited to
     the flat directory sees nothing in a real run.
     """
-    research = vault.root / "research"
+    research = vault.research_dir
     runs = research / "runs"
     if vault_tag:
         # `vault_tag` is a CLI argument (an agent may have been talked into
         # it): a tag like `../../..` or an absolute path must not point the
-        # scan outside research/runs/. Only a tag that resolves under the
+        # scan outside output/runs/. Only a tag that resolves under the
         # runs directory narrows the scan; anything else falls through to
         # the default union.
         run_temp = runs / vault_tag / "temp"
@@ -210,8 +210,8 @@ def ingest_claims_dir(vault, temp_dir: Path | None = None, vault_tag: str | None
 
     `temp_dir` given: scan exactly that directory (no recursion). Otherwise
     scan `default_claims_dirs(vault, vault_tag)` — the run workspace for
-    `vault_tag` when it exists, else legacy `research/temp/` plus every
-    `research/runs/*/temp/`. `vault_tag` is also stamped on every row.
+    `vault_tag` when it exists, else legacy `output/temp/` plus every
+    `output/runs/*/temp/`. `vault_tag` is also stamped on every row.
     """
     conn = vault.db
     if temp_dir is None:
@@ -231,7 +231,7 @@ def ingest_claims_dir(vault, temp_dir: Path | None = None, vault_tag: str | None
         summary["hint"] = (
             "no claims-*.json found under "
             + ", ".join(summary["scanned"])
-            + "; fetchers write research/runs/<vault_tag>/temp/claims-<note-id>.json "
+            + "; fetchers write output/runs/<vault_tag>/temp/claims-<note-id>.json "
             "-- pass --tag <vault_tag> or the files explicitly"
         )
     for f in files:

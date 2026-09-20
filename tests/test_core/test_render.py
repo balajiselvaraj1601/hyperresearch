@@ -25,7 +25,7 @@ class TestDelimiters:
     def test_standard_jinja_braces_pass_through(self, ctx):
         # Skill prose legitimately contains {{...}} placeholders and JSON braces;
         # they must survive rendering untouched.
-        text = "> {{paste research/query-<vault_tag>.md body}}\n{\"total_findings\": 3}"
+        text = "> {{paste output/query-<vault_tag>.md body}}\n{\"total_findings\": 3}"
         assert render_prompt(text, ctx) == text
 
     def test_blocks_use_angle_percent(self, ctx):

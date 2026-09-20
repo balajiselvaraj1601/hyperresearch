@@ -58,7 +58,7 @@ def import_vault(
     for src_file in md_files:
         rel = src_file.relative_to(source_path).as_posix()
         dest_rel = f"{prefix}/{rel}" if prefix else rel
-        # Write into research/notes/, not vault root
+        # Write into output/notes/, not vault root
         dest = vault.notes_dir / dest_rel
 
         imported.append({"source": rel, "destination": dest_rel})

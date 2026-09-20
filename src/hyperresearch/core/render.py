@@ -2,7 +2,7 @@
 
 Skill files and agent prompt bodies are Jinja templates with NON-STANDARD
 delimiters, because the prompts themselves legitimately contain `{{ ... }}`
-(spawn-template placeholders like `{{paste research/query-<vault_tag>.md}}`)
+(spawn-template placeholders like `{{paste output/query-<vault_tag>.md}}`)
 and `{ ... }` (JSON examples):
 
     variables:  << p.source_min >>

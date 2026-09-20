@@ -28,7 +28,7 @@ def _reset_render_state():
 @pytest.fixture
 def tmp_vault(tmp_path: Path) -> Vault:
     """Create a temporary vault for testing."""
-    vault = Vault.init(tmp_path / "test-vault", name="Test Vault")
+    vault = Vault.init(tmp_path / "test-vault", name="Test Vault", research_dir="output")
     return vault
 
 

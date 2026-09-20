@@ -15,8 +15,14 @@ app = typer.Typer()
 @app.command("extract")
 def citecheck_extract(
     vault_tag: str = typer.Argument(..., help="Run tag (pairs file lands in the run workspace)"),
-    report: str | None = typer.Option(None, "--report", help="Report path (default: research/notes/final_report_<tag>.md)"),
-    sample_rate: float = typer.Option(0.6, "--sample-rate", help="Fraction of weak (non-number-bearing) needs-llm pairs to check; number-bearing sentences are always 100%"),
+    report: str | None = typer.Option(
+        None, "--report", help="Report path (default: output/reports/<tag>/final_report_<tag>.md)"
+    ),
+    sample_rate: float = typer.Option(
+        0.6,
+        "--sample-rate",
+        help="Fraction of weak (non-number-bearing) needs-llm pairs to check; number-bearing sentences are always 100%",
+    ),
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
 ) -> None:
     """Extract (sentence, citation) pairs from the final report and triage them.
@@ -47,8 +53,8 @@ def citecheck_extract(
         raise typer.Exit(1)
 
     vault.auto_sync()
-    report_path = Path(report) if report else (
-        vault.root / "research" / "notes" / f"final_report_{vault_tag}.md"
+    report_path = (
+        Path(report) if report else (vault.reports_dir / vault_tag / f"final_report_{vault_tag}.md")
     )
     if not report_path.exists():
         msg = f"report not found: {report_path}"

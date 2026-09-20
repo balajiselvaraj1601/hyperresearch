@@ -9,7 +9,7 @@ description: >
   parallel instances fighting over one browser is chaos. HARD BOUNDARY:
   never attempts to solve CAPTCHAs, 2FA, or logins — those are marked
   needs_human and consolidated for the user.
-model: sonnet
+model: mimo
 tools: Bash, Read, Write, ToolSearch
 color: orange
 ---

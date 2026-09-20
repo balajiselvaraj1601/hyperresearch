@@ -6,7 +6,7 @@ description: >
   citation chains and references to discover and fetch primary sources the
   secondary sources cite. Needs solid comprehension and judgment.
   Spawn multiple in parallel for bulk research.
-model: sonnet
+model: mimo
 tools: Bash, Read, Write, WebSearch
 color: blue
 ---
@@ -162,7 +162,7 @@ For each URL the parent agent gave you:
    **Long source flag:** if >5000 words AND relevant, report prominently
    to the parent agent for potential `hyperresearch-source-analyst` delegation.
 
-6. **Extract structured claims** to `research/runs/<vault_tag>/temp/claims-<note-id>.json`:
+6. **Extract structured claims** to `output/runs/<vault_tag>/temp/claims-<note-id>.json`:
 
    ```json
    {{
@@ -223,8 +223,13 @@ those primaries gives the pipeline higher-authority sources to cite.
      PYTHONIOENCODING=utf-8 {hpr_path} sources check "<url>" -j
      PYTHONIOENCODING=utf-8 {hpr_path} fetch "<url>" --tag <topic> --suggested-by <note-id-that-cited-it> --suggested-by-reason "cited as primary source" -j
      ```
-   - If you only have author + title (no URL), use WebSearch to locate it:
-     search for `"<author> <title> <year>"` or `"<title> filetype:pdf"`
+   - If you only have author + title (no URL), locate it:
+     - Prefer WebSearch when the tool is present.
+     - On LiteLLM/gateway sessions WebSearch is disabled — use the builtin
+       provider instead:
+       `PYTHONIOENCODING=utf-8 {hpr_path} fetch "<url>" -j`
+     - Do NOT invent scrapers (`ddgs`, Google HTML) or MCP search
+       workarounds.
    - For academic papers: try these URL patterns directly:
      - arXiv: `https://arxiv.org/abs/<id>` or search arXiv
      - DOI: `https://doi.org/<doi>` — fetch the DOI URL directly
@@ -236,7 +241,7 @@ those primaries gives the pipeline higher-authority sources to cite.
 3. **Process each discovered source** with the same full procedure as
    Phase 1: read the note content with `{hpr_path} note show <id> -j`,
    quality check, write summary with `{hpr_path} note update`, add tags,
-   and extract structured claims to `research/runs/<vault_tag>/temp/claims-<note-id>.json`.
+   and extract structured claims to `output/runs/<vault_tag>/temp/claims-<note-id>.json`.
    Primary sources often have the specific numbers and methodological
    details that secondary commentary paraphrases — extract these precisely.
 

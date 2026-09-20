@@ -1,6 +1,6 @@
-"""A run tag is a slug; it can only ever name a child of research/runs/ (#116).
+"""A run tag is a slug; it can only ever name a child of output/runs/ (#116).
 
-`Vault.run_dir()` joins the tag onto research/runs/ and pathlib replaces the
+`Vault.run_dir()` joins the tag onto output/runs/ and pathlib replaces the
 base on an absolute segment, so before this `run init ../../x` (or an
 absolute path) scaffolded a run workspace outside the vault and every later
 `run` subcommand followed it there. Same bug class as the `claims ingest
@@ -75,8 +75,8 @@ def test_run_init_with_a_traversal_tag_is_a_clean_error(tmp_vault, monkeypatch):
     assert payload["ok"] is False
     assert "invalid run tag" in payload["error"]
     assert not outside.exists()
-    assert not (tmp_vault.root / "research" / "runs").exists() or not any(
-        (tmp_vault.root / "research" / "runs").iterdir()
+    assert not (tmp_vault.root / "output" / "runs").exists() or not any(
+        (tmp_vault.root / "output" / "runs").iterdir()
     )
 
 
@@ -112,4 +112,4 @@ def test_a_good_tag_still_scaffolds_inside_the_vault(tmp_vault, monkeypatch):
     result = runner.invoke(app, ["run", "init", "good-tag-0a1b2c", "-j"])
 
     assert result.exit_code == 0, result.stdout
-    assert (tmp_vault.root / "research" / "runs" / "good-tag-0a1b2c" / "run.json").exists()
+    assert (tmp_vault.root / "output" / "runs" / "good-tag-0a1b2c" / "run.json").exists()
