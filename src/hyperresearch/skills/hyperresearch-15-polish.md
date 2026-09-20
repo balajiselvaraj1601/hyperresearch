@@ -21,7 +21,7 @@ description: >
 ## Recover state
 
 Read these inputs:
-- `output/notes/final_report_<vault_tag>.md` — the patched draft from step 14 (or single-pass draft for light tier)
+- `output/reports/<vault_tag>/final_report_<vault_tag>.md` — the patched draft from step 14 (or single-pass draft for light tier)
 - `output/runs/<vault_tag>/query.md` — canonical research query
 
 ---
@@ -56,10 +56,12 @@ prompt: |
   [Read, Edit].
 
   YOUR INPUTS:
-  - draft_path: output/notes/final_report_<vault_tag>.md
+  - draft_path: output/reports/<vault_tag>/final_report_<vault_tag>.md
   - polish_log_path: output/runs/<vault_tag>/polish-log.json   (already stubbed)
 
   RUN DIRECTIVES: append the FULL contents of output/runs/<vault_tag>/shims/polish.md here, verbatim.
+
+  ROLE BRIEF: append the FULL output of `$HPR run contract <vault_tag> --role polish-auditor` here, verbatim (rendered role instructions; the subagent has no other role prompt).
 ```
 
 The polish auditor strips:
@@ -140,7 +142,7 @@ If any artifact is missing, the responsible step failed silently. Re-spawn the r
 
 ## Step 15.6 — Ship
 
-The final report lives at `output/notes/final_report_<vault_tag>.md`. The wrapper's required save path (if any) is a separate copy — handle per the wrapper contract.
+The final report lives at `output/reports/<vault_tag>/final_report_<vault_tag>.md`. The wrapper's required save path (if any) is a separate copy — handle per the wrapper contract.
 
 ---
 
@@ -149,7 +151,7 @@ The final report lives at `output/notes/final_report_<vault_tag>.md`. The wrappe
 - `output/runs/<vault_tag>/polish-log.json` populated
 - Final integrity gate passed (or stub-filled with documented failure)
 - Lint gate passed
-- `output/notes/final_report_<vault_tag>.md` is the final, shippable artifact
+- `output/reports/<vault_tag>/final_report_<vault_tag>.md` is the final, shippable artifact
 
 ---
 

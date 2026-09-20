@@ -64,6 +64,8 @@ Read these inputs:
      - extra_tags: ["post-critic-fill"]
 
      RUN DIRECTIVES: append the FULL contents of output/runs/<vault_tag>/shims/research.md here, verbatim.
+
+     ROLE BRIEF: append the FULL output of `$HPR run contract <vault_tag> --role fetcher` here, verbatim (rendered role instructions; the subagent has no other role prompt).
    ```
 
    Each fetcher: fetches, quality-checks, summarizes, extracts claims (same procedure as step 2). Tags notes with `vault_tag` + `post-critic-fill`. Writes claims to `output/runs/<vault_tag>/temp/claims-<note-id>.json`.
@@ -79,7 +81,7 @@ Read these inputs:
 ## Exit criterion
 
 - `output/runs/<vault_tag>/temp/post-critic-fetch-log.md` exists (even if it says "no gaps found")
-- All fetch-worthy gaps attempted (proceed to step 14 whether or not all gaps were filled — unfilled gaps are noted in the log)
+- All fetch-worthy gaps attempted (proceed to step 14 whether all gaps were filled — unfilled gaps are noted in the log)
 
 **Overhead:** small — at most 2-4 fetchers. Most runs with good step 2 coverage will find 0-2 gaps, making this a near-no-op.
 

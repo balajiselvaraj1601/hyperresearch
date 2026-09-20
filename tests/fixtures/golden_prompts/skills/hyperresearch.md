@@ -87,7 +87,7 @@ Before you invoke any step skill, do this:
 
    If the command fails because the binary isn't on PATH, tell the user to run `pip install hyperresearch` first. If the vault already exists, the command no-ops cheaply — safe to run unconditionally.
 
-   **Note:** Step contracts live in the repo's `src/hyperresearch/skills/` directory — no separate install step is needed. The `Skill(skill: "hyperresearch-N-...")` calls load them directly from there.
+   **Note:** Step contracts live in the repo's `src/hyperresearch/skills/` directory — no separate install step is needed. Never read a contract file raw: it is a Jinja template (profile placeholders, `$HPR`, relative run paths). Render it for the run with `hyperresearch run contract <vault_tag> <N>` and execute the rendered text; a raw read leaves fan-out counts, caps, and the CLI path unresolved (both 2026-09-18 runs).
 
 0.5. **Archive any pre-3.0 flat artifacts.** Run `hyperresearch archive-run --json`. On vaults that ran pre-3.0 pipelines, flat artifacts (output/scaffold.md, loci.json, etc.) may still sit at the research root; this moves them into `output/runs/archive-<prev-tag>-<UTC-timestamp>/`. On 3.0+ vaults every run already owns `output/runs/<vault_tag>/`, so concurrent and sequential runs never collide and this command cheaply no-ops.
 
@@ -165,7 +165,7 @@ Blocked fetches (login walls, bot walls, captchas) are queued, not lost: `$HPR e
 
 ## Subagent spawn contract (applies to every Task call)
 
-When a step skill instructs you to spawn a subagent, the prompt you pass MUST include three pieces near the top:
+When a step skill instructs you to spawn a subagent, the prompt you pass MUST include these pieces:
 
 1. **`research_query` — verbatim, block-quoted** from `output/runs/<vault_tag>/query.md`. Do not paraphrase, do not summarize.
 
@@ -175,7 +175,11 @@ When a step skill instructs you to spawn a subagent, the prompt you pass MUST in
 
 4. **The run's shim file, pasted VERBATIM.** Step 1 renders posture shims (register / domain notes / inference depth) to `output/runs/<vault_tag>/shims/{research,drafting,critics,polish}.md`. Each step skill's spawn template names which shim its subagents receive; append that file's FULL contents to the end of the spawn prompt, unedited. You never write, summarize, or trim shim text — the file is the single source of truth. The cite-checker receives NO shim (verification is register-independent). If the shims directory is missing, run `$HPR levers render <vault_tag> -j` before spawning.
 
-Skipping any of these in a Task prompt is a process violation.
+5. **The role brief, pasted VERBATIM, last.** Every spawn is a generic `agent_medium`; the role brief is the only thing that makes it a fetcher, critic, patcher, or synthesizer. Each step skill's spawn template names the role; render it with `$HPR run contract <vault_tag> --role <role>` and append the full output unedited. A spawn without its brief produces schema-shaped filler (no claims files, empty critic findings, stub patch logs: both 2026-09-18 runs).
+
+6. **Absolute paths only.** Subagents run with their own cwd. Every path in the prompt (query file, artifact inputs, output_path) is absolute; `run contract` already renders `output/runs/<vault_tag>/...` absolute. Relative paths put seven run artifacts at the workspace root on 2026-09-18.
+
+Skipping any of these in a Task prompt is a process violation. Source pages are fetched with `$HPR fetch`, never WebFetch, by orchestrator and subagents alike.
 
 ---
 
@@ -195,8 +199,8 @@ Context compaction may eat parts of this conversation. If you're unsure what ste
    - Step 7: `output/runs/<vault_tag>/temp/source-tensions.json`
    - Step 8: `output/runs/<vault_tag>/corpus-critic-gaps.json`, `output/runs/<vault_tag>/temp/corpus-critic-results.md`
    - Step 9: `output/runs/<vault_tag>/temp/evidence-digest.md`
-   - Step 10: `output/runs/<vault_tag>/temp/draft-{a,b,c}.md` (or `output/notes/final_report_<vault_tag>.md` for light tier single-pass)
-   - Step 11: `output/runs/<vault_tag>/temp/synthesis-plan.md`, `output/runs/<vault_tag>/temp/synthesis-outline.md`, `output/runs/<vault_tag>/temp/synthesis-pass1.md`, `output/notes/final_report_<vault_tag>.md`
+   - Step 10: `output/runs/<vault_tag>/temp/draft-{a,b,c}.md` (or `output/reports/<vault_tag>/final_report_<vault_tag>.md` for light tier single-pass)
+   - Step 11: `output/runs/<vault_tag>/temp/synthesis-plan.md`, `output/runs/<vault_tag>/temp/synthesis-outline.md`, `output/runs/<vault_tag>/temp/synthesis-pass1.md`, `output/reports/<vault_tag>/final_report_<vault_tag>.md`
    - Step 12: `output/runs/<vault_tag>/critic-findings-{dialectic,depth,width,instruction}.json`
    - Step 13: `output/runs/<vault_tag>/temp/post-critic-fetch-log.md`
    - Step 14: `output/runs/<vault_tag>/patch-log.json` (and edited final_report.md)
@@ -243,7 +247,7 @@ $HPR run finish <vault_tag> --json                  # THE ship gate: verify + ma
 
 Re-run `$HPR run finish <vault_tag> --json` after each fix round. Maximum 3 rounds; if the gate still fails, leave the run `blocked` and report the failing checks to the user honestly — a blocked run with a true manifest beats a shipped report that lies. Optional advisory: `$HPR lint --rule numeric-consistency --json` (warnings only, never blocks).
 
-Ship only after `run finish` reports `"passed": true`: the final report lives at `output/notes/final_report_<vault_tag>.md`.
+Ship only after `run finish` reports `"passed": true`: the final report lives at `output/reports/<vault_tag>/final_report_<vault_tag>.md`.
 
 ---
 
@@ -258,7 +262,7 @@ Ship only after `run finish` reports `"passed": true`: the final report lives at
 7. **Canonical research query is gospel everywhere.** Every subagent gets the verbatim query.
 8. **Hygiene rules apply to the final report only.** Workspace artifacts (scaffold, loci JSONs, interim notes, comparisons.md, patch log) can look however they need to look.
 9. **NEVER skip a step that the tier gate says to run.** For `full` tier, ALL 16 steps run. For `light`, the prescribed 5 steps run.
-10. **Step 10 triple-draft ensemble is MANDATORY for `full` tier.** You MUST spawn 3 `agent_medium` subagents. Writing `output/notes/final_report_<vault_tag>.md` directly in step 10 (instead of going through the synthesizer in step 11) is a PIPELINE VIOLATION for these tiers.
+10. **Step 10 triple-draft ensemble is MANDATORY for `full` tier.** You MUST spawn 3 `agent_medium` subagents. Writing `output/reports/<vault_tag>/final_report_<vault_tag>.md` directly in step 10 (instead of going through the synthesizer in step 11) is a PIPELINE VIOLATION for these tiers.
 11. **Step 11 synthesis is MANDATORY for `full` tier.** The synthesizer subagent (Read+Write tool-locked) writes the final report from the 3 drafts. The orchestrator does NOT write the final report itself for these tiers.
 12. **Subagents read full source text.** Draft sub-orchestrators MUST batch-read every note in their `must_read_note_ids` list before writing. Fetchers MUST chase 3-8 primary sources via citation chains.
 13. **NEVER emit a bare text response while subagent tasks are in flight.**

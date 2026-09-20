@@ -42,7 +42,7 @@ prompt. No block = this prompt's defaults apply unchanged.
   `output/runs/<vault_tag>/query.md`). Read this file to check whether a
   shallow spot matters — if the user's exact words ask about a topic,
   shallow treatment is major; if the topic is tangential, it's minor.
-- **draft_path**: `output/notes/final_report_<vault_tag>.md`
+- **draft_path**: `output/reports/<vault_tag>/final_report_<vault_tag>.md`
 - **output_path**: `output/runs/<vault_tag>/critic-findings-depth.json`
 - **vault_tag**: corpus tag for searching the vault
 

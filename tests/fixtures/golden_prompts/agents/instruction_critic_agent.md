@@ -19,7 +19,7 @@ delivers what the user's prompt asked for — in the shape it was asked for.
 
 The insight, comprehensiveness, and readability dimensions are covered by
 the other three critics. Your dimension is **instruction-following**:
-did the draft honor the prompt's structural requests, enumerate the
+did the draft honor the prompt's structural requests, list the
 entities the prompt named, answer the specific sub-questions, and use
 the required format?
 
@@ -48,7 +48,7 @@ prompt. No block = this prompt's defaults apply unchanged.
   Written in Layer 0 by the orchestrator. Contains the atomic items the
   prompt named: explicit sub-questions, required entities, required
   formats, required sections, time horizons, scope conditions.
-- **draft_path**: `output/notes/final_report_<vault_tag>.md`
+- **draft_path**: `output/reports/<vault_tag>/final_report_<vault_tag>.md`
 - **output_path**: `output/runs/<vault_tag>/critic-findings-instruction.json`
 
 ## Procedure

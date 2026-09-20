@@ -87,6 +87,15 @@ class Vault:
     def notes_dir(self) -> Path:
         return self.research_dir / "notes"
 
+    def notes_dir_for(self, vault_tag: str) -> Path:
+        """Per-run notes directory: output/notes/<vault_tag>/."""
+        return self.notes_dir / validate_run_tag(vault_tag)
+
+    @property
+    def reports_dir(self) -> Path:
+        """Final reports: output/reports/<vault_tag>/."""
+        return self.research_dir / "reports"
+
     @property
     def index_dir(self) -> Path:
         return self.research_dir / "index"
@@ -153,6 +162,7 @@ class Vault:
         # Create the one visible directory
         kb_dir = root / research_dir
         (kb_dir / "notes").mkdir(parents=True, exist_ok=True)
+        (kb_dir / "reports").mkdir(parents=True, exist_ok=True)
         (kb_dir / "index").mkdir(exist_ok=True)
         (kb_dir / "temp").mkdir(exist_ok=True)
 
@@ -168,8 +178,8 @@ class Vault:
         template_path = hyperresearch_dir / "templates" / "note.md"
         template_path.write_text(
             "---\n"
-            "title: \"{{ title }}\"\n"
-            "id: \"{{ id }}\"\n"
+            'title: "{{ title }}"\n'
+            'id: "{{ id }}"\n'
             "tags: []\n"
             "status: draft\n"
             "type: note\n"
@@ -180,6 +190,7 @@ class Vault:
 
         # Inject CLAUDE.md at vault root
         from hyperresearch.core.agent_docs import inject_agent_docs
+
         inject_agent_docs(root)
 
         return vault
@@ -195,9 +206,7 @@ class Vault:
             if parent == current:
                 break
             current = parent
-        raise VaultError(
-            "No hyperresearch vault found. Run 'hyperresearch init' to create one."
-        )
+        raise VaultError("No hyperresearch vault found. Run 'hyperresearch init' to create one.")
 
     def auto_sync(self) -> None:
         """Run an incremental sync if auto_sync is enabled."""

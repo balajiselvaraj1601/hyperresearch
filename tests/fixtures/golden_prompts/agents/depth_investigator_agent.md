@@ -266,7 +266,7 @@ orchestrator's citation assembly.
 - **Your job is NOT to write a final-report section.** You are producing
   a dense synthesis packet for the orchestrator to read. Do not try to
   write prose that will go straight into the final draft; write prose
-  that will inform it.
+  that will tell it.
 - **Cap yourself at `locus.source_budget` new fetches** (default 10 if
   not specified). If your budget is 15, use it — the orchestrator scored
   your locus high on importance/uncertainty. If your budget is 5, be

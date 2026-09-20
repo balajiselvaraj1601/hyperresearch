@@ -12,9 +12,9 @@ description: >
 
 # Step 11 — Synthesize the final report
 
-**Tier gate:** SKIP entirely for `light` tier — light tier wrote `output/notes/final_report_<vault_tag>.md` directly in step 10 and proceeds straight to step 15 (polish). For `full`: run as documented below.
+**Tier gate:** SKIP entirely for `light` tier — light tier wrote `output/reports/<vault_tag>/final_report_<vault_tag>.md` directly in step 10 and proceeds straight to step 15 (polish). For `full`: run as documented below.
 
-**Goal:** turn the 3 angle-specific drafts from step 10 into ONE integrated final report at `output/notes/final_report_<vault_tag>.md`. The orchestrator preps the strategic brief; the synthesizer subagent writes the report in two passes (rough integrated draft, then voice/redundancy/length cleanup).
+**Goal:** turn the 3 angle-specific drafts from step 10 into ONE integrated final report at `output/reports/<vault_tag>/final_report_<vault_tag>.md`. The orchestrator preps the strategic brief; the synthesizer subagent writes the report in two passes (rough integrated draft, then voice/redundancy/length cleanup).
 
 **Why split orchestrator + synthesizer:** the orchestrator has been running for 30+ minutes and 200K+ tokens of context. Writing a coherent 5000-10000 word report at this point is the highest cognitive load step in the pipeline, and orchestrator context is full of stale subagent dispatch logic. The synthesizer is a fresh session with `[Read, Write]` tool-lock, focused exclusively on producing the final report. This is the same architectural move that made the patcher and polish-auditor reliable.
 
@@ -175,11 +175,13 @@ prompt: |
   - source_tensions_path: output/runs/<vault_tag>/temp/source-tensions.json
   - evidence_digest_path: output/runs/<vault_tag>/temp/evidence-digest.md
   - pass1_output_path: output/runs/<vault_tag>/temp/synthesis-pass1.md
-  - final_output_path: output/notes/final_report_<vault_tag>.md
+  - final_output_path: output/reports/<vault_tag>/final_report_<vault_tag>.md
   - response_format: "<short|structured|argumentative>"
   - citation_style: "<wikilink|inline|none>"
 
   RUN DIRECTIVES: append the FULL contents of output/runs/<vault_tag>/shims/drafting.md here, verbatim.
+
+  ROLE BRIEF: append the FULL output of `$HPR run contract <vault_tag> --role synthesizer` here, verbatim (rendered role instructions; the subagent has no other role prompt).
 
   Read everything. Write pass 1 to pass1_output_path. Then audit pass 1
   for redundancy, voice consistency, weak sections, and length, and
@@ -211,7 +213,7 @@ When the synthesizer returns:
 
 1. **Confirm both files exist:**
    - `output/runs/<vault_tag>/temp/synthesis-pass1.md` (pass 1, rough integrated)
-   - `output/notes/final_report_<vault_tag>.md` (pass 2, final)
+   - `output/reports/<vault_tag>/final_report_<vault_tag>.md` (pass 2, final)
 
 2. **Read the synthesizer's report-back.** It tells you:
    - Word/character count
@@ -232,7 +234,7 @@ If pass 2 is longer than pass 1 (positive delta), something went wrong — pass 
 
 **If the length gate fails (word count above the target high):** re-spawn the synthesizer ONCE for a compression pass — input is its own final report, directive is "cut to <middle of target range> words: collapse redundant sections, cut the weakest evidence per point, keep every load-bearing claim and citation." This is the ONE permitted regeneration, because the write-once invariant starts only after this step's exit criteria pass; length violations discovered later can only be fixed by exactly this move at higher cost.
 
-If any other sanity check fails, hand-craft an Edit on `output/notes/final_report_<vault_tag>.md` yourself to fix it. Do NOT re-spawn the synthesizer for non-length issues — that's regeneration, which violates the patch-not-regenerate invariant once we have a final draft.
+If any other sanity check fails, hand-craft an Edit on `output/reports/<vault_tag>/final_report_<vault_tag>.md` yourself to fix it. Do NOT re-spawn the synthesizer for non-length issues — that's regeneration, which violates the patch-not-regenerate invariant once we have a final draft.
 
 ---
 
@@ -244,7 +246,7 @@ After this step, the final report is only modified by Edit hunks from the patche
 
 ## Exit criterion
 
-- `output/notes/final_report_<vault_tag>.md` exists, **word count verified ≤ target high** (counted mechanically, not estimated)
+- `output/reports/<vault_tag>/final_report_<vault_tag>.md` exists, **word count verified ≤ target high** (counted mechanically, not estimated)
 - `output/runs/<vault_tag>/temp/synthesis-pass1.md` exists (debugging artifact)
 - All H2s from `required_section_headings` present
 - Citations match `citation_style` (wikilink → `[[note-id]]` no Sources section; inline → `[N]` + Sources section; none → no markers), with no adjacent citation stacks

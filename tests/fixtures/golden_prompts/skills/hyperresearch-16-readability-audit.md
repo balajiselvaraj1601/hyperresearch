@@ -26,7 +26,7 @@ description: >
 
 Read these inputs:
 - `output/runs/<vault_tag>/scaffold.md` — vault_tag
-- `output/notes/final_report_<vault_tag>.md` — the polished final report from step 15
+- `output/reports/<vault_tag>/final_report_<vault_tag>.md` — the polished final report from step 15
 
 ---
 
@@ -45,7 +45,7 @@ prompt: |
 
   PIPELINE POSITION: You are step 16 of the hyperresearch V8 pipeline —
   the final analytical pass. The final report at
-  output/notes/final_report_<vault_tag>.md has been drafted (step 10),
+  output/reports/<vault_tag>/final_report_<vault_tag>.md has been drafted (step 10),
   synthesized (step 11), critiqued (step 12), gap-filled (step 13),
   patched (step 14), and polish-audited (step 15). Your job: write
   JSON recommendations for paragraph rhythm, list/table conversions,
@@ -54,10 +54,12 @@ prompt: |
   reads your recommendations and decides which to apply.
 
   YOUR INPUTS:
-  - draft_path: output/notes/final_report_<vault_tag>.md
+  - draft_path: output/reports/<vault_tag>/final_report_<vault_tag>.md
   - recommendations_path: output/runs/<vault_tag>/readability-recommendations.json
 
   RUN DIRECTIVES: append the FULL contents of output/runs/<vault_tag>/shims/polish.md here, verbatim.
+
+  ROLE BRIEF: append the FULL output of `$HPR run contract <vault_tag> --role readability-recommender` here, verbatim (rendered role instructions; the subagent has no other role prompt).
 
   Write recommendations as a JSON array per the schema in your agent
   prompt. Cap at 50 recommendations, prioritized by impact.
@@ -110,7 +112,7 @@ You are not obligated to apply every recommendation. Use these heuristics:
 
 For each recommendation you decide to apply:
 
-1. Use the Edit tool on `output/notes/final_report_<vault_tag>.md`
+1. Use the Edit tool on `output/reports/<vault_tag>/final_report_<vault_tag>.md`
 2. `old_string` = the recommendation's `current` field (exactly as the recommender wrote it)
 3. `new_string` = the recommendation's `recommended` field
 
@@ -154,7 +156,7 @@ This is the audit trail. If a future review finds a readability problem we shoul
 
 - `output/runs/<vault_tag>/readability-recommendations.json` exists
 - `output/runs/<vault_tag>/readability-decisions.json` exists with at least one entry in `applied` or all `skipped`
-- `output/notes/final_report_<vault_tag>.md` reflects the applied recommendations
+- `output/reports/<vault_tag>/final_report_<vault_tag>.md` reflects the applied recommendations
 - The final report's structure (H2 list, executive summary, conclusion) is unchanged from step 15's output (this step does not restructure)
 
 ---

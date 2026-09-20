@@ -43,7 +43,7 @@ def _seed_prior_run(root: Path, vault_tag: str = "alpha-beta") -> None:
     _write(research / "critic-findings-dialectic.json", "{}")
     # Namespaced — must NOT be archived.
     _write(research / f"query-{vault_tag}.md", "verbatim query")
-    _write(research / "notes" / f"final_report_{vault_tag}.md", "---\ntitle: Report\n---\n# Report")
+    _write(research / "reports" / vault_tag / f"final_report_{vault_tag}.md", "---\ntitle: Report\n---\n# Report")
     # Scratch tree.
     _write(research / "temp" / "evidence-digest.md", "scratch")
     _write(research / "temp" / "claims-foo.json", "{}")
@@ -82,7 +82,7 @@ def test_archive_run_moves_flat_artifacts_and_temp_tree(vault_root: Path):
 
     # Namespaced files stay put.
     assert (research / "query-alpha-beta.md").exists()
-    assert (research / "notes" / "final_report_alpha-beta.md").exists()
+    assert (research / "reports" / "alpha-beta" / "final_report_alpha-beta.md").exists()
 
     # Archive dir holds them. Use the path the command reported.
     archive_dir = vault_root / data["data"]["archive_dir"]

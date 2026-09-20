@@ -109,6 +109,13 @@ Deliberate deviations already folded into the goldens (2026-07-19):
     3-8 / 8-15 / 15-25) and gained an "Output discipline (small-model workers)"
     block (digest returns, verbatim IDs, stop-at-cap). Chase/wave/model numbers
     stay profile-driven via the [profile.mimo] overlay — no template change.
+  - Role briefs + rendered contracts (2026-09-19): every `agent_medium` spawn
+    template gained a "ROLE BRIEF: append ... `$HPR run contract <vault_tag>
+    --role <r>`" line after RUN DIRECTIVES; the entry skill's spawn contract
+    gained items 5 (role brief) and 6 (absolute paths) and its step-0 note
+    now routes contract reads through `run contract`. Recovered from the
+    retired agent bodies after both 2026-09-18 runs ran bare agent_medium
+    spawns (no claims files, empty critic findings, stub patch logs).
 """
 
 from __future__ import annotations

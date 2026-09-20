@@ -47,7 +47,7 @@ in step 1. It is BINDING and wins wherever it adjusts a default in this
 prompt. No block = this prompt's defaults apply unchanged.
 
 - **research_query**: verbatim user question. GOSPEL.
-- **draft_path**: `output/notes/final_report_<vault_tag>.md` — the polished report.
+- **draft_path**: `output/reports/<vault_tag>/final_report_<vault_tag>.md` — the polished report.
 - **recommendations_path**: `output/runs/<vault_tag>/readability-recommendations.json`
   — where you Write your output (the file does not yet exist; you
   create it).

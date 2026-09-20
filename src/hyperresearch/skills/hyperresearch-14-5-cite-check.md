@@ -22,7 +22,7 @@ description: >
 
 Read these inputs:
 - `output/runs/<vault_tag>/scaffold.md` — vault_tag
-- `output/notes/final_report_<vault_tag>.md` — the PATCHED report from step 14
+- `output/reports/<vault_tag>/final_report_<vault_tag>.md` — the PATCHED report from step 14
 
 ---
 
@@ -65,6 +65,8 @@ prompt: |
   - your_range: sampled_for_llm[<start>..<end>]
   - findings_path: output/runs/<vault_tag>/cite-check-findings.json
   - vault_tag: <vault_tag>
+
+  ROLE BRIEF: append the FULL output of `$HPR run contract <vault_tag> --role cite-checker` here, verbatim (rendered role instructions; the subagent has no other role prompt).
 ```
 
 When splitting across two checkers, give each its own findings path (`cite-check-findings-a.json` / `-b.json`) and merge the arrays into `cite-check-findings.json` yourself afterward.

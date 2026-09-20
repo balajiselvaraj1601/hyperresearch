@@ -30,6 +30,9 @@ GEMINI.md
 output/
 research/
 
+# tmux session pane logs + per-lane status files. Not source.
+orchestrator/logs/
+
 .knack/
 .agents/
 .cursor/

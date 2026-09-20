@@ -152,6 +152,8 @@ prompt: |
   - batch_id: <number>
 
   RUN DIRECTIVES: append the FULL contents of output/runs/<vault_tag>/shims/research.md here, verbatim.
+
+  ROLE BRIEF: append the FULL output of `$HPR run contract <vault_tag> --role fetcher` here, verbatim (rendered role instructions; the subagent has no other role prompt).
 ```
 
 **CRITICAL: no token waste.** Each fetcher gets ONLY its batch. No fetcher searches for new URLs or duplicates another fetcher's work. If a fetcher finishes early, it's done.
@@ -267,6 +269,8 @@ prompt: |
   - drain up to 10 items (claim via `$HPR escalation claim --tag <vault_tag>`)
 
   RUN DIRECTIVES: append the FULL contents of output/runs/<vault_tag>/shims/research.md here, verbatim.
+
+  ROLE BRIEF: append the FULL output of `$HPR run contract <vault_tag> --role browser-fetcher` here, verbatim (rendered role instructions; the subagent has no other role prompt).
 ```
 
 **When the browser-fetcher returns with `needs_human` items** (CAPTCHAs, logins, 2FA — it NEVER solves these itself):
@@ -321,6 +325,8 @@ prompt: |
   - vault_tag: <vault_tag>
 
   RUN DIRECTIVES: append the FULL contents of output/runs/<vault_tag>/shims/research.md here, verbatim.
+
+  ROLE BRIEF: append the FULL output of `$HPR run contract <vault_tag> --role source-analyst` here, verbatim (rendered role instructions; the subagent has no other role prompt).
 ```
 
 ---

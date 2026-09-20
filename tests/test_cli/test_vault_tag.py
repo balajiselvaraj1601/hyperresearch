@@ -76,9 +76,9 @@ def test_vault_tag_avoids_existing_final_report(vault_root: Path):
     """Final reports also lock a suffix even if the corresponding query
     file got moved or deleted.
     """
-    notes = vault_root / "output" / "notes"
-    notes.mkdir(parents=True, exist_ok=True)
-    (notes / "final_report_topic-cafe42.md").write_text("---\ntitle: x\n---\n")
+    reports = vault_root / "output" / "reports" / "topic-cafe42"
+    reports.mkdir(parents=True, exist_ok=True)
+    (reports / "final_report_topic-cafe42.md").write_text("---\ntitle: x\n---\n")
     for _ in range(30):
         data = _invoke("topic")["data"]
         assert data["vault_tag"] != "topic-cafe42"

@@ -121,7 +121,8 @@ class TestCiteCheckExtraction:
         from hyperresearch.cli import app
 
         init_run(cited_vault, "cc-run")
-        report = cited_vault.root / "output" / "notes" / "final_report_cc-run.md"
+        report = cited_vault.root / "output" / "reports" / "cc-run" / "final_report_cc-run.md"
+        report.parent.mkdir(parents=True, exist_ok=True)
         report.write_text(
             "Async improves throughput by 10x [[python-async-patterns]]. "
             "Also a dangling one [[ghost-note]].",
@@ -206,7 +207,8 @@ class TestVerificationLints:
         return json.loads(r.stdout)
 
     def test_quote_integrity_catches_fabrication(self, seeded_vault, monkeypatch):
-        report = seeded_vault.root / "output" / "notes" / "final_report_q.md"
+        report = seeded_vault.root / "output" / "reports" / "q" / "final_report_q.md"
+        report.parent.mkdir(parents=True, exist_ok=True)
         report.write_text(
             'The paper concludes that "quantum entanglement reverses causality in every measurable frame of reference".',
             encoding="utf-8",
@@ -217,7 +219,8 @@ class TestVerificationLints:
         assert issues[0]["severity"] == "error"
 
     def test_quote_integrity_passes_real_quote(self, seeded_vault, monkeypatch):
-        report = seeded_vault.root / "output" / "notes" / "final_report_q.md"
+        report = seeded_vault.root / "output" / "reports" / "q" / "final_report_q.md"
+        report.parent.mkdir(parents=True, exist_ok=True)
         # This sentence exists verbatim in the seeded python-async-patterns note
         report.write_text(
             'As the note says, "Python\'s async/await syntax enables concurrent I/O" today.',
@@ -230,7 +233,8 @@ class TestVerificationLints:
     def test_quote_integrity_skips_short_quotes_without_false_positive(
         self, seeded_vault, monkeypatch
     ):
-        report = seeded_vault.root / "output" / "notes" / "final_report_q.md"
+        report = seeded_vault.root / "output" / "reports" / "q" / "final_report_q.md"
+        report.parent.mkdir(parents=True, exist_ok=True)
         report.write_text(
             'The analysis covers "TVL", "Low Security", "reasonable use", '
             '"6x Exits", and "registered entity" throughout the report body. '
@@ -243,7 +247,8 @@ class TestVerificationLints:
         assert issues == []
 
     def test_quote_integrity_short_quote_before_long_fabrication(self, seeded_vault, monkeypatch):
-        report = seeded_vault.root / "output" / "notes" / "final_report_q.md"
+        report = seeded_vault.root / "output" / "reports" / "q" / "final_report_q.md"
+        report.parent.mkdir(parents=True, exist_ok=True)
         report.write_text(
             'The report discusses "Low Security" instruments with intervening prose '
             "that must not be treated as part of a quoted span.\n"
@@ -257,7 +262,8 @@ class TestVerificationLints:
         assert "Low Security" not in issues[0]["message"]
 
     def test_numeric_consistency_flags_untraceable(self, cited_vault, monkeypatch):
-        report = cited_vault.root / "output" / "notes" / "final_report_n.md"
+        report = cited_vault.root / "output" / "reports" / "n" / "final_report_n.md"
+        report.parent.mkdir(parents=True, exist_ok=True)
         report.write_text(
             "Revenue grew 47.3% while costs fell 1,234,567 dollars.", encoding="utf-8"
         )
@@ -270,7 +276,8 @@ class TestVerificationLints:
         conn = seeded_vault.db
         conn.execute("UPDATE notes SET is_retracted = 1 WHERE id = 'rust-ownership'")
         conn.commit()
-        report = seeded_vault.root / "output" / "notes" / "final_report_r.md"
+        report = seeded_vault.root / "output" / "reports" / "r" / "final_report_r.md"
+        report.parent.mkdir(parents=True, exist_ok=True)
         report.write_text("Rust guarantees safety [[rust-ownership]].", encoding="utf-8")
         payload = self._lint(seeded_vault, "retracted-citations", monkeypatch)
         issues = [i for i in payload["data"]["issues"] if i["rule"] == "retracted-citations"]
@@ -418,7 +425,8 @@ class TestCJKLengthCheck:
         # has almost no ASCII whitespace, so str.split() would count only a
         # handful of "words" despite being solidly in-range by characters.
         sentence = "これは実質的な証拠を伴う文章である[[src-note]]。"
-        report = tmp_vault.root / "output" / "notes" / "final_report_cjk-01.md"
+        report = tmp_vault.root / "output" / "reports" / "cjk-01" / "final_report_cjk-01.md"
+        report.parent.mkdir(parents=True, exist_ok=True)
         body = "## 結果\n\n" + (sentence * 90)
         report.write_text(body, encoding="utf-8")
 
@@ -445,7 +453,8 @@ class TestCJKLengthCheck:
         )
         # Well under the 1500-char floor (even with the 20% tolerance) --
         # the CJK branch must still be a real length check, not a bypass.
-        report = tmp_vault.root / "output" / "notes" / "final_report_cjk-02.md"
+        report = tmp_vault.root / "output" / "reports" / "cjk-02" / "final_report_cjk-02.md"
+        report.parent.mkdir(parents=True, exist_ok=True)
         report.write_text("## 結果\n\n短い。", encoding="utf-8")
 
         result = verify_run(tmp_vault, "cjk-02")
@@ -484,7 +493,8 @@ class TestCJKLengthCheck:
         # A spaceless Thai-script blob: within the overridden 300-900 char
         # target, but far below the shipped CJK default's 1500-char floor --
         # this only passes if the override is actually being read.
-        report = tmp_vault.root / "output" / "notes" / "final_report_th-01.md"
+        report = tmp_vault.root / "output" / "reports" / "th-01" / "final_report_th-01.md"
+        report.parent.mkdir(parents=True, exist_ok=True)
         report.write_text("## Results\n\n" + ("คำ" * 250), encoding="utf-8")
 
         result = verify_run(tmp_vault, "th-01")
@@ -511,7 +521,8 @@ class TestClassifiedTierArtifacts:
             decomp["pipeline_tier"] = tier
         (run_dir / "prompt-decomposition.json").write_text(json.dumps(decomp), encoding="utf-8")
         (run_dir / "polish-log.json").write_text('{"applied": []}', encoding="utf-8")
-        report = tmp_vault.root / "output" / "notes" / f"final_report_{tag}.md"
+        report = tmp_vault.root / "output" / "reports" / tag / f"final_report_{tag}.md"
+        report.parent.mkdir(parents=True, exist_ok=True)
         report.write_text(
             "## Findings\n\n"
             + ("Substantive sentence with real evidence attached [[src-note]]. " * 80),
@@ -570,7 +581,8 @@ class TestTelemetryAndVerify:
             encoding="utf-8",
         )
         (run_dir / "polish-log.json").write_text('{"applied": []}', encoding="utf-8")
-        report = tmp_vault.root / "output" / "notes" / "final_report_vf-01.md"
+        report = tmp_vault.root / "output" / "reports" / "vf-01" / "final_report_vf-01.md"
+        report.parent.mkdir(parents=True, exist_ok=True)
         body = "## Findings\n\n" + (
             "Substantive sentence with real evidence attached [[src-note]]. " * 80
         )
@@ -596,7 +608,8 @@ class TestTelemetryAndVerify:
             ),
             encoding="utf-8",
         )
-        report = tmp_vault.root / "output" / "notes" / "final_report_vf-04.md"
+        report = tmp_vault.root / "output" / "reports" / "vf-04" / "final_report_vf-04.md"
+        report.parent.mkdir(parents=True, exist_ok=True)
         filler = "Substantive analysis continues with replicated evidence in view. " * 14
         block = filler + "The consensus across measurements holds [1, 2, 3]. "
         report.write_text("## Findings\n\n" + block * 8, encoding="utf-8")
@@ -622,7 +635,8 @@ class TestTelemetryAndVerify:
             ),
             encoding="utf-8",
         )
-        report = tmp_vault.root / "output" / "notes" / f"final_report_{tag}.md"
+        report = tmp_vault.root / "output" / "reports" / tag / f"final_report_{tag}.md"
+        report.parent.mkdir(parents=True, exist_ok=True)
         report.write_text(body, encoding="utf-8")
         result = verify_run(tmp_vault, tag)
         return {c["name"]: c for c in result["checks"]}["citation-density"]
@@ -741,7 +755,8 @@ class TestTelemetryAndVerify:
             ),
             encoding="utf-8",
         )
-        report = tmp_vault.root / "output" / "notes" / "final_report_vf-05.md"
+        report = tmp_vault.root / "output" / "reports" / "vf-05" / "final_report_vf-05.md"
+        report.parent.mkdir(parents=True, exist_ok=True)
         body = "## Findings\n\n" + (
             "Substantive sentence with real evidence attached [[src-note]]. " * 80
         )
@@ -787,7 +802,8 @@ class TestFinishGate:
             encoding="utf-8",
         )
         (run_dir / "polish-log.json").write_text('{"applied": []}', encoding="utf-8")
-        report = tmp_vault.root / "output" / "notes" / f"final_report_{tag}.md"
+        report = tmp_vault.root / "output" / "reports" / tag / f"final_report_{tag}.md"
+        report.parent.mkdir(parents=True, exist_ok=True)
         if body is None:
             body = "## Findings\n\n" + (
                 "Substantive sentence with real evidence attached [[src-note]]. " * 80
@@ -906,3 +922,94 @@ class TestFinishGate:
             result = verify_run(tmp_vault, tag)
             by_name = {c["name"]: c for c in result["checks"]}
             assert by_name["cite-check-resolved"]["ok"] is True
+
+
+class TestCriticalFindingsGate:
+    """Regression for the 2026-09-19 re-run that flipped steps 13-16 done with
+    a stub patch-log while three critical depth findings stood; verify passed
+    on artifact presence alone and the flagged claim shipped."""
+
+    def _full_run_with_findings(self, tmp_vault, tag: str, criticals: int, patch_log: dict):
+        init_run(tmp_vault, tag, profile="full")
+        run_dir = tmp_vault.run_dir(tag)
+        (run_dir / "prompt-decomposition.json").write_text(
+            json.dumps({"response_format": "short", "required_section_headings": ["## Findings"]}),
+            encoding="utf-8",
+        )
+        for name in ("dialectic", "width", "instruction"):
+            (run_dir / f"critic-findings-{name}.json").write_text(
+                '{"findings": []}', encoding="utf-8"
+            )
+        depth = [{"severity": "critical", "claim": f"c{i}"} for i in range(criticals)]
+        depth.append({"severity": "major", "claim": "m"})
+        (run_dir / "critic-findings-depth.json").write_text(
+            json.dumps({"findings": depth}), encoding="utf-8"
+        )
+        (run_dir / "patch-log.json").write_text(json.dumps(patch_log), encoding="utf-8")
+        (run_dir / "polish-log.json").write_text('{"applied": []}', encoding="utf-8")
+        report = tmp_vault.root / "output" / "reports" / tag / f"final_report_{tag}.md"
+        report.parent.mkdir(parents=True, exist_ok=True)
+        report.write_text(
+            "## Findings\n\n"
+            + ("Substantive sentence with real evidence attached [[src-note]]. " * 80),
+            encoding="utf-8",
+        )
+
+    def test_stub_patch_log_fails_when_criticals_exist(self, tmp_vault):
+        stub = {
+            "total_findings": 23,
+            "applied": [],
+            "skipped": [{"reason": "v2 run"}],
+            "conflicts": [],
+            "orchestrator_escalated": [],
+        }
+        self._full_run_with_findings(tmp_vault, "crit-01", 3, stub)
+        result = verify_run(tmp_vault, "crit-01")
+        by_name = {c["name"]: c for c in result["checks"]}
+        assert by_name["critical-findings-resolved"]["ok"] is False
+        assert result["passed"] is False
+
+    def test_named_dispositions_pass(self, tmp_vault):
+        log = {
+            "total_findings": 4,
+            "applied": [{"finding": "c0", "action": "fixed"}, {"finding": "c1", "action": "fixed"}],
+            "skipped": [{"finding": "c2", "reason": "duplicate of c0"}],
+            "conflicts": [],
+            "orchestrator_escalated": [],
+        }
+        self._full_run_with_findings(tmp_vault, "crit-02", 3, log)
+        result = verify_run(tmp_vault, "crit-02")
+        by_name = {c["name"]: c for c in result["checks"]}
+        assert by_name["critical-findings-resolved"]["ok"] is True
+        assert result["passed"] is True
+
+    def test_no_criticals_passes_with_empty_log(self, tmp_vault):
+        self._full_run_with_findings(tmp_vault, "crit-03", 0, {"applied": [], "skipped": []})
+        result = verify_run(tmp_vault, "crit-03")
+        by_name = {c["name"]: c for c in result["checks"]}
+        assert by_name["critical-findings-resolved"]["ok"] is True
+
+
+class TestReopenShippedRun:
+    """Resetting a step on a done run must un-ship it (2026-09-19: manifest
+    stayed status=done / verify.passed=true while steps 10-16 sat pending)."""
+
+    def test_pending_on_done_run_reopens(self, tmp_vault):
+        from hyperresearch.core.runs import load_manifest
+
+        init_run(tmp_vault, "reopen-01", profile="light")
+        for step in ("1", "2", "10", "15", "16"):
+            set_step(tmp_vault, "reopen-01", step, "done")
+        m = load_manifest(tmp_vault, "reopen-01")
+        m["status"] = "done"
+        m["verify"] = {"passed": True, "at": "x", "failed_checks": []}
+        from hyperresearch.core.runs import _save
+
+        _save(tmp_vault, "reopen-01", m)
+
+        set_step(tmp_vault, "reopen-01", "10", "pending")
+        m = load_manifest(tmp_vault, "reopen-01")
+        assert m["status"] == "running"
+        assert "verify" not in m
+        assert "finished_at" not in m["steps"]["10"]
+        assert m["steps"]["16"]["status"] == "done"  # other steps untouched

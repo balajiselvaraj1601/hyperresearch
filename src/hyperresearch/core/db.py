@@ -6,6 +6,8 @@ import sqlite3
 from pathlib import Path
 
 SCHEMA_VERSION = 12
+# Seconds a connection waits on a locked DB before raising.
+BUSY_TIMEOUT_S = 30
 
 SCHEMA_SQL = """
 PRAGMA journal_mode=WAL;
@@ -230,9 +232,12 @@ CREATE INDEX IF NOT EXISTS idx_notes_quality ON notes(quality_score);
 def get_connection(db_path: Path) -> sqlite3.Connection:
     """Open a SQLite connection with WAL mode and FK enforcement."""
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(db_path))
+    # Concurrent runs (and their fetcher subagents) share one vault DB; wait
+    # out a writer instead of failing "database is locked" on the default 5s.
+    conn = sqlite3.connect(str(db_path), timeout=BUSY_TIMEOUT_S)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute(f"PRAGMA busy_timeout={BUSY_TIMEOUT_S * 1000}")
     conn.execute("PRAGMA foreign_keys=ON")
     return conn
 

@@ -40,7 +40,7 @@ prompt. No block = this prompt's defaults apply unchanged.
   `output/runs/<vault_tag>/query.md`). Read this file and extract every
   noun phrase the user mentioned. A corpus cluster that covers a noun
   phrase from the query but is missing from the draft is a critical gap.
-- **draft_path**: `output/notes/final_report_<vault_tag>.md`
+- **draft_path**: `output/reports/<vault_tag>/final_report_<vault_tag>.md`
 - **output_path**: `output/runs/<vault_tag>/critic-findings-width.json`
 - **vault_tag**: corpus tag
 

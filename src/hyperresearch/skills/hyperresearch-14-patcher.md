@@ -21,7 +21,7 @@ description: >
 
 Read these inputs:
 - `output/runs/<vault_tag>/scaffold.md` — vault_tag
-- `output/notes/final_report_<vault_tag>.md` — the synthesized final report from step 11
+- `output/reports/<vault_tag>/final_report_<vault_tag>.md` — the synthesized final report from step 11
 - All `output/runs/<vault_tag>/critic-findings-*.json` files (count depends on tier)
 - `output/runs/<vault_tag>/temp/evidence-digest.md` — patcher's primary citation source
 - `output/runs/<vault_tag>/query.md` — canonical research query
@@ -80,7 +80,7 @@ prompt: |
   You are TOOL-LOCKED to [Read, Edit] — you cannot Write.
 
   YOUR INPUTS:
-  - draft_path: output/notes/final_report_<vault_tag>.md
+  - draft_path: output/reports/<vault_tag>/final_report_<vault_tag>.md
   - findings_paths: [
       output/runs/<vault_tag>/critic-findings-dialectic.json,    (full tier only)
       output/runs/<vault_tag>/critic-findings-depth.json,        (full tier only)
@@ -91,6 +91,8 @@ prompt: |
   - evidence_digest_path: output/runs/<vault_tag>/temp/evidence-digest.md
 
   RUN DIRECTIVES: append the FULL contents of output/runs/<vault_tag>/shims/critics.md here, verbatim.
+
+  ROLE BRIEF: append the FULL output of `$HPR run contract <vault_tag> --role patcher` here, verbatim (rendered role instructions; the subagent has no other role prompt).
 ```
 
 The patcher's job:
@@ -125,7 +127,7 @@ The patcher populates `orchestrator_escalated` with findings where `requires_orc
 
 For each entry:
 1. Read the `issue` field to understand which H2 in the draft needs to move, be added, or be renamed.
-2. Apply the restructure via hand-written Edit calls on `output/notes/final_report_<vault_tag>.md`. You have Write and Edit access — the tool lock applies only to the patcher and polish auditor subagents.
+2. Apply the restructure via hand-written Edit calls on `output/reports/<vault_tag>/final_report_<vault_tag>.md`. You have Write and Edit access — the tool lock applies only to the patcher and polish auditor subagents.
 3. Preserve the body content within each H2 section — you are moving / renaming / inserting headings, not regenerating prose. If a new heading is added and its body needs fresh content, write a short evidence-grounded paragraph for it.
 4. Log changes in `output/runs/<vault_tag>/orchestrator-restructure-log.md` (plain markdown, one bullet per change) so downstream lint rules can see this step happened.
 5. Never regenerate a whole section or the whole draft. The "patch not regenerate" invariant still binds you — broader tools but not broader license.
@@ -134,7 +136,7 @@ For each entry:
 
 ## Constraints
 
-- **Do not apply revisions yourself in step 14.2.** You MUST spawn the patcher subagent. Do NOT call Edit directly on `output/notes/final_report_<vault_tag>.md` — the patcher has the tool-lock invariants (surgical-edit discipline, conflict resolution, integrate-don't-caveat rule) baked into its prompt. Bypassing it defeats the entire adversarial-review architecture. If the patcher returns empty, re-spawn it once — don't fall back to doing the work yourself unless step 14.4 escalations require it.
+- **Do not apply revisions yourself in step 14.2.** You MUST spawn the patcher subagent. Do NOT call Edit directly on `output/reports/<vault_tag>/final_report_<vault_tag>.md` — the patcher has the tool-lock invariants (surgical-edit discipline, conflict resolution, integrate-don't-caveat rule) baked into its prompt. Bypassing it defeats the entire adversarial-review architecture. If the patcher returns empty, re-spawn it once — don't fall back to doing the work yourself unless step 14.4 escalations require it.
 
 - **Do not re-spawn the patcher on the same findings** unless you've modified the findings. The patcher's second run on identical input is a waste.
 
@@ -145,7 +147,7 @@ For each entry:
 - `output/runs/<vault_tag>/patch-log.json` exists with `total_findings` set and at least one of `applied` / `skipped` / `conflicts` populated
 - All critical findings either applied or resolved by orchestrator
 - All `orchestrator_escalated` findings handled (with `output/runs/<vault_tag>/orchestrator-restructure-log.md` if any structural restructures were applied)
-- `output/notes/final_report_<vault_tag>.md` has been edited (or no edits needed if findings were trivial)
+- `output/reports/<vault_tag>/final_report_<vault_tag>.md` has been edited (or no edits needed if findings were trivial)
 
 ---
 

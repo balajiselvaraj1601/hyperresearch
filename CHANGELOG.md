@@ -2,6 +2,33 @@
 
 ## [Unreleased]
 
+- **`run contract` renders step contracts and role briefs.** Since the v8
+  installer retirement nothing rendered the Jinja step contracts; both
+  2026-09-18 runs executed raw templates (`<< p.x >>` counts unresolved,
+  `$HPR` literal, relative paths that landed seven artifacts outside the run
+  dir). `hyperresearch run contract <tag> <N>` / `--role <r>` renders with the
+  run's profile, absolute CLI path and absolute run paths.
+- **Role briefs restored** under `src/hyperresearch/skills/roles/` (16 files
+  recovered from the retired agent bodies). Every `agent_medium` spawn
+  template now ends with `ROLE BRIEF: ... run contract <tag> --role <r>`;
+  without it fetchers wrote no claims files (steps 3 and 9 skipped in both
+  runs), critics returned empty findings, and the patcher stubbed its log.
+- **Verify gate: `critical-findings-resolved`.** Critical critic findings must
+  be applied or skipped by name in `patch-log.json`; presence of the file no
+  longer passes. Positive control: the litellm-cost-perf-ops re-run that
+  shipped 4 unaddressed criticals now fails verify.
+- **Reopening a shipped run un-ships it.** `run step <tag> <N> --status
+  pending` on a `done` run resets status to `running` and drops the stale
+  `verify` block.
+- **`fetch --tag <run>` credits `spend.sources_fetched`** on that run's
+  manifest automatically (both runs shipped with 0 sources counted).
+- **DB `busy_timeout` 30s** on every connection, for concurrent runs sharing
+  one vault DB.
+- **Per-run output layout.** Final reports live under
+  `output/reports/<vault_tag>/final_report_<vault_tag>.md` (no longer mixed
+  into `output/notes/`). Fetch notes with `--tag <run>` write to
+  `output/notes/<vault_tag>/`. Sync skips `output/reports/`.
+
 - **Worker safety guard baked into every installed agent.** `_write_agent_file`
   appends an infrastructure-errors section to each rendered subagent: on a
   locked database or tool failure, retry twice then report — never `kill`,
@@ -43,7 +70,7 @@ A review pass over the seven fixes above found six medium-severity problems — 
 - **`claims ingest --tag ../../..` scanned outside the vault**, because pathlib replaces the base on an absolute segment. A tag narrows the scan only when the resolved directory sits under `research/runs/`; files that resolve outside the vault root — symlinks — are skipped.
 - **One malformed claims file aborted the whole ingest.** Claims JSON is agent-written from fetched content: a dict where a string was expected raised out of `.strip()`, a list confidence raised out of sqlite, and 200 000 nested brackets hit `RecursionError`. Files are size-capped at 8 MB before reading, text fields are typed and bounded, and one bad claim becomes one error entry instead of a dead run.
 - **A crafted `chapter-plan` event could corrupt the manifest.** The fold introduced by #100 stringified any `chapter` value into a key and stored any `title` verbatim; a non-dict `chapters` crashed `resume_position`. Only a string or int id and a string title fold, both bounded; everything else stays in `events.jsonl`.
-- **`Retry-After` was already clamped to sixty seconds** — confirmed with a parametrized test over `nan`, `inf`, negatives and forty-digit values, all of which fall back to the 2 s / 4 s ladder.
+- **`Retry-After` was already clamped to sixty seconds** — confirmed with a parametrized test over `nan`, `inf`, negatives and forty-digit values, all which fall back to the 2 s / 4 s ladder.
 
 Deferred to its own issue: `hpr run init` applies no validation to the vault tag at all, so `../../x` scaffolds outside the vault. Same bug class as the claims fix, but it touches every run command.
 

@@ -19,12 +19,33 @@ app = typer.Typer()
 
 # URL patterns that are almost never content images
 SKIP_URL_PATTERNS = (
-    "logo", "icon", "favicon", "badge", "avatar", "sprite", "banner",
-    "ad-", "ads/", "advert", "tracking", "pixel", "analytics",
-    "button", "arrow", "caret", "spinner", "loader",
-    "gravatar.com", "googleusercontent.com/a/", "shields.io",
-    "github.com/fluidicon", "platform-lookaside", "syndication",
-    "facebook.com", "twitter.com/favicon", "linkedin.com/li/",
+    "logo",
+    "icon",
+    "favicon",
+    "badge",
+    "avatar",
+    "sprite",
+    "banner",
+    "ad-",
+    "ads/",
+    "advert",
+    "tracking",
+    "pixel",
+    "analytics",
+    "button",
+    "arrow",
+    "caret",
+    "spinner",
+    "loader",
+    "gravatar.com",
+    "googleusercontent.com/a/",
+    "shields.io",
+    "github.com/fluidicon",
+    "platform-lookaside",
+    "syndication",
+    "facebook.com",
+    "twitter.com/favicon",
+    "linkedin.com/li/",
 )
 
 
@@ -94,7 +115,12 @@ def _detect_tier(url: str, content_type: str) -> str:
     domain = urlparse(url).netloc.lower()
 
     # Ground truth: official primary sources — filings, specs, policy text, datasets
-    if domain.endswith(".gov") or ".gov." in domain or domain.endswith(".gov.uk") or domain.endswith(".europa.eu"):
+    if (
+        domain.endswith(".gov")
+        or ".gov." in domain
+        or domain.endswith(".gov.uk")
+        or domain.endswith(".europa.eu")
+    ):
         return "ground_truth"
     if content_type == "policy":
         return "ground_truth"
@@ -147,37 +173,99 @@ def _detect_content_type(url: str, raw_content_type: str | None = None) -> str:
     path = urlparse(url).path.lower()
 
     # Papers: arxiv, doi, direct PDFs, openreview, ssrn, biorxiv, pubmed
-    if any(d in domain for d in ("arxiv.org", "doi.org", "openreview.net", "ssrn.com", "biorxiv.org", "medrxiv.org", "pubmed.ncbi.nlm.nih.gov", "ncbi.nlm.nih.gov/pmc", "semanticscholar.org", "openalex.org")):
+    if any(
+        d in domain
+        for d in (
+            "arxiv.org",
+            "doi.org",
+            "openreview.net",
+            "ssrn.com",
+            "biorxiv.org",
+            "medrxiv.org",
+            "pubmed.ncbi.nlm.nih.gov",
+            "ncbi.nlm.nih.gov/pmc",
+            "semanticscholar.org",
+            "openalex.org",
+        )
+    ):
         return "paper"
     if path.endswith(".pdf"):
         return "paper"
 
     # Code: github, gitlab, bitbucket, pypi
-    if any(d in domain for d in ("github.com", "gitlab.com", "bitbucket.org", "pypi.org", "crates.io", "npmjs.com")):
+    if any(
+        d in domain
+        for d in ("github.com", "gitlab.com", "bitbucket.org", "pypi.org", "crates.io", "npmjs.com")
+    ):
         return "code"
 
     # Dataset portals that happen to live on .gov domains must win first
-    if domain in ("data.gov", "data.gov.uk") or (domain.startswith("data.") and (domain.endswith(".gov") or domain.endswith(".gov.uk") or domain.endswith(".europa.eu"))):
+    if domain in ("data.gov", "data.gov.uk") or (
+        domain.startswith("data.")
+        and (domain.endswith(".gov") or domain.endswith(".gov.uk") or domain.endswith(".europa.eu"))
+    ):
         return "dataset"
 
     # Policy: gov domains, EU, regulator sites
-    if domain.endswith(".gov") or ".gov." in domain or domain.endswith(".gov.uk") or domain.endswith(".europa.eu") or "regulations.gov" in domain:
+    if (
+        domain.endswith(".gov")
+        or ".gov." in domain
+        or domain.endswith(".gov.uk")
+        or domain.endswith(".europa.eu")
+        or "regulations.gov" in domain
+    ):
         return "policy"
 
     # Docs: common documentation platforms, docs.* subdomains, /docs paths
-    if any(d in domain for d in ("readthedocs.io", "readthedocs.org", "docs.rs", "developer.mozilla.org")):
+    if any(
+        d in domain
+        for d in ("readthedocs.io", "readthedocs.org", "docs.rs", "developer.mozilla.org")
+    ):
         return "docs"
-    if domain.startswith("docs.") or domain.startswith("documentation.") or ".readthedocs." in domain:
+    if (
+        domain.startswith("docs.")
+        or domain.startswith("documentation.")
+        or ".readthedocs." in domain
+    ):
         return "docs"
-    if "/docs/" in path or path.endswith("/docs") or "/documentation/" in path or "/api/reference" in path or "/reference/" in path:
+    if (
+        "/docs/" in path
+        or path.endswith("/docs")
+        or "/documentation/" in path
+        or "/api/reference" in path
+        or "/reference/" in path
+    ):
         return "docs"
 
     # Forum / community
-    if any(d in domain for d in ("reddit.com", "news.ycombinator.com", "stackoverflow.com", "stackexchange.com", "lobste.rs", "lemmy.", "discourse.")):
+    if any(
+        d in domain
+        for d in (
+            "reddit.com",
+            "news.ycombinator.com",
+            "stackoverflow.com",
+            "stackexchange.com",
+            "lobste.rs",
+            "lemmy.",
+            "discourse.",
+        )
+    ):
         return "forum"
 
     # Blog platforms
-    if any(d in domain for d in ("medium.com", "substack.com", "dev.to", "hashnode.com", "hashnode.dev", "blogspot.com", "wordpress.com", "ghost.io")):
+    if any(
+        d in domain
+        for d in (
+            "medium.com",
+            "substack.com",
+            "dev.to",
+            "hashnode.com",
+            "hashnode.dev",
+            "blogspot.com",
+            "wordpress.com",
+            "ghost.io",
+        )
+    ):
         return "blog"
 
     # Transcripts / video
@@ -189,14 +277,49 @@ def _detect_content_type(url: str, raw_content_type: str | None = None) -> str:
         return "article"
 
     # Datasets
-    if any(d in domain for d in ("kaggle.com", "data.gov", "data.world", "zenodo.org", "figshare.com")):
+    if any(
+        d in domain for d in ("kaggle.com", "data.gov", "data.world", "zenodo.org", "figshare.com")
+    ):
         return "dataset"
 
     # News / magazine default
-    if any(d in domain for d in ("nytimes.com", "wsj.com", "ft.com", "bloomberg.com", "reuters.com", "bbc.com", "theatlantic.com", "newyorker.com", "economist.com")):
+    if any(
+        d in domain
+        for d in (
+            "nytimes.com",
+            "wsj.com",
+            "ft.com",
+            "bloomberg.com",
+            "reuters.com",
+            "bbc.com",
+            "theatlantic.com",
+            "newyorker.com",
+            "economist.com",
+        )
+    ):
         return "article"
 
     return "unknown"
+
+
+def _credit_run_spend(vault, tags: list[str]) -> None:
+    """Count this fetch on the manifest of any live run named in `--tag`.
+
+    Fetchers tag every note with the vault_tag, so the run's
+    `spend.sources_fetched` / `notes_written` can be kept by the CLI instead
+    of relying on the orchestrator to call `run spend` (nobody did: both
+    2026-09-18 runs shipped with `sources_fetched: 0`). Best-effort; a
+    manifest problem never fails the fetch.
+    """
+    from hyperresearch.core.runs import MANIFEST_NAME, RunError, add_spend
+
+    for tag in tags:
+        if not (vault.run_dir(tag) / MANIFEST_NAME).exists():
+            continue
+        try:
+            add_spend(vault, tag, sources_fetched=1, notes_written=1)
+        except (RunError, OSError):
+            pass
 
 
 @app.command("fetch")
@@ -206,8 +329,12 @@ def fetch(
     title: str | None = typer.Option(None, "--title", help="Override title"),
     parent: str | None = typer.Option(None, "--parent", "-p", help="Parent topic"),
     provider_name: str | None = typer.Option(None, "--provider", help="Web provider override"),
-    save_assets: bool = typer.Option(False, "--save-assets", "-a", help="Download images and screenshot"),
-    visible: bool = typer.Option(False, "--visible", "-V", help="Run browser visibly (for stubborn auth sites)"),
+    save_assets: bool = typer.Option(
+        False, "--save-assets", "-a", help="Download images and screenshot"
+    ),
+    visible: bool = typer.Option(
+        False, "--visible", "-V", help="Run browser visibly (for stubborn auth sites)"
+    ),
     suggested_by: list[str] = typer.Option(
         [],
         "--suggested-by",
@@ -362,8 +489,15 @@ def fetch(
         if rescued is not None:
             result = rescued
         else:
-            item_id = _escalate_blocked(vault, url, "login_wall", tags, suggested_by, utility_score,
-                                        detail=f"login wall: {result.title}")
+            item_id = _escalate_blocked(
+                vault,
+                url,
+                "login_wall",
+                tags,
+                suggested_by,
+                utility_score,
+                detail=f"login wall: {result.title}",
+            )
             escalated = f" Queued for browser-lane escalation (#{item_id})." if item_id else ""
             msg = (
                 f"Redirected to login page ({result.title}). "
@@ -371,7 +505,10 @@ def fetch(
                 f"If that fails, re-create your login profile with 'hyperresearch setup'.{escalated}"
             )
             if json_output:
-                output(error(msg, "AUTH_REQUIRED_ESCALATED" if item_id else "AUTH_REQUIRED"), json_mode=True)
+                output(
+                    error(msg, "AUTH_REQUIRED_ESCALATED" if item_id else "AUTH_REQUIRED"),
+                    json_mode=True,
+                )
             else:
                 console.print(f"[red]Auth required:[/] {msg}")
             raise typer.Exit(1)
@@ -389,8 +526,9 @@ def fetch(
             item_id = None
             if junk_reason.startswith("Bot detection"):
                 reason = "captcha" if "captcha" in junk_reason.lower() else "bot_block"
-                item_id = _escalate_blocked(vault, url, reason, tags, suggested_by, utility_score,
-                                            detail=junk_reason)
+                item_id = _escalate_blocked(
+                    vault, url, reason, tags, suggested_by, utility_score, detail=junk_reason
+                )
             escalated = f" Queued for browser-lane escalation (#{item_id})." if item_id else ""
             # A PDF that failed its own lane lands here as "binary garbage";
             # say why the PDF lane declined it, or the message is useless (#82).
@@ -406,8 +544,8 @@ def fetch(
     # Source-ranking capture: DOI/arXiv id + the orchestrator's utility score.
     # On a rescue, the DOI we resolved with is the authority — re-extracting
     # would read it out of the substitute's body instead.
-    detected_doi = rescue_doi if oa_location is not None else extract_doi(
-        url, result.raw_html, result.content
+    detected_doi = (
+        rescue_doi if oa_location is not None else extract_doi(url, result.raw_html, result.content)
     )
 
     # Open-access recovery: a paywalled paper arrives as an abstract, so when a
@@ -416,9 +554,7 @@ def fetch(
     # — the note is about the paper, and the substitution is disclosed in the
     # body banner and the oa_* frontmatter below. On a rescue the source domain
     # comes from the URL, since `result.domain` is the substitute's host.
-    original_domain = (
-        urlparse(url).netloc.lower() if oa_location is not None else result.domain
-    )
+    original_domain = urlparse(url).netloc.lower() if oa_location is not None else result.domain
     original_chars = len(result.content or "")
 
     if oa_location is None:
@@ -492,6 +628,7 @@ def fetch(
         parent=parent,
         tier=detected_tier,
         content_type=detected_content_type,
+        run_tag=tags[0] if tags else None,
         extra_frontmatter=extra_meta,
     )
 
@@ -523,6 +660,7 @@ def fetch(
     # NoteMeta.model_config = {"extra": "ignore"} on the next parse.
     if raw_file_path:
         from hyperresearch.core.frontmatter import parse_frontmatter, render_note
+
         note_text = note_path.read_text(encoding="utf-8")
         meta, body = parse_frontmatter(note_text)
         if meta.raw_file != raw_file_path:
@@ -559,9 +697,7 @@ def fetch(
     # fetch won the race. Clean up our orphan .md file (and raw artifact,
     # if any) and return the winner's note_id so the caller can treat
     # this as an idempotent no-op.
-    winner_row = conn.execute(
-        "SELECT note_id FROM sources WHERE url = ?", (url,)
-    ).fetchone()
+    winner_row = conn.execute("SELECT note_id FROM sources WHERE url = ?", (url,)).fetchone()
     if winner_row and winner_row["note_id"] != note_id:
         winning_note_id = winner_row["note_id"]
         # Our write lost the race. Unlink the orphan .md file.
@@ -598,11 +734,17 @@ def fetch(
     if save_assets:
         assets_dir = vault.research_dir / "assets" / note_id
         saved_assets = _save_assets(
-            conn, result, note_id, assets_dir,
-            settings=vault.config.assets, image_timeout_s=vault.config.fetch.image_timeout_s,
+            conn,
+            result,
+            note_id,
+            assets_dir,
+            settings=vault.config.assets,
+            image_timeout_s=vault.config.fetch.image_timeout_s,
             max_image_bytes=vault.config.fetch.max_image_bytes,
             allow_private_hosts=vault.config.fetch.allow_private_hosts,
         )
+
+    _credit_run_spend(vault, tags)
 
     data = {
         "note_id": note_id,
@@ -654,8 +796,12 @@ def fetch(
 
 
 def _escalate_blocked(
-    vault, url: str, reason: str, tags: list[str],
-    suggested_by: list[str], utility_score: float | None,
+    vault,
+    url: str,
+    reason: str,
+    tags: list[str],
+    suggested_by: list[str],
+    utility_score: float | None,
     detail: str | None = None,
 ) -> int | None:
     """Queue a blocked fetch for the Chrome lane. Never raises — a failed
@@ -664,7 +810,9 @@ def _escalate_blocked(
         from hyperresearch.core.escalation import maybe_enqueue_blocked_fetch
 
         return maybe_enqueue_blocked_fetch(
-            vault, url, reason,
+            vault,
+            url,
+            reason,
             vault_tag=tags[0] if tags else None,
             suggested_by=suggested_by[0] if suggested_by else None,
             utility_score=utility_score,
@@ -690,7 +838,8 @@ def _save_assets(
     timeout_s = image_timeout_s if image_timeout_s is not None else fetch_defaults.image_timeout_s
     image_cap = max_image_bytes if max_image_bytes is not None else fetch_defaults.max_image_bytes
     allow_private = (
-        allow_private_hosts if allow_private_hosts is not None
+        allow_private_hosts
+        if allow_private_hosts is not None
         else fetch_defaults.allow_private_hosts
     )
     saved: list[dict] = []
@@ -706,11 +855,13 @@ def _save_assets(
                VALUES (?, 'screenshot', ?, 'Page screenshot', 'image/png', ?, ?)""",
             (note_id, str(screenshot_path), len(result.screenshot), now),
         )
-        saved.append({
-            "type": "screenshot",
-            "path": str(screenshot_path),
-            "size_bytes": len(result.screenshot),
-        })
+        saved.append(
+            {
+                "type": "screenshot",
+                "path": str(screenshot_path),
+                "size_bytes": len(result.screenshot),
+            }
+        )
 
     # Download images — only content-relevant ones
     if result.media:
@@ -734,9 +885,16 @@ def _save_assets(
             img_url = img.get("src", "")
             alt = img.get("alt", "") or ""
             asset_info = _download_image(
-                conn, note_id, img_url, alt, assets_dir, now,
-                min_image_bytes=settings.min_image_bytes, timeout_s=timeout_s,
-                max_image_bytes=image_cap, allow_private_hosts=allow_private,
+                conn,
+                note_id,
+                img_url,
+                alt,
+                assets_dir,
+                now,
+                min_image_bytes=settings.min_image_bytes,
+                timeout_s=timeout_s,
+                max_image_bytes=image_cap,
+                allow_private_hosts=allow_private,
             )
             if asset_info:
                 saved.append(asset_info)
@@ -748,8 +906,14 @@ def _save_assets(
 
 
 def _download_image(
-    conn, note_id: str, img_url: str, alt: str, assets_dir: Path, now: str,
-    min_image_bytes: int = 50_000, timeout_s: int = 15,
+    conn,
+    note_id: str,
+    img_url: str,
+    alt: str,
+    assets_dir: Path,
+    now: str,
+    min_image_bytes: int = 50_000,
+    timeout_s: int = 15,
     max_image_bytes: int | None = None,
     allow_private_hosts: tuple[str, ...] = (),
 ) -> dict | None:

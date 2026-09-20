@@ -83,6 +83,8 @@ The targeted fetch wave in the next step will pull these filings BEFORE the corp
      - output_path: output/runs/<vault_tag>/temp/corpus-critic-gaps-raw.json
 
      RUN DIRECTIVES: append the FULL contents of output/runs/<vault_tag>/shims/research.md here, verbatim.
+
+     ROLE BRIEF: append the FULL output of `$HPR run contract <vault_tag> --role corpus-critic` here, verbatim (rendered role instructions; the subagent has no other role prompt).
    ```
 
 2. **Merge into the step artifact.** Read the subagent's output (`output/runs/<vault_tag>/temp/corpus-critic-gaps-raw.json`; each gap carries an `id` like `cc-1`, a `priority` of critical / high, and a `type` of overturning / strengthening / independent-verification). Write `output/runs/<vault_tag>/corpus-critic-gaps.json` as `{"gaps": [...]}` containing the pre-flight `period-pinned-gaps.json` entries FIRST (they are the critical, period-pinned ones), then the subagent's gaps. Every gap keeps its `id` — the `pp-` / `cc-` prefixes keep the two sets from colliding, and the fetch wave below references gaps by id. If there was no pre-flight file, the merged file is just the subagent's gaps.
@@ -110,6 +112,8 @@ The targeted fetch wave in the next step will pull these filings BEFORE the corp
      - gap_id: <gap.id>
 
      RUN DIRECTIVES: append the FULL contents of output/runs/<vault_tag>/shims/research.md here, verbatim.
+
+     ROLE BRIEF: append the FULL output of `$HPR run contract <vault_tag> --role fetcher` here, verbatim (rendered role instructions; the subagent has no other role prompt).
    ```
 
 4. **Assess results.**

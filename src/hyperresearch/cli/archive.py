@@ -51,9 +51,7 @@ _ROOT_ARTIFACTS: tuple[str, ...] = (
 _SUBDIRS: tuple[str, ...] = ("temp",)
 
 _QUERY_RE = re.compile(r"^query-(.+)\.md$")
-_VAULT_TAG_RE = re.compile(
-    r"vault[_\- ]?tag[:\s=]+`?([a-z0-9][a-z0-9-]*)`?", re.IGNORECASE
-)
+_VAULT_TAG_RE = re.compile(r"vault[_\- ]?tag[:\s=]+`?([a-z0-9][a-z0-9-]*)`?", re.IGNORECASE)
 
 
 def _infer_previous_vault_tag(research_dir: Path) -> str | None:
@@ -103,7 +101,7 @@ def archive_run(
     critic findings, patch/polish logs, and the entire output/temp/
     scratch tree. Without this step, the next run silently overwrites them.
 
-    Final reports (output/notes/final_report_<tag>.md) and canonical query
+    Final reports (output/reports/<tag>/final_report_<tag>.md) and canonical query
     files (output/query-<tag>.md) are already namespaced by vault_tag and
     are left in place.
     """
@@ -155,10 +153,12 @@ def archive_run(
     for src in to_move:
         dest = archive_dir / src.name
         shutil.move(str(src), str(dest))
-        moved.append({
-            "from": src.relative_to(vault.root).as_posix(),
-            "to": dest.relative_to(vault.root).as_posix(),
-        })
+        moved.append(
+            {
+                "from": src.relative_to(vault.root).as_posix(),
+                "to": dest.relative_to(vault.root).as_posix(),
+            }
+        )
 
     # Recreate the now-empty output/temp/ so subsequent skill steps don't
     # need to remember to mkdir it.

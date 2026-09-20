@@ -49,9 +49,7 @@ def read_note(file_path: Path, vault_root: Path) -> Note:
     cleaned = CODE_BLOCK_RE.sub("", body)
     cleaned = INLINE_CODE_RE.sub("", cleaned)
     raw_links = (m.group(1).strip().rstrip("\\") for m in WIKI_LINK_RE.finditer(cleaned))
-    outgoing = list(dict.fromkeys(
-        ref for ref in raw_links if is_valid_wiki_link_target(ref)
-    ))
+    outgoing = list(dict.fromkeys(ref for ref in raw_links if is_valid_wiki_link_target(ref)))
 
     # Word count (simple split)
     word_count = len(body.split())
@@ -99,11 +97,13 @@ def write_note(
     tier: str | None = None,
     content_type: str | None = None,
     extra_frontmatter: dict | None = None,
+    run_tag: str | None = None,
 ) -> Path:
     """Create a new note file on disk. Returns the file path.
 
     Args:
-        notes_dir: The directory to write into (e.g. vault.notes_dir).
+        notes_dir: The base notes directory (e.g. vault.notes_dir).
+        run_tag: When set, write into notes_dir/<run_tag>/ (per-run layout).
         tier: Epistemic role — ground_truth|institutional|practitioner|commentary|unknown.
         content_type: Artifact kind — paper|docs|article|blog|forum|dataset|policy|code|book|transcript|review|unknown.
         extra_frontmatter: Additional fields to set on NoteMeta (e.g. source_domain, fetched_at).
@@ -126,12 +126,10 @@ def write_note(
         kwargs.update(extra_frontmatter)
     meta = NoteMeta(**kwargs)
 
-    # Determine output path, avoid collisions. Vault layout is FLAT —
-    # `parent:` lives in frontmatter (DB-indexed) but does NOT drive the
-    # filesystem path. Nested dirs hurt Windows MAX_PATH, hide notes from
-    # simple `output/notes/*.md` globs, and conflict with the shared-
-    # vault ensemble design where sub-runs need flat listings.
-    target_dir = notes_dir
+    # Determine output path, avoid collisions. When a run_tag is given,
+    # notes go into notes_dir/<run_tag>/ (per-run layout). Otherwise the
+    # legacy flat layout is used (notes_dir/ directly).
+    target_dir = notes_dir / run_tag if run_tag else notes_dir
     target_dir.mkdir(parents=True, exist_ok=True)
 
     file_path = target_dir / f"{nid}.md"

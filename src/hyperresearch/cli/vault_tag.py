@@ -5,7 +5,7 @@ topical slug (e.g. `efield-dft-sac`). On its own that slug is not unique:
 two different queries can slug-collide on shared lexical material, and a
 re-run of the same query produces the same slug. Either case would cause
 the next run's `output/query-<tag>.md` and final
-`output/notes/final_report_<tag>.md` to overwrite the prior run's, since
+`output/reports/<tag>/final_report_<tag>.md` to overwrite the prior run's, since
 those are the two filenames the pipeline keys off the vault_tag.
 
 This command takes the topical slug and appends a random 6-hex-char suffix
@@ -47,7 +47,7 @@ def _existing_tags(vault_root: Path, research_dir: Path) -> set[str]:
 
     Sources:
       - `output/query-*.md` — canonical query files (one per run)
-      - `output/notes/final_report_*.md` — final reports
+      - `output/reports/*/final_report_*.md` — final reports
 
     Archived runs under `output/runs/archive-*/` are deliberately ignored:
     those filenames embed the OLD tag, but they don't collide with NEW
@@ -61,9 +61,9 @@ def _existing_tags(vault_root: Path, research_dir: Path) -> set[str]:
             m = _QUERY_FILE_RE.match(p.name)
             if m:
                 tags.add(m.group(1))
-    notes_dir = research_dir / "notes"
-    if notes_dir.is_dir():
-        for p in notes_dir.glob("final_report_*.md"):
+    reports_dir = research_dir / "reports"
+    if reports_dir.is_dir():
+        for p in reports_dir.rglob("final_report_*.md"):
             m = _REPORT_FILE_RE.match(p.name)
             if m:
                 tags.add(m.group(1))

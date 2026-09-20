@@ -59,6 +59,8 @@ Read these inputs:
 
      RUN DIRECTIVES: append the FULL contents of output/runs/<vault_tag>/shims/research.md here, verbatim.
 
+     ROLE BRIEF: append the FULL output of `$HPR run contract <vault_tag> --role depth-investigator` here, verbatim (rendered role instructions; the subagent has no other role prompt).
+
      CRITICAL: Read the full source text of relevant vault notes (via
      `hyperresearch note show <id1> <id2> ... -j`) BEFORE writing your
      interim note. Drafting from summaries alone produces paraphrase;

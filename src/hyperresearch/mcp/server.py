@@ -10,12 +10,15 @@ import json
 
 from mcp.server.fastmcp import FastMCP
 
-server = FastMCP("hyperresearch", instructions=(
-    "hyperresearch is an agent-driven research knowledge base. Use these tools to search, read, "
-    "and navigate research notes with wiki-links, tags, and summaries. Notes live in the output/ "
-    "directory as markdown files with YAML frontmatter. To create or edit notes, write "
-    "files directly and they will be auto-indexed."
-))
+server = FastMCP(
+    "hyperresearch",
+    instructions=(
+        "hyperresearch is an agent-driven research knowledge base. Use these tools to search, read, "
+        "and navigate research notes with wiki-links, tags, and summaries. Notes live in the output/ "
+        "directory as markdown files with YAML frontmatter. To create or edit notes, write "
+        "files directly and they will be auto-indexed."
+    ),
+)
 
 _vault = None
 
@@ -24,13 +27,16 @@ def _get_vault():
     global _vault
     if _vault is None:
         from hyperresearch.core.vault import Vault
+
         _vault = Vault.discover()
         _vault.auto_sync()
     return _vault
 
 
 @server.tool()
-def search_notes(query: str, tag: str = "", status: str = "", parent: str = "", limit: int = 10) -> str:
+def search_notes(
+    query: str, tag: str = "", status: str = "", parent: str = "", limit: int = 10
+) -> str:
     """Search the research base by text. Returns matching notes with titles, summaries, and full bodies.
 
     Args:
@@ -44,6 +50,7 @@ def search_notes(query: str, tag: str = "", status: str = "", parent: str = "", 
     vault.auto_sync()
     from hyperresearch.search.filters import SearchFilters
     from hyperresearch.search.fts import SearchQueryError, search_fts
+
     tags = [t.strip() for t in tag.split(",") if t.strip()] or None
     filters = SearchFilters(tags=tags, status=status or None, parent=parent or None)
     ranking = {
@@ -60,7 +67,9 @@ def search_notes(query: str, tag: str = "", status: str = "", parent: str = "", 
     except SearchQueryError as e:
         return f"Invalid search query: {e}"
     for r in results:
-        row = vault.db.execute("SELECT body FROM note_content WHERE note_id = ?", (r["id"],)).fetchone()
+        row = vault.db.execute(
+            "SELECT body FROM note_content WHERE note_id = ?", (r["id"],)
+        ).fetchone()
         r["body"] = row["body"] if row else ""
     return json.dumps(results, default=str)
 
@@ -80,15 +89,28 @@ def read_note(note_id: str) -> str:
     ).fetchone()
     if not row:
         return json.dumps({"error": f"Note not found: {note_id}"})
-    tag_row = vault.db.execute("SELECT GROUP_CONCAT(tag, ',') as tl FROM tags WHERE note_id = ?", (note_id,)).fetchone()
+    tag_row = vault.db.execute(
+        "SELECT GROUP_CONCAT(tag, ',') as tl FROM tags WHERE note_id = ?", (note_id,)
+    ).fetchone()
     tags = tag_row["tl"].split(",") if tag_row and tag_row["tl"] else []
-    return json.dumps({
-        "id": row["id"], "title": row["title"], "path": row["path"],
-        "status": row["status"], "type": row["type"], "tags": tags,
-        "created": row["created"], "updated": row["updated"],
-        "word_count": row["word_count"], "summary": row["summary"],
-        "source": row["source"], "parent": row["parent"], "body": row["body"],
-    }, default=str)
+    return json.dumps(
+        {
+            "id": row["id"],
+            "title": row["title"],
+            "path": row["path"],
+            "status": row["status"],
+            "type": row["type"],
+            "tags": tags,
+            "created": row["created"],
+            "updated": row["updated"],
+            "word_count": row["word_count"],
+            "summary": row["summary"],
+            "source": row["source"],
+            "parent": row["parent"],
+            "body": row["body"],
+        },
+        default=str,
+    )
 
 
 @server.tool()
@@ -104,20 +126,34 @@ def read_many(note_ids: str) -> str:
     notes, not_found = [], []
     for nid in ids:
         row = vault.db.execute(
-            "SELECT n.*, nc.body FROM notes n JOIN note_content nc ON n.id = nc.note_id WHERE n.id = ?", (nid,)
+            "SELECT n.*, nc.body FROM notes n JOIN note_content nc ON n.id = nc.note_id WHERE n.id = ?",
+            (nid,),
         ).fetchone()
         if row:
-            tag_row = vault.db.execute("SELECT GROUP_CONCAT(tag, ',') as tl FROM tags WHERE note_id = ?", (nid,)).fetchone()
+            tag_row = vault.db.execute(
+                "SELECT GROUP_CONCAT(tag, ',') as tl FROM tags WHERE note_id = ?", (nid,)
+            ).fetchone()
             tags = tag_row["tl"].split(",") if tag_row and tag_row["tl"] else []
-            notes.append({"id": row["id"], "title": row["title"], "status": row["status"],
-                          "tags": tags, "word_count": row["word_count"], "summary": row["summary"], "body": row["body"]})
+            notes.append(
+                {
+                    "id": row["id"],
+                    "title": row["title"],
+                    "status": row["status"],
+                    "tags": tags,
+                    "word_count": row["word_count"],
+                    "summary": row["summary"],
+                    "body": row["body"],
+                }
+            )
         else:
             not_found.append(nid)
     return json.dumps({"notes": notes, "not_found": not_found}, default=str)
 
 
 @server.tool()
-def list_notes(status: str = "", tag: str = "", parent: str = "", sort: str = "updated", limit: int = 50) -> str:
+def list_notes(
+    status: str = "", tag: str = "", parent: str = "", sort: str = "updated", limit: int = 50
+) -> str:
     """List notes with optional filters. Returns summaries (no bodies).
 
     Args:
@@ -140,17 +176,30 @@ def list_notes(status: str = "", tag: str = "", parent: str = "", sort: str = "u
         clauses.append("(n.parent = ? OR n.parent LIKE ?)")
         params.extend([parent, parent + "/%"])
     where = " AND ".join(clauses)
-    sort_map = {"created": "n.created DESC", "updated": "COALESCE(n.updated, n.created) DESC",
-                "title": "n.title ASC", "words": "n.word_count DESC"}
+    sort_map = {
+        "created": "n.created DESC",
+        "updated": "COALESCE(n.updated, n.created) DESC",
+        "title": "n.title ASC",
+        "words": "n.word_count DESC",
+    }
     order = sort_map.get(sort, "COALESCE(n.updated, n.created) DESC")
     effective_limit = 999999 if limit == 0 else limit
     rows = vault.db.execute(
         f"SELECT n.*, (SELECT GROUP_CONCAT(t.tag, ',') FROM tags t WHERE t.note_id = n.id) as tag_list "
-        f"FROM notes n WHERE {where} ORDER BY {order} LIMIT ?", [*params, effective_limit]
+        f"FROM notes n WHERE {where} ORDER BY {order} LIMIT ?",
+        [*params, effective_limit],
     ).fetchall()
-    notes = [{"id": r["id"], "title": r["title"], "status": r["status"],
-              "tags": r["tag_list"].split(",") if r["tag_list"] else [],
-              "word_count": r["word_count"], "summary": r["summary"]} for r in rows]
+    notes = [
+        {
+            "id": r["id"],
+            "title": r["title"],
+            "status": r["status"],
+            "tags": r["tag_list"].split(",") if r["tag_list"] else [],
+            "word_count": r["word_count"],
+            "summary": r["summary"],
+        }
+        for r in rows
+    ]
     return json.dumps(notes, default=str)
 
 
@@ -168,8 +217,15 @@ def get_backlinks(note_id: str) -> str:
         "FROM links l JOIN notes n ON l.source_id = n.id WHERE l.target_id = ? ORDER BY n.title",
         (note_id,),
     ).fetchall()
-    backlinks = [{"source_id": r["source_id"], "title": r["title"],
-                  "line": r["line_number"], "context": r["context"]} for r in rows]
+    backlinks = [
+        {
+            "source_id": r["source_id"],
+            "title": r["title"],
+            "line": r["line_number"],
+            "context": r["context"],
+        }
+        for r in rows
+    ]
     return json.dumps({"note_id": note_id, "backlinks": backlinks, "count": len(backlinks)})
 
 
@@ -188,7 +244,9 @@ def get_hubs(limit: int = 20) -> str:
         "WHERE l.target_id IS NOT NULL GROUP BY l.target_id ORDER BY inbound DESC LIMIT ?",
         (limit,),
     ).fetchall()
-    return json.dumps([{"id": r["id"], "title": r["title"], "inbound_links": r["inbound"]} for r in rows])
+    return json.dumps(
+        [{"id": r["id"], "title": r["title"], "inbound_links": r["inbound"]} for r in rows]
+    )
 
 
 @server.tool()
@@ -197,18 +255,39 @@ def vault_status() -> str:
     vault = _get_vault()
     vault.auto_sync()
     conn = vault.db
-    total = conn.execute("SELECT COUNT(*) as c FROM notes WHERE type NOT IN ('index')").fetchone()["c"]
-    by_status = {r["status"]: r["c"] for r in conn.execute(
-        "SELECT status, COUNT(*) as c FROM notes WHERE type NOT IN ('index') GROUP BY status")}
+    total = conn.execute("SELECT COUNT(*) as c FROM notes WHERE type NOT IN ('index')").fetchone()[
+        "c"
+    ]
+    by_status = {
+        r["status"]: r["c"]
+        for r in conn.execute(
+            "SELECT status, COUNT(*) as c FROM notes WHERE type NOT IN ('index') GROUP BY status"
+        )
+    }
     tag_count = conn.execute("SELECT COUNT(DISTINCT tag) as c FROM tags").fetchone()["c"]
-    top_tags = [{"tag": r["tag"], "count": r["count"]} for r in conn.execute(
-        "SELECT tag, COUNT(*) as count FROM tags GROUP BY tag ORDER BY count DESC LIMIT 10")]
+    top_tags = [
+        {"tag": r["tag"], "count": r["count"]}
+        for r in conn.execute(
+            "SELECT tag, COUNT(*) as count FROM tags GROUP BY tag ORDER BY count DESC LIMIT 10"
+        )
+    ]
     total_links = conn.execute("SELECT COUNT(*) as c FROM links").fetchone()["c"]
     broken = conn.execute("SELECT COUNT(*) as c FROM links WHERE target_id IS NULL").fetchone()["c"]
-    total_words = conn.execute("SELECT COALESCE(SUM(word_count), 0) as c FROM notes").fetchone()["c"]
-    return json.dumps({"vault_name": vault.config.name, "total_notes": total, "by_status": by_status,
-                        "unique_tags": tag_count, "top_tags": top_tags, "total_links": total_links,
-                        "broken_links": broken, "total_words": total_words})
+    total_words = conn.execute("SELECT COALESCE(SUM(word_count), 0) as c FROM notes").fetchone()[
+        "c"
+    ]
+    return json.dumps(
+        {
+            "vault_name": vault.config.name,
+            "total_notes": total,
+            "by_status": by_status,
+            "unique_tags": tag_count,
+            "top_tags": top_tags,
+            "total_links": total_links,
+            "broken_links": broken,
+            "total_words": total_words,
+        }
+    )
 
 
 @server.tool()
@@ -222,20 +301,62 @@ def lint_vault(rule: str = "") -> str:
     vault.auto_sync()
     conn = vault.db
     issues: list[dict] = []
-    rules = [rule] if rule else ["missing-tags", "missing-summary", "broken-links", "orphaned-notes"]
+    rules = (
+        [rule] if rule else ["missing-tags", "missing-summary", "broken-links", "orphaned-notes"]
+    )
     if "missing-tags" in rules:
-        for r in conn.execute("SELECT id FROM notes WHERE type NOT IN ('index','raw') AND id NOT IN (SELECT DISTINCT note_id FROM tags)"):
-            issues.append({"rule": "missing-tags", "severity": "warning", "note_id": r["id"], "message": "No tags"})
+        for r in conn.execute(
+            "SELECT id FROM notes WHERE type NOT IN ('index','raw') AND id NOT IN (SELECT DISTINCT note_id FROM tags)"
+        ):
+            issues.append(
+                {
+                    "rule": "missing-tags",
+                    "severity": "warning",
+                    "note_id": r["id"],
+                    "message": "No tags",
+                }
+            )
     if "missing-summary" in rules:
-        for r in conn.execute("SELECT id FROM notes WHERE type NOT IN ('index','raw') AND (summary IS NULL OR LENGTH(TRIM(COALESCE(summary, ''))) = 0)"):
-            issues.append({"rule": "missing-summary", "severity": "warning", "note_id": r["id"], "message": "No summary"})
+        for r in conn.execute(
+            "SELECT id FROM notes WHERE type NOT IN ('index','raw') AND (summary IS NULL OR LENGTH(TRIM(COALESCE(summary, ''))) = 0)"
+        ):
+            issues.append(
+                {
+                    "rule": "missing-summary",
+                    "severity": "warning",
+                    "note_id": r["id"],
+                    "message": "No summary",
+                }
+            )
     if "broken-links" in rules:
         for r in conn.execute("SELECT source_id, target_ref FROM links WHERE target_id IS NULL"):
-            issues.append({"rule": "broken-links", "severity": "warning", "note_id": r["source_id"], "message": f"Broken: [[{r['target_ref']}]]"})
+            issues.append(
+                {
+                    "rule": "broken-links",
+                    "severity": "warning",
+                    "note_id": r["source_id"],
+                    "message": f"Broken: [[{r['target_ref']}]]",
+                }
+            )
     if "orphaned-notes" in rules:
-        for r in conn.execute("SELECT id FROM notes WHERE type NOT IN ('index','raw') AND id NOT IN (SELECT DISTINCT target_id FROM links WHERE target_id IS NOT NULL) AND id NOT IN (SELECT DISTINCT source_id FROM links)"):
-            issues.append({"rule": "orphaned-notes", "severity": "info", "note_id": r["id"], "message": "No links"})
-    return json.dumps({"issues": issues, "total": len(issues), "warnings": sum(1 for i in issues if i["severity"] == "warning")})
+        for r in conn.execute(
+            "SELECT id FROM notes WHERE type NOT IN ('index','raw') AND id NOT IN (SELECT DISTINCT target_id FROM links WHERE target_id IS NOT NULL) AND id NOT IN (SELECT DISTINCT source_id FROM links)"
+        ):
+            issues.append(
+                {
+                    "rule": "orphaned-notes",
+                    "severity": "info",
+                    "note_id": r["id"],
+                    "message": "No links",
+                }
+            )
+    return json.dumps(
+        {
+            "issues": issues,
+            "total": len(issues),
+            "warnings": sum(1 for i in issues if i["severity"] == "warning"),
+        }
+    )
 
 
 @server.tool()
@@ -296,7 +417,9 @@ def fetch_url(url: str, tags: str = "", provider: str = "") -> str:
 
     try:
         result = fetch_and_save(
-            vault, url, tags=tag_list,
+            vault,
+            url,
+            tags=tag_list,
             provider_name=provider or None,
         )
         return json.dumps({"ok": True, "data": result})
@@ -307,7 +430,9 @@ def fetch_url(url: str, tags: str = "", provider: str = "") -> str:
 
 
 @server.tool()
-def create_note(title: str, body: str, tags: str = "", source: str = "", summary: str = "") -> str:
+def create_note(
+    title: str, body: str, tags: str = "", source: str = "", summary: str = "", vault_tag: str = ""
+) -> str:
     """Create a new research note.
 
     Args:
@@ -316,6 +441,7 @@ def create_note(title: str, body: str, tags: str = "", source: str = "", summary
         tags: Comma-separated tags
         source: Source URL (if from the web)
         summary: One-line summary (auto-generated if empty)
+        vault_tag: Run tag to organize notes into per-run subdirectory
     """
     from hyperresearch.core.enrich import enrich_note_file
     from hyperresearch.core.note import write_note
@@ -338,6 +464,7 @@ def create_note(title: str, body: str, tags: str = "", source: str = "", summary
         source=source or None,
         summary=summary or None,
         extra_frontmatter=extra if extra else None,
+        run_tag=vault_tag or None,
     )
 
     enrich_note_file(note_path, vault.db, tag_list)
@@ -347,15 +474,22 @@ def create_note(title: str, body: str, tags: str = "", source: str = "", summary
         execute_sync(vault, plan)
 
     note_id = note_path.stem
-    return json.dumps({"ok": True, "data": {
-        "note_id": note_id,
-        "title": title,
-        "path": str(note_path.relative_to(vault.root)),
-    }})
+    return json.dumps(
+        {
+            "ok": True,
+            "data": {
+                "note_id": note_id,
+                "title": title,
+                "path": str(note_path.relative_to(vault.root)),
+            },
+        }
+    )
 
 
 @server.tool()
-def update_note(note_id: str, status: str = "", add_tags: str = "", remove_tags: str = "", summary: str = "") -> str:
+def update_note(
+    note_id: str, status: str = "", add_tags: str = "", remove_tags: str = "", summary: str = ""
+) -> str:
     """Update a note's metadata.
 
     Args:
@@ -378,18 +512,22 @@ def update_note(note_id: str, status: str = "", add_tags: str = "", remove_tags:
             NoteStatus(status)
         except ValueError:
             valid = ", ".join(s.value for s in NoteStatus)
-            return json.dumps({
-                "ok": False,
-                "error": f"Invalid status '{status}'. Must be one of: {valid}",
-                "error_code": "INVALID_STATUS",
-            })
+            return json.dumps(
+                {
+                    "ok": False,
+                    "error": f"Invalid status '{status}'. Must be one of: {valid}",
+                    "error_code": "INVALID_STATUS",
+                }
+            )
 
     vault = _get_vault()
     vault.auto_sync()
 
     row = vault.db.execute("SELECT path FROM notes WHERE id = ?", (note_id,)).fetchone()
     if not row:
-        return json.dumps({"ok": False, "error": f"Note not found: {note_id}", "error_code": "NOT_FOUND"})
+        return json.dumps(
+            {"ok": False, "error": f"Note not found: {note_id}", "error_code": "NOT_FOUND"}
+        )
 
     file_path = vault.root / row["path"]
     content = file_path.read_text(encoding="utf-8-sig")

@@ -449,6 +449,44 @@ def run_report(
             console.print(f"  events: {ev}")
 
 
+@app.command("contract")
+def run_contract(
+    vault_tag: str = typer.Argument(..., help="Run tag"),
+    step: str | None = typer.Argument(None, help='Step id ("1", "14.5", ...) to render'),
+    role: str | None = typer.Option(
+        None, "--role", "-r", help="Render a subagent role brief instead (see --list-roles)"
+    ),
+    list_roles_flag: bool = typer.Option(False, "--list-roles", help="List role brief names"),
+    out: str | None = typer.Option(None, "--out", "-o", help="Write rendered text to this file"),
+) -> None:
+    """Render a step contract or role brief for this run, ready to execute or paste.
+
+    Profile placeholders (`<< p.x >>`) resolve from the run's profile, `$HPR`
+    becomes the absolute CLI path, `<vault_tag>` is filled in, and run paths
+    become absolute. The orchestrator reads the STEP contract before running
+    a step; each subagent spawn prompt ends with the pasted ROLE brief.
+    """
+    from hyperresearch.core.contracts import ContractError, list_roles, render_contract
+
+    if list_roles_flag:
+        for name in list_roles():
+            console.print(name)
+        return
+    vault = _vault_or_exit(False)
+    try:
+        text = render_contract(vault, vault_tag, step=step, role=role)
+    except (ContractError, VaultError) as e:
+        console.print(f"[red]Error:[/] {e}")
+        raise typer.Exit(1)
+    if out:
+        from pathlib import Path
+
+        Path(out).write_text(text, encoding="utf-8")
+        console.print(f"  wrote {out}")
+    else:
+        print(text)
+
+
 @app.command("verify")
 def run_verify(
     vault_tag: str | None = typer.Argument(None, help="Run tag (default: newest run)"),

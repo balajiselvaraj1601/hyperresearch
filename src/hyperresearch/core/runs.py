@@ -17,7 +17,7 @@ step boundaries via `hpr run ...` commands; `hpr run resume <tag>` computes
 the exact next position.
 
 Vault notes stay global — runs are ephemeral workspaces over the compounding
-vault. Final reports ship to `output/notes/final_report_<vault_tag>.md`.
+vault. Final reports ship to `output/reports/<vault_tag>/final_report_<vault_tag>.md`.
 """
 
 from __future__ import annotations
@@ -225,6 +225,17 @@ def set_step(
         raise RunError(f"invalid step status '{status}' (one of {STEP_STATUSES})")
     manifest = load_manifest(vault, vault_tag)
     entry = manifest["steps"].setdefault(str(step), {})
+    # Reopening a step on a shipped run un-ships it: the report is about to
+    # change, so the old verify verdict no longer describes it. Without this
+    # a re-run keeps status "done" + verify.passed=true while steps sit
+    # pending (observed 2026-09-19, litellm-cost-perf-ops re-run).
+    if status in ("pending", "running") and manifest.get("status") == "done":
+        manifest["status"] = "running"
+        manifest["blocked_on"] = None
+        manifest.pop("verify", None)
+    if status == "pending":
+        entry.pop("started_at", None)
+        entry.pop("finished_at", None)
     entry["status"] = status
     if status == "running" and "started_at" not in entry:
         entry["started_at"] = _now()
@@ -235,7 +246,9 @@ def set_step(
         ch = manifest["chapters"].setdefault(chapter, {})
         ch["status"] = f"step-{step}-{status}"
     _save(vault, vault_tag, manifest)
-    record_event(vault, vault_tag, {"type": "step", "step": str(step), "status": status, "chapter": chapter})
+    record_event(
+        vault, vault_tag, {"type": "step", "step": str(step), "status": status, "chapter": chapter}
+    )
     return manifest
 
 
@@ -370,22 +383,26 @@ def run_report_data(vault, vault_tag: str) -> dict:
     steps = []
     for step_id in manifest.get("profile_steps", []):
         entry = manifest.get("steps", {}).get(step_id, {})
-        steps.append({
-            "step": step_id,
-            "status": entry.get("status", "pending"),
-            "minutes": _minutes_between(entry.get("started_at"), entry.get("finished_at")),
-            "chapter": entry.get("chapter"),
-        })
+        steps.append(
+            {
+                "step": step_id,
+                "status": entry.get("status", "pending"),
+                "minutes": _minutes_between(entry.get("started_at"), entry.get("finished_at")),
+                "chapter": entry.get("chapter"),
+            }
+        )
     # Steps recorded outside the profile list (1.5, 11g, ...) still report
     extra = sorted(set(manifest.get("steps", {})) - set(manifest.get("profile_steps", [])))
     for step_id in extra:
         entry = manifest["steps"][step_id]
-        steps.append({
-            "step": step_id,
-            "status": entry.get("status", "pending"),
-            "minutes": _minutes_between(entry.get("started_at"), entry.get("finished_at")),
-            "chapter": entry.get("chapter"),
-        })
+        steps.append(
+            {
+                "step": step_id,
+                "status": entry.get("status", "pending"),
+                "minutes": _minutes_between(entry.get("started_at"), entry.get("finished_at")),
+                "chapter": entry.get("chapter"),
+            }
+        )
 
     event_counts: dict[str, int] = {}
     events_file = vault.run_dir(vault_tag) / EVENTS_NAME
@@ -395,13 +412,17 @@ def run_report_data(vault, vault_tag: str) -> dict:
                 ev = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            event_counts[ev.get("type", "unknown")] = event_counts.get(ev.get("type", "unknown"), 0) + 1
+            event_counts[ev.get("type", "unknown")] = (
+                event_counts.get(ev.get("type", "unknown"), 0) + 1
+            )
 
     return {
         "vault_tag": vault_tag,
         "profile": manifest.get("profile"),
         "status": manifest.get("status"),
-        "total_wall_minutes": _minutes_between(manifest.get("started_at"), manifest.get("updated_at")),
+        "total_wall_minutes": _minutes_between(
+            manifest.get("started_at"), manifest.get("updated_at")
+        ),
         "steps": steps,
         "chapters": manifest.get("chapters", {}),
         "spend": manifest.get("spend", {}),
@@ -450,6 +471,58 @@ def _required_step_ids(manifest: dict, run_dir: Path, config_path: Path | None) 
         return steps
 
 
+CRITIC_NAMES = ("dialectic", "depth", "width", "instruction")
+
+
+def _load_findings(path: Path) -> list[dict] | None:
+    """Findings list from a critic JSON ({"findings": [...]} or bare list); None if unreadable."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if isinstance(data, dict):
+        data = data.get("findings", [])
+    return [f for f in data if isinstance(f, dict)] if isinstance(data, list) else None
+
+
+def _critical_findings_resolved(run_dir: Path) -> tuple[bool, str]:
+    """Every critical critic finding must be accounted for in patch-log.json.
+
+    The patcher is the one step that changes substance; a critical it never
+    saw ships uncorrected. A re-run on 2026-09-19 stubbed patch-log.json
+    (`applied: []`, one blanket skip reason) while 3 criticals stood, and the
+    file-exists checks above passed. Resolved = the patch log's applied /
+    skipped / conflicts / orchestrator_escalated entries that name a finding
+    number at least the critical count.
+    """
+    criticals = 0
+    for name in CRITIC_NAMES:
+        findings = _load_findings(run_dir / f"critic-findings-{name}.json")
+        if findings is None:
+            continue
+        criticals += sum(1 for f in findings if f.get("severity") == "critical")
+    if criticals == 0:
+        return True, "no critical findings"
+    log_path = run_dir / "patch-log.json"
+    try:
+        log = json.loads(log_path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError):
+        return False, f"{criticals} critical finding(s) but patch-log.json unreadable"
+    # A skip counts only when it names the finding it skips; a blanket
+    # `{"reason": "..."}` entry is the stub shape and dispositions nothing.
+    handled = sum(
+        1
+        for key in ("applied", "skipped", "conflicts", "orchestrator_escalated")
+        for entry in (log.get(key, []) or [])
+        if isinstance(entry, dict) and entry.get("finding")
+    )
+    ok = handled >= criticals
+    return ok, (
+        f"{criticals} critical finding(s); patch log dispositions={handled}"
+        + ("" if ok else " (each critical must be applied or skipped by name)")
+    )
+
+
 def verify_run(vault, vault_tag: str) -> dict:
     """Structural verification battery for a completed run.
 
@@ -469,7 +542,7 @@ def verify_run(vault, vault_tag: str) -> dict:
     def check(name: str, ok: bool, detail: str) -> None:
         checks.append({"name": name, "ok": bool(ok), "detail": detail})
 
-    report_path = vault.research_dir / "notes" / f"final_report_{vault_tag}.md"
+    report_path = vault.reports_dir / vault_tag / f"final_report_{vault_tag}.md"
     check("report-exists", report_path.exists(), str(report_path))
 
     report_text = ""
@@ -487,7 +560,9 @@ def verify_run(vault, vault_tag: str) -> dict:
                 required_headings = decomp.get("required_section_headings", []) or []
                 declares_levers = bool(decomp.get("levers"))
             except json.JSONDecodeError:
-                check("decomposition-readable", False, "prompt-decomposition.json is not valid JSON")
+                check(
+                    "decomposition-readable", False, "prompt-decomposition.json is not valid JSON"
+                )
 
         # Runs that declared levers must have rendered the shim files the
         # spawn contract pastes downstream. Lever-less runs (pre-levers or
@@ -496,13 +571,13 @@ def verify_run(vault, vault_tag: str) -> dict:
             from hyperresearch.core.levers import ROLES
 
             missing_shims = [
-                role for role in ROLES
-                if not (run_dir / "shims" / f"{role}.md").exists()
+                role for role in ROLES if not (run_dir / "shims" / f"{role}.md").exists()
             ]
             check(
                 "levers-rendered",
                 not missing_shims,
-                "all shim files present" if not missing_shims
+                "all shim files present"
+                if not missing_shims
                 else f"missing shims: {missing_shims} (run `hpr levers render {vault_tag}`)",
             )
 
@@ -549,8 +624,7 @@ def verify_run(vault, vault_tag: str) -> dict:
         # citations use the shared pattern so this gate and the lint/cite-
         # check rules agree on what a [[...]] citation is.
         cites = sum(
-            len(g.split(","))
-            for g in _re.findall(r"\[(\d{1,3}(?:\s*,\s*\d{1,3})*)\]", report_text)
+            len(g.split(",")) for g in _re.findall(r"\[(\d{1,3}(?:\s*,\s*\d{1,3})*)\]", report_text)
         ) + len(WIKI_LINK_RE.findall(report_text))
         # Per 1000 *effective* words, not characters: a character floor
         # means a different amount of content per script (CJK packs ~3x
@@ -595,16 +669,16 @@ def verify_run(vault, vault_tag: str) -> dict:
                 ("retracted-citations", _check_retracted_citations),
             ):
                 errors = [
-                    i for i in fn(vault, vault.db, report_path, report_text)
+                    i
+                    for i in fn(vault, vault.db, report_path, report_text)
                     if i.get("severity") == "error"
                 ]
                 check(
                     rule,
                     not errors,
-                    "clean" if not errors else (
-                        f"{len(errors)} error(s) — first: "
-                        f"{errors[0].get('message', '')[:160]}"
-                    ),
+                    "clean"
+                    if not errors
+                    else (f"{len(errors)} error(s) — first: {errors[0].get('message', '')[:160]}"),
                 )
         except Exception as exc:
             check("content-lints", False, f"content lint rules failed to run: {exc}")
@@ -614,14 +688,20 @@ def verify_run(vault, vault_tag: str) -> dict:
     steps = _required_step_ids(manifest, run_dir, vault.config_path)
     if {"12", "14"} <= steps:
         for name in (
-            "critic-findings-dialectic.json", "critic-findings-depth.json",
-            "critic-findings-width.json", "critic-findings-instruction.json",
+            "critic-findings-dialectic.json",
+            "critic-findings-depth.json",
+            "critic-findings-width.json",
+            "critic-findings-instruction.json",
             "patch-log.json",
         ):
             check(f"artifact:{name}", (run_dir / name).exists(), str(run_dir / name))
+        check("critical-findings-resolved", *_critical_findings_resolved(run_dir))
     if "15" in steps:
-        check("artifact:polish-log.json", (run_dir / "polish-log.json").exists(),
-              str(run_dir / "polish-log.json"))
+        check(
+            "artifact:polish-log.json",
+            (run_dir / "polish-log.json").exists(),
+            str(run_dir / "polish-log.json"),
+        )
 
     # Cite-check (step 14.5): findings must exist and critical ones resolved
     cc_findings = run_dir / "cite-check-findings.json"
@@ -672,9 +752,13 @@ def finish_run(vault, vault_tag: str) -> dict:
         manifest["status"] = "blocked"
         manifest["blocked_on"] = "verify"
     _save(vault, vault_tag, manifest)
-    record_event(vault, vault_tag, {
-        "type": "finish",
-        "passed": result["passed"],
-        "failed_checks": manifest["verify"]["failed_checks"],
-    })
+    record_event(
+        vault,
+        vault_tag,
+        {
+            "type": "finish",
+            "passed": result["passed"],
+            "failed_checks": manifest["verify"]["failed_checks"],
+        },
+    )
     return {"manifest": manifest, "verify": result}

@@ -82,10 +82,10 @@ def _query_files(vault) -> list:
 
 def _latest_report(vault):
     """Newest final_report*.md, or (None, None) when no report exists."""
-    notes_dir = vault.research_dir / "notes"
-    if not notes_dir.is_dir():
+    reports_dir = vault.reports_dir
+    if not reports_dir.is_dir():
         return None, None
-    candidates = sorted(notes_dir.glob("final_report*.md"), key=lambda p: p.stat().st_mtime)
+    candidates = sorted(reports_dir.rglob("final_report*.md"), key=lambda p: p.stat().st_mtime)
     if not candidates:
         return None, None
     p = candidates[-1]
@@ -405,7 +405,7 @@ def lint(
                                         f"[{c.get('id', '?')}] {c.get('description', '?')[:80]}"
                                         for c in unresolved[:5]
                                     )
-                                    + ". Apply the fixes in output/notes/final_report_<vault_tag>.md, "
+                                    + ". Apply the fixes in output/reports/<vault_tag>/final_report_<vault_tag>.md, "
                                     + "mark each finding with `fixed_at: <ISO>` in "
                                     + "output/audit_findings.json, and re-run the conformance "
                                     + "auditor to verify."
@@ -771,18 +771,18 @@ def lint(
             # Reports are now named final_report_<vault_tag>.md. Glob to find
             # any matching report; fall back to the legacy bare name for
             # back-compat with pre-0.8.5 runs.
-            notes_dir = vault.research_dir / "notes"
+            reports_dir = vault.reports_dir
             report_candidates = (
                 sorted(
-                    notes_dir.glob("final_report*.md"),
+                    reports_dir.rglob("final_report*.md"),
                     key=lambda p: p.stat().st_mtime,
                     reverse=True,
                 )
-                if notes_dir.exists()
+                if reports_dir.exists()
                 else []
             )
             report_path = (
-                report_candidates[0] if report_candidates else (notes_dir / "final_report.md")
+                report_candidates[0] if report_candidates else (reports_dir / "final_report.md")
             )
             if not report_path.exists():
                 issues.append(
@@ -793,7 +793,7 @@ def lint(
                         "message": (
                             "Wrapped research context detected (prompt.txt, "
                             "query-*.md, or wrapper_contract.json present) but "
-                            "no `output/notes/final_report*.md` file is present. "
+                            "no `output/reports/*/final_report*.md` file is present. "
                             "The final report must exist before export."
                         ),
                     }
@@ -1330,9 +1330,9 @@ def lint(
                     except (json.JSONDecodeError, OSError):
                         pass
 
-            notes_dir = vault.research_dir / "notes"
+            reports_dir = vault.reports_dir
             report_matches = (
-                sorted(notes_dir.glob("final_report*.md")) if notes_dir.exists() else []
+                sorted(reports_dir.rglob("final_report*.md")) if reports_dir.exists() else []
             )
             final_report_exists = bool(report_matches)
             if total_logged == 0 and critic_totals > 0 and final_report_exists:
@@ -1371,18 +1371,18 @@ def lint(
         # audit. This lint rule is the final post-patch gate that catches
         # items the critic flagged but the patcher couldn't apply.
         decomp_path = _run_artifact(vault, "prompt-decomposition.json")
-        notes_dir = vault.research_dir / "notes"
+        reports_dir = vault.reports_dir
         report_candidates = (
             sorted(
-                notes_dir.glob("final_report*.md"),
+                reports_dir.rglob("final_report*.md"),
                 key=lambda p: p.stat().st_mtime,
                 reverse=True,
             )
-            if notes_dir.exists()
+            if reports_dir.exists()
             else []
         )
         final_report = (
-            report_candidates[0] if report_candidates else (notes_dir / "final_report.md")
+            report_candidates[0] if report_candidates else (reports_dir / "final_report.md")
         )
         if decomp_path.exists() and final_report.exists():
             try:
@@ -1507,14 +1507,14 @@ def lint(
                 "AND n.id NOT LIKE '\\_%' ESCAPE '\\' "
                 "AND n.type NOT IN ('index','raw','moc')"
             ).fetchone()
-            notes_dir = vault.research_dir / "notes"
+            reports_dir = vault.reports_dir
             report_candidates = (
                 sorted(
-                    notes_dir.glob("final_report*.md"),
+                    reports_dir.rglob("final_report*.md"),
                     key=lambda p: p.stat().st_mtime,
                     reverse=True,
                 )
-                if notes_dir.exists()
+                if reports_dir.exists()
                 else []
             )
             # No source notes => nothing to cite; no report => wrapper-report

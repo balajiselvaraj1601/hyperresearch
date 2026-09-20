@@ -155,7 +155,8 @@ def test_wrapper_report_requires_terminal_sections_from_wrapper_contract(tmp_vau
             "### Concluding Thoughts",
         ],
     )
-    (tmp_vault.root / "output" / "notes" / "final_report.md").write_text(
+    (tmp_vault.root / "output" / "reports" / "lint-tag" / "final_report_lint-tag.md").parent.mkdir(parents=True, exist_ok=True)
+    (tmp_vault.root / "output" / "reports" / "lint-tag" / "final_report_lint-tag.md").write_text(
         "# Report\n\n## Body\nSome body content.\n",
         encoding="utf-8",
     )
@@ -184,7 +185,8 @@ def test_wrapper_report_passes_when_required_sections_present(tmp_vault):
             "### Concluding Thoughts",
         ],
     )
-    (tmp_vault.root / "output" / "notes" / "final_report.md").write_text(
+    (tmp_vault.root / "output" / "reports" / "lint-tag" / "final_report_lint-tag.md").parent.mkdir(parents=True, exist_ok=True)
+    (tmp_vault.root / "output" / "reports" / "lint-tag" / "final_report_lint-tag.md").write_text(
         (
             "# Report\n\n"
             "## Body\nSome body content.\n\n"
@@ -209,7 +211,8 @@ def test_wrapper_report_without_contract_only_checks_hygiene(tmp_vault):
         "Exact wrapped prompt text.",
         encoding="utf-8",
     )
-    (tmp_vault.root / "output" / "notes" / "final_report.md").write_text(
+    (tmp_vault.root / "output" / "reports" / "lint-tag" / "final_report_lint-tag.md").parent.mkdir(parents=True, exist_ok=True)
+    (tmp_vault.root / "output" / "reports" / "lint-tag" / "final_report_lint-tag.md").write_text(
         "# Report\n\n## Body\nSome content, no synthesis tail.\n",
         encoding="utf-8",
     )
@@ -229,7 +232,8 @@ def test_wrapper_report_forbids_scaffold_leaks_without_contract(tmp_vault):
         "Exact wrapped prompt text.",
         encoding="utf-8",
     )
-    (tmp_vault.root / "output" / "notes" / "final_report.md").write_text(
+    (tmp_vault.root / "output" / "reports" / "lint-tag" / "final_report_lint-tag.md").parent.mkdir(parents=True, exist_ok=True)
+    (tmp_vault.root / "output" / "reports" / "lint-tag" / "final_report_lint-tag.md").write_text(
         (
             "# Report\n\n"
             "## User Prompt (VERBATIM — gospel)\n"
@@ -256,7 +260,8 @@ def test_wrapper_report_honors_wrapper_extra_forbidden_sections(tmp_vault):
         tmp_vault,
         forbidden_body_sections=["## Internal-only scratch"],
     )
-    (tmp_vault.root / "output" / "notes" / "final_report.md").write_text(
+    (tmp_vault.root / "output" / "reports" / "lint-tag" / "final_report_lint-tag.md").parent.mkdir(parents=True, exist_ok=True)
+    (tmp_vault.root / "output" / "reports" / "lint-tag" / "final_report_lint-tag.md").write_text(
         (
             "# Report\n\n"
             "## Body\nContent.\n\n"
@@ -275,7 +280,8 @@ def test_wrapper_report_honors_wrapper_extra_forbidden_sections(tmp_vault):
 
 def test_wrapper_report_inactive_without_signals(tmp_vault):
     """No prompt.txt, no wrapper_contract.json => rule is inactive, no issues."""
-    (tmp_vault.root / "output" / "notes" / "final_report.md").write_text(
+    (tmp_vault.root / "output" / "reports" / "lint-tag" / "final_report_lint-tag.md").parent.mkdir(parents=True, exist_ok=True)
+    (tmp_vault.root / "output" / "reports" / "lint-tag" / "final_report_lint-tag.md").write_text(
         "# Report\n\n## Body\nRegular /research output.\n",
         encoding="utf-8",
     )
@@ -1152,9 +1158,9 @@ def test_patch_surgery_flags_empty_log_with_findings_present(tmp_vault):
     log is empty, the patcher's log was lost. Warn so the operator knows."""
     import json as _json
     # Draft exists
-    notes_dir = tmp_vault.root / "output" / "notes"
-    notes_dir.mkdir(parents=True, exist_ok=True)
-    (notes_dir / "final_report.md").write_text("# Report\n\nBody.", encoding="utf-8")
+    reports_dir = tmp_vault.root / "output" / "reports" / "lint-tag"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    (reports_dir / "final_report_lint-tag.md").write_text("# Report\n\nBody.", encoding="utf-8")
     # Critic findings with 12 findings
     research = tmp_vault.root / "output"
     research.mkdir(parents=True, exist_ok=True)
@@ -1217,9 +1223,9 @@ def _write_decomposition(vault, entities=None, formats=None, citation_style=None
 
 
 def _write_final_report(vault, body: str):
-    notes_dir = vault.root / "output" / "notes"
-    notes_dir.mkdir(parents=True, exist_ok=True)
-    (notes_dir / "final_report.md").write_text(body, encoding="utf-8")
+    reports_dir = vault.root / "output" / "reports" / "lint-tag"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    (reports_dir / "final_report_lint-tag.md").write_text(body, encoding="utf-8")
 
 
 def test_instruction_coverage_passes_when_all_entities_present(tmp_vault):

@@ -86,6 +86,7 @@ def compute_sync_plan(vault, force: bool = False) -> SyncPlan:
         return plan
 
     runs_dir = kb_dir / "runs"
+    reports_dir = kb_dir / "reports"
     disk_files: dict[str, float] = {}
     for md_file in kb_dir.rglob("*.md"):
         # Skip staging files at the output/ root. Real notes live in
@@ -95,6 +96,9 @@ def compute_sync_plan(vault, force: bool = False) -> SyncPlan:
         # Skip per-run workspaces entirely (output/runs/<vault_tag>/**) —
         # run-scoped pipeline artifacts are never vault notes.
         if runs_dir in md_file.parents:
+            continue
+        # Skip final reports (output/reports/<tag>/**) — not vault notes.
+        if reports_dir in md_file.parents:
             continue
         # Skip scratch artifacts without YAML frontmatter.
         if not _has_frontmatter(md_file):
@@ -160,13 +164,15 @@ def execute_sync(vault, plan: SyncPlan) -> SyncResult:
         rel = file_path.relative_to(vault.root).as_posix()
         existing = id_to_path.get(note.meta.id)
         if existing is not None and existing != rel:
-            result.errors.append({
-                "path": rel,
-                "error": (
-                    f"id collision: '{note.meta.id}' already belongs to "
-                    f"'{existing}'. Skipped to avoid silent overwrite."
-                ),
-            })
+            result.errors.append(
+                {
+                    "path": rel,
+                    "error": (
+                        f"id collision: '{note.meta.id}' already belongs to "
+                        f"'{existing}'. Skipped to avoid silent overwrite."
+                    ),
+                }
+            )
             return None
         _upsert_note_to_db(conn, note, now_iso, file_mtime=file_path.stat().st_mtime)
         id_to_path[note.meta.id] = rel
@@ -261,15 +267,34 @@ def _upsert_note_to_db(conn, note, synced_at: str, file_mtime: float = 0) -> Non
             oa_recovery_kind=excluded.oa_recovery_kind
         """,
         (
-            meta.id, meta.title, note.path, meta.status, meta.type,
-            meta.tier, meta.content_type,
-            meta.source, meta.parent, 1 if meta.deprecated else 0,
-            reviewed_iso, expires_iso,
-            note.word_count, meta.summary, created_iso, updated_iso,
-            file_mtime, note.content_hash, synced_at,
-            meta.doi, meta.utility_score, meta.citation_count, meta.venue,
+            meta.id,
+            meta.title,
+            note.path,
+            meta.status,
+            meta.type,
+            meta.tier,
+            meta.content_type,
+            meta.source,
+            meta.parent,
+            1 if meta.deprecated else 0,
+            reviewed_iso,
+            expires_iso,
+            note.word_count,
+            meta.summary,
+            created_iso,
+            updated_iso,
+            file_mtime,
+            note.content_hash,
+            synced_at,
+            meta.doi,
+            meta.utility_score,
+            meta.citation_count,
+            meta.venue,
             1 if meta.is_retracted else 0,
-            meta.oa_url, meta.oa_source, meta.oa_version, meta.oa_license,
+            meta.oa_url,
+            meta.oa_source,
+            meta.oa_version,
+            meta.oa_license,
             meta.oa_recovery_kind,
         ),
     )
@@ -320,7 +345,9 @@ def _upsert_note_to_db(conn, note, synced_at: str, file_mtime: float = 0) -> Non
     cleaned = INLINE_CODE_RE.sub("", cleaned)
     for line_num, line in enumerate(cleaned.split("\n"), 1):
         for m in WIKI_LINK_RE.finditer(line):
-            target_ref = m.group(1).strip().rstrip("\\")  # Strip trailing backslash (shell escaping artifact)
+            target_ref = (
+                m.group(1).strip().rstrip("\\")
+            )  # Strip trailing backslash (shell escaping artifact)
             if not is_valid_wiki_link_target(target_ref):
                 continue
             conn.execute(
@@ -352,14 +379,10 @@ def _resolve_links_incremental(conn, changed_ids: set[str]) -> None:
     ids = list(changed_ids)
 
     # Reset target_id for links from changed notes
-    conn.execute(
-        f"UPDATE links SET target_id = NULL WHERE source_id IN ({placeholders})", ids
-    )
+    conn.execute(f"UPDATE links SET target_id = NULL WHERE source_id IN ({placeholders})", ids)
 
     # Also reset links that pointed TO deleted/changed notes (they may have moved)
-    conn.execute(
-        f"UPDATE links SET target_id = NULL WHERE target_id IN ({placeholders})", ids
-    )
+    conn.execute(f"UPDATE links SET target_id = NULL WHERE target_id IN ({placeholders})", ids)
 
     # Now resolve all currently-NULL links (which includes the ones we just reset
     # plus any that were already broken and might now resolve)

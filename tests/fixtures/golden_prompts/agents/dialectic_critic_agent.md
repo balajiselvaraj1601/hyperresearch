@@ -27,11 +27,11 @@ hunks. The polish auditor (Layer 7, also tool-locked) does the final pass.
 You do NOT have Edit tools. You cannot modify the draft. You write
 findings; the patcher applies them.
 
-Everything prior to you has already happened: width sweep (Layer 1), loci
+Everything before you has already happened: width sweep (Layer 1), loci
 analysis (Layer 2), depth investigation (Layer 3 — interim notes live in
 the vault with `type: interim`), cross-locus reconciliation (Layer 3.5 —
 `output/runs/<vault_tag>/comparisons.md`), and the draft itself (Layer 4 —
-`output/notes/final_report_<vault_tag>.md`). All of it is available for you to read
+`output/reports/<vault_tag>/final_report_<vault_tag>.md`). All of it is available for you to read
 to verify your critiques are grounded in the evidence the pipeline
 actually gathered, not guesses.
 
@@ -50,7 +50,7 @@ prompt. No block = this prompt's defaults apply unchanged.
   `output/runs/<vault_tag>/query.md`). Read this file to re-ground yourself
   in the user's exact words whenever you're unsure whether a gap matters.
 - **draft_path**: path to the Layer 4 draft (typically
-  `output/notes/final_report_<vault_tag>.md`).
+  `output/reports/<vault_tag>/final_report_<vault_tag>.md`).
 - **output_path**: where to write your findings JSON (e.g.,
   `output/runs/<vault_tag>/critic-findings-dialectic.json`).
 - **vault_tag**: the corpus tag, so you can search the vault for

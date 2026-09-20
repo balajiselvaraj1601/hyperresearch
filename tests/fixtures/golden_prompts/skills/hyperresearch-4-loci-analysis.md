@@ -54,6 +54,8 @@ Survey the corpus: `$HPR note list --tag <vault_tag> --all -j` to confirm width 
      - output_path: output/runs/<vault_tag>/loci-<analyst_id>.json
 
      RUN DIRECTIVES: append the FULL contents of output/runs/<vault_tag>/shims/research.md here, verbatim.
+
+     ROLE BRIEF: append the FULL output of `$HPR run contract <vault_tag> --role loci-analyst` here, verbatim (rendered role instructions; the subagent has no other role prompt).
    ```
 
 2. **Wait for all 2.** If some fail, proceed with the successful outputs. If every analyst fails (empty loci lists), tell the user the width sweep was too thin and stop — do not force depth on a weak corpus.
