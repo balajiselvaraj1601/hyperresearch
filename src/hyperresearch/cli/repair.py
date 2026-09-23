@@ -7,13 +7,20 @@ from datetime import UTC
 import typer
 
 from hyperresearch.cli._output import console, output
+from hyperresearch.models.note import NoteStatus
 from hyperresearch.models.output import error, success
 
 
 def repair(
-    stub_broken: bool = typer.Option(True, "--stub/--no-stub", help="Create stubs for broken links"),
-    enrich: bool = typer.Option(True, "--enrich/--no-enrich", help="Auto-tag and auto-summarize notes"),
-    promote_notes: bool = typer.Option(True, "--promote/--no-promote", help="Auto-promote qualifying notes"),
+    stub_broken: bool = typer.Option(
+        True, "--stub/--no-stub", help="Create stubs for broken links"
+    ),
+    enrich: bool = typer.Option(
+        True, "--enrich/--no-enrich", help="Auto-tag and auto-summarize notes"
+    ),
+    promote_notes: bool = typer.Option(
+        True, "--promote/--no-promote", help="Auto-promote qualifying notes"
+    ),
     rebuild_index: bool = typer.Option(True, "--index/--no-index", help="Rebuild index pages"),
     update_docs: bool = typer.Option(True, "--docs/--no-docs", help="Update CLAUDE.md"),
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
@@ -36,16 +43,18 @@ def repair(
     if not json_output:
         console.print("[bold]1/6 Syncing...[/]")
     from hyperresearch.core.sync import compute_sync_plan, execute_sync
+
     plan = compute_sync_plan(vault, force=True)
     result = execute_sync(vault, plan)
     report["sync"] = {
-        "added": result.added, "updated": result.updated,
-        "deleted": result.deleted, "errors": len(result.errors),
+        "added": result.added,
+        "updated": result.updated,
+        "deleted": result.deleted,
+        "errors": len(result.errors),
     }
     if not json_output:
         console.print(
-            f"  +{result.added} ~{result.updated} -{result.deleted} "
-            f"({result.duration_ms:.0f}ms)"
+            f"  +{result.added} ~{result.updated} -{result.deleted} ({result.duration_ms:.0f}ms)"
         )
 
     # Step 2: Stub broken links
@@ -54,6 +63,7 @@ def repair(
         if not json_output:
             console.print("[bold]2/6 Stubbing broken links...[/]")
         from hyperresearch.core.note import stub_summary, write_note
+
         rows = vault.db.execute(
             "SELECT DISTINCT target_ref FROM links WHERE target_id IS NULL"
         ).fetchall()
@@ -63,9 +73,11 @@ def repair(
             try:
                 # Sideline stubs to output/temp/ — see note in cli/graph.py
                 write_note(
-                    vault.temp_dir, title,
+                    vault.temp_dir,
+                    title,
                     body=f"# {title}\n\n*Stub — created to resolve a broken link. Expand this note.*\n",
-                    note_id=target, status="draft",
+                    note_id=target,
+                    status="draft",
                     summary=stub_summary(target),
                 )
                 stubs_created += 1
@@ -95,7 +107,9 @@ def repair(
         # Get existing tag vocabulary
         tag_vocab = [
             {"tag": r["tag"], "count": r["c"]}
-            for r in vault.db.execute("SELECT tag, COUNT(*) as c FROM tags GROUP BY tag ORDER BY c DESC")
+            for r in vault.db.execute(
+                "SELECT tag, COUNT(*) as c FROM tags GROUP BY tag ORDER BY c DESC"
+            )
         ]
 
         # Find notes missing tags or summary
@@ -117,6 +131,7 @@ def repair(
                 # Auto-tag if no tags
                 if not meta.tags:
                     from hyperresearch.core.note import strip_markdown
+
                     body_plain = strip_markdown(body)
                     suggested = auto_tag(body_plain, tag_vocab)
                     if suggested:
@@ -125,9 +140,9 @@ def repair(
 
                 # Auto-summary if no summary
                 if not meta.summary or not meta.summary.strip():
-                    suggested = auto_summary(body)
-                    if suggested:
-                        meta.summary = suggested
+                    summary_suggested = auto_summary(body)
+                    if summary_suggested:
+                        meta.summary = summary_suggested
                         changed = True
 
                 if changed:
@@ -168,7 +183,7 @@ def repair(
             try:
                 fp = vault.root / row["path"]
                 meta, body = parse_frontmatter(fp.read_text(encoding="utf-8-sig"))
-                meta.status = "review"
+                meta.status = NoteStatus.REVIEW
                 meta.updated = datetime.now(UTC)
                 fp.write_text(serialize_frontmatter(meta) + "\n" + body, encoding="utf-8")
                 promoted_count += 1
@@ -187,7 +202,7 @@ def repair(
             try:
                 fp = vault.root / row["path"]
                 meta, body = parse_frontmatter(fp.read_text(encoding="utf-8-sig"))
-                meta.status = "evergreen"
+                meta.status = NoteStatus.EVERGREEN
                 meta.updated = datetime.now(UTC)
                 fp.write_text(serialize_frontmatter(meta) + "\n" + body, encoding="utf-8")
                 promoted_count += 1
@@ -209,6 +224,7 @@ def repair(
         if not json_output:
             console.print("[bold]5/6 Rebuilding indexes...[/]")
         from hyperresearch.indexgen.generator import IndexGenerator
+
         gen = IndexGenerator(vault)
         built = gen.build_all()
         # Sync the new index pages
@@ -238,6 +254,7 @@ def repair(
         if not json_output:
             console.print("[bold]6/6 Updating agent docs...[/]")
         from hyperresearch.core.agent_docs import inject_agent_docs
+
         modified = inject_agent_docs(vault.root)
         report["agent_docs"] = modified
         if not json_output:
@@ -251,14 +268,18 @@ def repair(
             console.print("[dim]6/6 Skipping agent docs[/]")
 
     # Final lint summary
-    broken = vault.db.execute("SELECT COUNT(*) as c FROM links WHERE target_id IS NULL").fetchone()["c"]
+    broken = vault.db.execute("SELECT COUNT(*) as c FROM links WHERE target_id IS NULL").fetchone()[
+        "c"
+    ]
     orphans = vault.db.execute("""
         SELECT COUNT(*) as c FROM notes n
         WHERE n.type NOT IN ('index', 'raw')
           AND n.id NOT IN (SELECT DISTINCT target_id FROM links WHERE target_id IS NOT NULL)
           AND n.id NOT IN (SELECT DISTINCT source_id FROM links)
     """).fetchone()["c"]
-    total = vault.db.execute("SELECT COUNT(*) as c FROM notes WHERE type NOT IN ('index')").fetchone()["c"]
+    total = vault.db.execute(
+        "SELECT COUNT(*) as c FROM notes WHERE type NOT IN ('index')"
+    ).fetchone()["c"]
     report["health"] = {"total_notes": total, "broken_links": broken, "orphans": orphans}
 
     if json_output:

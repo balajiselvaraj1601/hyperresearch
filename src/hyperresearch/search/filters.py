@@ -10,8 +10,8 @@ class SearchFilters:
     tags: list[str] | None = None
     status: str | None = None
     note_type: str | None = None
-    tier: str | None = None           # Epistemic tier filter
-    content_type: str | None = None   # Artifact kind filter
+    tier: str | None = None  # Epistemic tier filter
+    content_type: str | None = None  # Artifact kind filter
     after: str | None = None
     before: str | None = None
     path_glob: str | None = None
@@ -19,10 +19,10 @@ class SearchFilters:
     min_words: int | None = None
     max_words: int | None = None
     # Graph-aware filters
-    linked_from: str | None = None   # Only notes linked FROM this note ID
-    linked_to: str | None = None     # Only notes that link TO this note ID
-    min_inbound: int | None = None   # Minimum inbound link count
-    has_backlinks: bool | None = None # Must have at least one inbound link
+    linked_from: str | None = None  # Only notes linked FROM this note ID
+    linked_to: str | None = None  # Only notes that link TO this note ID
+    min_inbound: int | None = None  # Minimum inbound link count
+    has_backlinks: bool | None = None  # Must have at least one inbound link
 
     def to_sql(self, table_alias: str = "n") -> tuple[str, list]:
         """Build SQL WHERE clauses and parameters."""
@@ -31,9 +31,7 @@ class SearchFilters:
 
         if self.tags:
             for tag in self.tags:
-                clauses.append(
-                    f"{table_alias}.id IN (SELECT note_id FROM tags WHERE tag = ?)"
-                )
+                clauses.append(f"{table_alias}.id IN (SELECT note_id FROM tags WHERE tag = ?)")
                 params.append(tag.lower())
 
         if self.status:
@@ -84,9 +82,7 @@ class SearchFilters:
             params.append(self.linked_from)
 
         if self.linked_to:
-            clauses.append(
-                f"{table_alias}.id IN (SELECT source_id FROM links WHERE target_id = ?)"
-            )
+            clauses.append(f"{table_alias}.id IN (SELECT source_id FROM links WHERE target_id = ?)")
             params.append(self.linked_to)
 
         if self.min_inbound is not None:

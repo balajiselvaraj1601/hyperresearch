@@ -167,7 +167,7 @@ def check_oa_url(url: str) -> tuple[bool, str]:
         return False, f"DNS resolution failed: {exc}"
 
     for info in infos:
-        addr = info[4][0]
+        addr: str = info[4][0]  # type: ignore[assignment]
         try:
             ip = ipaddress.ip_address(addr.split("%")[0])
         except ValueError:
@@ -684,9 +684,7 @@ def recovery_notice(
     so every word of the note — title and authors included — came from the
     open-access copy.
     """
-    what = _VERSION_PROSE.get(
-        loc.version or "", "an open-access copy of unrecorded version"
-    )
+    what = _VERSION_PROSE.get(loc.version or "", "an open-access copy of unrecorded version")
     if blocked_reason:
         lines = [
             "> [!] **Recovered from an open-access copy. The source URL was never read.**",
@@ -698,8 +696,7 @@ def recovery_notice(
     else:
         lines = [
             "> [!] **Open-access full text substituted.**",
-            f"> The body below is **{what}**, retrieved from"
-            f" <{loc.url}> via {loc.resolver}.",
+            f"> The body below is **{what}**, retrieved from <{loc.url}> via {loc.resolver}.",
             f"> It is NOT the content of {original_url}, which returned only"
             f" {original_chars:,} characters (an abstract or paywall page).",
         ]
@@ -788,9 +785,7 @@ def _try_candidates(vault, prov, doi: str, settings, *, fallback_title, beat_cha
 
         ok, reason = check_oa_url(loc.url)
         if not ok:
-            log.warning(
-                "Refused open-access URL %s from %s: %s", loc.url, loc.resolver, reason
-            )
+            log.warning("Refused open-access URL %s from %s: %s", loc.url, loc.resolver, reason)
             continue
 
         attempts += 1
@@ -882,6 +877,4 @@ def rescue_full_text(vault, prov, url: str, doi: str | None):
     if not settings.oa_recovery or not settings.oa_rescue_blocked:
         return None, None
 
-    return _try_candidates(
-        vault, prov, doi, settings, fallback_title=None, beat_chars=0
-    )
+    return _try_candidates(vault, prov, doi, settings, fallback_title=None, beat_chars=0)

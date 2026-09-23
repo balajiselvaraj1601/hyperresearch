@@ -42,14 +42,15 @@ def link(
     ids_to_process = list(note_ids) if note_ids else None
 
     if tag and not ids_to_process:
-        rows = vault.db.execute(
-            "SELECT note_id FROM tags WHERE tag = ?", (tag.lower(),)
-        ).fetchall()
+        rows = vault.db.execute("SELECT note_id FROM tags WHERE tag = ?", (tag.lower(),)).fetchall()
         ids_to_process = [r["note_id"] for r in rows]
 
     if not auto and not ids_to_process:
         if json_output:
-            output(error("Use --auto to link all notes, or --note/--tag to filter", "NO_INPUT"), json_mode=True)
+            output(
+                error("Use --auto to link all notes, or --note/--tag to filter", "NO_INPUT"),
+                json_mode=True,
+            )
         else:
             console.print("[yellow]Use --auto to link all notes, or --note/--tag to filter.[/]")
         raise typer.Exit(1)

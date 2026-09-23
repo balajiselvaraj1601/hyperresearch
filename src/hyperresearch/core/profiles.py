@@ -178,12 +178,28 @@ class Profile(BaseModel):
     models: ModelMap = Field(default_factory=ModelMap)
 
     @field_validator(
-        "source_target", "planned_searches", "candidate_urls", "deduped_urls",
-        "batch_size", "batch_count", "waves", "wave1_fetchers", "wave2_fetchers",
-        "wave3_fetchers", "fetcher_chase", "comparisons_tensions", "source_tensions",
-        "tension_survey", "tension_full_reads", "corpus_critic_gaps",
-        "corpus_critic_fetchers", "claims_cap", "single_draft_reads", "gap_fetch_fetchers",
-        "chapters", "chapter_source_target",
+        "source_target",
+        "planned_searches",
+        "candidate_urls",
+        "deduped_urls",
+        "batch_size",
+        "batch_count",
+        "waves",
+        "wave1_fetchers",
+        "wave2_fetchers",
+        "wave3_fetchers",
+        "fetcher_chase",
+        "comparisons_tensions",
+        "source_tensions",
+        "tension_survey",
+        "tension_full_reads",
+        "corpus_critic_gaps",
+        "corpus_critic_fetchers",
+        "claims_cap",
+        "single_draft_reads",
+        "gap_fetch_fetchers",
+        "chapters",
+        "chapter_source_target",
     )
     @classmethod
     def _range_ordered(cls, v: Range) -> Range:
@@ -249,8 +265,16 @@ _FULL: dict = {
     "draft_count": 3,
     "single_draft_reads": (8, 15),
     "must_read": {"argumentative": (35, 50), "structured": (25, 40), "short": (20, 30)},
-    "word_targets": {"short": (500, 2000), "structured": (2000, 5000), "argumentative": (5000, 10000)},
-    "char_targets_no_word_boundary": {"short": (1500, 6000), "structured": (6000, 15000), "argumentative": (15000, 30000)},
+    "word_targets": {
+        "short": (500, 2000),
+        "structured": (2000, 5000),
+        "argumentative": (5000, 10000),
+    },
+    "char_targets_no_word_boundary": {
+        "short": (1500, 6000),
+        "structured": (6000, 15000),
+        "argumentative": (15000, 30000),
+    },
     "chars_per_word_no_word_boundary": 3.0,
     # 9 per 1000 words is the old 1.5-per-1000-characters floor expressed in
     # words for English prose (~6 characters per word including the space),
@@ -322,8 +346,16 @@ _PREMIER: dict = {
     "claims_cap": (150, 220),
     "claims_min": 50,
     "must_read": {"argumentative": (50, 70), "structured": (35, 55), "short": (20, 30)},
-    "word_targets": {"short": (500, 2000), "structured": (3000, 8000), "argumentative": (8000, 16000)},
-    "char_targets_no_word_boundary": {"short": (1500, 6000), "structured": (9000, 24000), "argumentative": (24000, 48000)},
+    "word_targets": {
+        "short": (500, 2000),
+        "structured": (3000, 8000),
+        "argumentative": (8000, 16000),
+    },
+    "char_targets_no_word_boundary": {
+        "short": (1500, 6000),
+        "structured": (9000, 24000),
+        "argumentative": (24000, 48000),
+    },
     "citation_totals": {"argumentative": (120, 220), "structured": (60, 110), "short": (15, 30)},
     "critic_finding_caps": {"dialectic": 16, "depth": 16, "width": 14, "instruction": 18},
     "gap_fetch_cap": 8,

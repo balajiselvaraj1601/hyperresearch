@@ -90,7 +90,6 @@ SORT_RELEVANCE = "relevance"
 SORT_CITATIONS = "citations"
 
 
-
 def _first_string(value: Any) -> str | None:
     """First usable string in one of Crossref's list-valued scalar fields.
 

@@ -74,7 +74,9 @@ def _result(content: str, url: str = "https://publisher.example.com/doi/10.1/x",
 @pytest.fixture
 def public_dns(monkeypatch):
     monkeypatch.setattr(
-        oa.socket, "getaddrinfo", lambda host, port: [(2, 1, 6, "", ("93.184.216.34", 0))]
+        oa.socket,  # type: ignore[reportPrivateImportUsage]
+        "getaddrinfo",
+        lambda host, port: [(2, 1, 6, "", ("93.184.216.34", 0))],  # type: ignore[reportPrivateImportUsage]
     )
 
 
@@ -152,6 +154,7 @@ class TestChainOrder:
         _stub_legacy(monkeypatch, {"unpaywall": UNPAYWALL_PDF})
         core_calls = _stub_core(monkeypatch, {"search/works": _search_hit()})
         loc = oa.resolve_oa(tmp_vault.db, DOI, 30, email="a@b.co")
+        assert loc is not None
         assert loc.resolver == "unpaywall"
         assert core_calls == []
 
@@ -159,6 +162,7 @@ class TestChainOrder:
         _stub_legacy(monkeypatch, {"europepmc": EPMC_HIT})
         core_calls = _stub_core(monkeypatch, {"search/works": _search_hit()})
         loc = oa.resolve_oa(tmp_vault.db, DOI, 30, email=None)
+        assert loc is not None
         assert loc.resolver == "europepmc"
         assert core_calls == []
 
@@ -166,6 +170,7 @@ class TestChainOrder:
         legacy = _stub_legacy(monkeypatch, {"unpaywall": {"is_oa": False}})
         core_calls = _stub_core(monkeypatch, {"search/works": _search_hit()})
         loc = oa.resolve_oa(tmp_vault.db, DOI, 30, email="a@b.co")
+        assert loc is not None
         assert loc.resolver == "core"
         assert any("unpaywall" in c for c in legacy)
         assert any("europepmc" in c for c in legacy)
@@ -184,8 +189,7 @@ class TestChainOrder:
         _stub_legacy(monkeypatch, {"unpaywall": payload, "europepmc": EPMC_HIT})
         _stub_core(monkeypatch, {"search/works": _search_hit()})
         chain = [
-            loc.resolver
-            for loc in oa.iter_oa_candidates(tmp_vault.db, DOI, 30, email="a@b.co")
+            loc.resolver for loc in oa.iter_oa_candidates(tmp_vault.db, DOI, 30, email="a@b.co")
         ]
         assert chain == ["unpaywall", "unpaywall", "europepmc", "core", "core", "core", "core"]
 
@@ -262,19 +266,24 @@ class TestCandidates:
         _stub_legacy(monkeypatch, {})
         _stub_core(monkeypatch, {"search/works": _search_hit()})
         loc = oa.resolve_oa(tmp_vault.db, DOI, 30)
+        assert loc is not None
         assert loc.version is None  # never assumed to be the version of record
+        assert loc is not None
         assert loc.license is None  # CORE's schema has no licence field
 
     def test_preprint_is_recorded_as_submitted_version(self, tmp_vault, monkeypatch, keyed):
         _stub_legacy(monkeypatch, {})
         _stub_core(monkeypatch, {"search/works": _search_hit(_record(documentType="preprint"))})
         loc = oa.resolve_oa(tmp_vault.db, DOI, 30)
+        assert loc is not None
         assert loc.version == "submittedVersion"
 
     def test_licence_read_only_when_present(self, tmp_vault, monkeypatch, keyed):
         _stub_legacy(monkeypatch, {})
         _stub_core(monkeypatch, {"search/works": _search_hit(_record(license=" cc-by "))})
-        assert oa.resolve_oa(tmp_vault.db, DOI, 30).license == "cc-by"
+        loc = oa.resolve_oa(tmp_vault.db, DOI, 30)
+        assert loc is not None
+        assert loc.license == "cc-by"
 
 
 class TestRecovery:
@@ -283,13 +292,17 @@ class TestRecovery:
         core_calls = _stub_core(monkeypatch, {"search/works": _search_hit(), "/works/": _work()})
         tried_pdfs = _stub_pdf(monkeypatch, _result(PDF_TEXT))
 
-        out, loc = oa.recover_full_text(vault, None, "https://p.example.com/x", DOI, _result(ABSTRACT))
+        out, loc = oa.recover_full_text(
+            vault, None, "https://p.example.com/x", DOI, _result(ABSTRACT)
+        )
 
         assert loc is not None and loc.resolver == "core" and loc.kind == "coretext"
         assert loc.url == WORK_URL
         assert out.content == FULL_TEXT
         assert out.url == WORK_URL
-        assert out.title.startswith("Quantifying organismal complexity")  # CORE's title, not the stub's
+        assert out.title.startswith(
+            "Quantifying organismal complexity"
+        )  # CORE's title, not the stub's
         assert tried_pdfs == []  # the text came first; the PDF was never needed
         # Both CORE calls carried the key as a bearer header.
         assert [h for _, h in core_calls] == [{"Authorization": "Bearer test-key"}] * 2
@@ -297,19 +310,27 @@ class TestRecovery:
     def test_title_falls_back_to_the_original(self, vault, monkeypatch, keyed, public_dns):
         _stub_legacy(monkeypatch, {})
         _stub_core(monkeypatch, {"search/works": _search_hit(), "/works/": _work(title="")})
-        out, loc = oa.recover_full_text(vault, None, "https://p/x", DOI, _result(ABSTRACT, title="Kept"))
+        out, loc = oa.recover_full_text(
+            vault, None, "https://p/x", DOI, _result(ABSTRACT, title="Kept")
+        )
         assert loc is not None and out.title == "Kept"
 
-    def test_public_tier_sentinel_falls_through_to_the_pdf(self, vault, monkeypatch, keyed, public_dns):
+    def test_public_tier_sentinel_falls_through_to_the_pdf(
+        self, vault, monkeypatch, keyed, public_dns
+    ):
         """An unauthorised-tier key still gets a 200 with a placeholder in
         `fullText`. It must not become a note; the CORE PDF is next."""
         _stub_legacy(monkeypatch, {})
         _stub_core(
             monkeypatch,
-            {"search/works": _search_hit(), "/works/": _work("Not available for public API users.")},
+            {
+                "search/works": _search_hit(),
+                "/works/": _work("Not available for public API users."),
+            },
         )
         tried = _stub_pdf(monkeypatch, _result(PDF_TEXT))
         out, loc = oa.recover_full_text(vault, None, "https://p/x", DOI, _result(ABSTRACT))
+        assert loc is not None
         assert loc.kind == "pdf" and loc.url == DOWNLOAD_URL
         assert out.content == PDF_TEXT
         assert tried == [DOWNLOAD_URL]
@@ -323,7 +344,9 @@ class TestRecovery:
         out, loc = oa.recover_full_text(vault, None, "https://p/x", DOI, original)
         assert out is original and loc is None
 
-    def test_longer_but_still_not_full_text_is_rejected(self, vault, monkeypatch, keyed, public_dns):
+    def test_longer_but_still_not_full_text_is_rejected(
+        self, vault, monkeypatch, keyed, public_dns
+    ):
         """Longer than the abstract is not enough; it must clear the floor too."""
         _stub_legacy(monkeypatch, {})
         _stub_core(
@@ -345,7 +368,9 @@ class TestRecovery:
         _, loc = oa.recover_full_text(vault, None, "https://p/x", DOI, _result(ABSTRACT))
         assert loc is not None and loc.kind == "coretext"
 
-    def test_attempt_cap_is_honoured_across_core_candidates(self, vault, monkeypatch, keyed, public_dns):
+    def test_attempt_cap_is_honoured_across_core_candidates(
+        self, vault, monkeypatch, keyed, public_dns
+    ):
         vault.config.scholar = ScholarSettings(oa_max_attempts=1)
         _stub_legacy(monkeypatch, {})
         _stub_core(monkeypatch, {"search/works": _search_hit(), "/works/": _work("short")})
@@ -355,15 +380,22 @@ class TestRecovery:
         assert out is original and loc is None
         assert tried == []  # the one attempt went to the text; the PDF was never reached
 
-    def test_walks_source_copies_when_core_hosted_ones_fail(self, vault, monkeypatch, keyed, public_dns):
+    def test_walks_source_copies_when_core_hosted_ones_fail(
+        self, vault, monkeypatch, keyed, public_dns
+    ):
         _stub_legacy(monkeypatch, {})
         _stub_core(monkeypatch, {"search/works": _search_hit(), "/works/": None})
-        tried = _stub_pdf(monkeypatch, lambda url: _result(PDF_TEXT, url=url) if url == SOURCE_PDF else None)
+        tried = _stub_pdf(
+            monkeypatch, lambda url: _result(PDF_TEXT, url=url) if url == SOURCE_PDF else None
+        )
         out, loc = oa.recover_full_text(vault, None, "https://p/x", DOI, _result(ABSTRACT))
         assert tried == [DOWNLOAD_URL, SOURCE_PDF]
+        assert loc is not None
         assert loc.url == SOURCE_PDF and out.content == PDF_TEXT
 
-    def test_landing_page_copy_goes_through_the_provider(self, vault, monkeypatch, keyed, public_dns):
+    def test_landing_page_copy_goes_through_the_provider(
+        self, vault, monkeypatch, keyed, public_dns
+    ):
         vault.config.scholar = ScholarSettings(oa_max_attempts=5)
         _stub_legacy(monkeypatch, {})
         _stub_core(monkeypatch, {"search/works": _search_hit(), "/works/": None})
@@ -377,11 +409,16 @@ class TestRecovery:
                 self.seen.append(url)
                 return _result(FULL_TEXT, url=url)
 
-        out, loc = oa.recover_full_text(vault, FakeProvider(), "https://p/x", DOI, _result(ABSTRACT))
+        out, loc = oa.recover_full_text(
+            vault, FakeProvider(), "https://p/x", DOI, _result(ABSTRACT)
+        )
         assert FakeProvider.seen == [SOURCE_PAGE]
+        assert loc is not None
         assert loc.kind == "page" and out.content == FULL_TEXT
 
-    def test_work_fetch_is_not_cached_but_the_lookup_is(self, vault, monkeypatch, keyed, public_dns):
+    def test_work_fetch_is_not_cached_but_the_lookup_is(
+        self, vault, monkeypatch, keyed, public_dns
+    ):
         """The metadata lookup lands in api_cache; the full text does not —
         the note is the cache for a paper, as with every other resolver."""
         _stub_legacy(monkeypatch, {})
@@ -466,11 +503,15 @@ class TestUrlGate:
     hostile input; every one of them goes through `check_oa_url`."""
 
     def test_internal_download_url_is_refused(self, vault, monkeypatch, keyed):
-        rec = _record(id=None, downloadUrl="http://169.254.169.254/latest/meta-data", sourceFulltextUrls=[])
+        rec = _record(
+            id=None, downloadUrl="http://169.254.169.254/latest/meta-data", sourceFulltextUrls=[]
+        )
         _stub_legacy(monkeypatch, {})
         _stub_core(monkeypatch, {"search/works": _search_hit(rec)})
         monkeypatch.setattr(
-            oa.socket, "getaddrinfo", lambda h, p: [(2, 1, 6, "", ("169.254.169.254", 0))]
+            oa.socket,  # type: ignore[reportPrivateImportUsage]
+            "getaddrinfo",
+            lambda h, p: [(2, 1, 6, "", ("169.254.169.254", 0))],  # type: ignore[reportPrivateImportUsage]
         )
         tried = _stub_pdf(monkeypatch, _result(FULL_TEXT))
         original = _result(ABSTRACT)
@@ -483,7 +524,7 @@ class TestUrlGate:
         id is theirs, and the gate is cheap."""
         _stub_legacy(monkeypatch, {})
         core_calls = _stub_core(monkeypatch, {"search/works": _search_hit(), "/works/": _work()})
-        monkeypatch.setattr(oa.socket, "getaddrinfo", lambda h, p: [(2, 1, 6, "", ("10.0.0.5", 0))])
+        monkeypatch.setattr(oa.socket, "getaddrinfo", lambda h, p: [(2, 1, 6, "", ("10.0.0.5", 0))])  # type: ignore[reportPrivateImportUsage]
         _stub_pdf(monkeypatch, None)
         original = _result(ABSTRACT)
         out, loc = oa.recover_full_text(vault, None, "https://p/x", DOI, original)
@@ -492,7 +533,9 @@ class TestUrlGate:
 
     def test_refused_url_does_not_consume_an_attempt(self, vault, monkeypatch, keyed):
         vault.config.scholar = ScholarSettings(oa_max_attempts=1)
-        rec = _record(id=None, downloadUrl="http://169.254.169.254/x.pdf", sourceFulltextUrls=[SOURCE_PDF])
+        rec = _record(
+            id=None, downloadUrl="http://169.254.169.254/x.pdf", sourceFulltextUrls=[SOURCE_PDF]
+        )
         _stub_legacy(monkeypatch, {})
         _stub_core(monkeypatch, {"search/works": _search_hit(rec)})
 
@@ -500,10 +543,11 @@ class TestUrlGate:
             addr = "169.254.169.254" if host.startswith("169.") else "93.184.216.34"
             return [(2, 1, 6, "", (addr, 0))]
 
-        monkeypatch.setattr(oa.socket, "getaddrinfo", dns)
+        monkeypatch.setattr(oa.socket, "getaddrinfo", dns)  # type: ignore[reportPrivateImportUsage]
         tried = _stub_pdf(monkeypatch, lambda url: _result(PDF_TEXT, url=url))
         _, loc = oa.recover_full_text(vault, None, "https://p/x", DOI, _result(ABSTRACT))
         assert tried == [SOURCE_PDF]
+        assert loc is not None
         assert loc.url == SOURCE_PDF
 
 
@@ -516,7 +560,9 @@ class TestDisclosure:
     def recovered(self, vault, monkeypatch, keyed, public_dns):
         _stub_legacy(monkeypatch, {})
         _stub_core(monkeypatch, {"search/works": _search_hit(), "/works/": _work()})
-        out, loc = oa.recover_full_text(vault, None, "https://publisher.example.com/x", DOI, _result(ABSTRACT))
+        out, loc = oa.recover_full_text(
+            vault, None, "https://publisher.example.com/x", DOI, _result(ABSTRACT)
+        )
         return out, loc
 
     def test_banner_names_core_and_admits_unknown_version(self, recovered):
@@ -538,11 +584,17 @@ class TestDisclosure:
             "oa_recovery_kind": "substituted",
         }
 
-    def test_preprint_version_reaches_banner_and_frontmatter(self, vault, monkeypatch, keyed, public_dns):
+    def test_preprint_version_reaches_banner_and_frontmatter(
+        self, vault, monkeypatch, keyed, public_dns
+    ):
         _stub_legacy(monkeypatch, {})
         rec = _record(documentType="preprint")
-        _stub_core(monkeypatch, {"search/works": _search_hit(rec), "/works/": _work(**{"documentType": "preprint"})})
+        _stub_core(
+            monkeypatch,
+            {"search/works": _search_hit(rec), "/works/": _work(**{"documentType": "preprint"})},
+        )
         _, loc = oa.recover_full_text(vault, None, "https://p/x", DOI, _result(ABSTRACT))
+        assert loc is not None
         assert loc.version == "submittedVersion"
         assert oa.oa_frontmatter(loc)["oa_version"] == "submittedVersion"
         assert "NOT peer reviewed" in oa.recovery_notice(loc, "https://p/x", 900)
@@ -552,6 +604,7 @@ class TestDisclosure:
         _stub_core(monkeypatch, {"search/works": _search_hit(), "/works/": _work()})
         out, loc = oa.rescue_full_text(vault, None, "https://publisher.example.com/x", DOI)
         assert loc is not None and loc.resolver == "core"
+        assert out is not None
         assert out.content == FULL_TEXT
         text = oa.recovery_notice(loc, "https://publisher.example.com/x", 0, blocked_reason="403")
         assert "never read" in text and "via core" in text
@@ -569,7 +622,9 @@ class TestRescue:
 
     def test_rescue_still_requires_real_full_text(self, vault, monkeypatch, keyed, public_dns):
         _stub_legacy(monkeypatch, {})
-        _stub_core(monkeypatch, {"search/works": _search_hit(), "/works/": _work("A record page. " * 60)})
+        _stub_core(
+            monkeypatch, {"search/works": _search_hit(), "/works/": _work("A record page. " * 60)}
+        )
         _stub_pdf(monkeypatch, None)
         assert oa.rescue_full_text(vault, None, "https://p/x", DOI) == (None, None)
 

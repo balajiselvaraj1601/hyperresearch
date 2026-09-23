@@ -56,7 +56,7 @@ def test_slugify_respects_filesystem_byte_limit():
 
 def test_slugify_normalises_equivalent_unicode():
     """Composed and decomposed forms of the same title must agree."""
-    composed = "café"          # é as U+00E9
+    composed = "café"  # é as U+00E9
     decomposed = "café"  # e + combining acute
     assert slugify(composed) == slugify(decomposed)
 
@@ -99,6 +99,7 @@ def test_write_source_analysis_note_roundtrip(tmp_vault):
     assert note.meta.type == "source-analysis"
     assert "test-paper-source" in note.outgoing_links
     # Multi-line summary preserved through YAML frontmatter serialization
+    assert note.meta.summary is not None
     assert "Multi-paragraph summary" in note.meta.summary
     assert "42 pct" in note.meta.summary
 
@@ -235,7 +236,9 @@ def test_read_utf8_content(tmp_vault):
 def test_read_empty_body(tmp_vault):
     path = tmp_vault.notes_dir / "empty.md"
     path.parent.mkdir(exist_ok=True)
-    path.write_text("---\ntitle: Empty\nid: empty\nstatus: draft\ntype: note\n---\n", encoding="utf-8")
+    path.write_text(
+        "---\ntitle: Empty\nid: empty\nstatus: draft\ntype: note\n---\n", encoding="utf-8"
+    )
 
     note = read_note(path, tmp_vault.root)
     assert note.meta.title == "Empty"

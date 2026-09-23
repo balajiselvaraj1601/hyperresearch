@@ -74,7 +74,7 @@ def config_set(
 
     # Type coercion
     if attr in ("auto_sync", "auto_build_index", "web_magic"):
-        value = value.lower() in ("true", "1", "yes")
+        value = value.lower() in ("true", "1", "yes")  # type: ignore[assignment]
 
     setattr(config, attr, value)
     config.save(vault.config_path)

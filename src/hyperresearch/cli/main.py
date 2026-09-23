@@ -73,9 +73,7 @@ def status(
         top_tags.append({"tag": row["tag"], "count": row["c"]})
 
     total_links = conn.execute("SELECT COUNT(*) as c FROM links").fetchone()["c"]
-    broken = conn.execute(
-        "SELECT COUNT(*) as c FROM links WHERE target_id IS NULL"
-    ).fetchone()["c"]
+    broken = conn.execute("SELECT COUNT(*) as c FROM links WHERE target_id IS NULL").fetchone()["c"]
     orphans = conn.execute("""
         SELECT COUNT(*) as c FROM notes n
         WHERE n.type NOT IN ('index', 'raw')
@@ -83,13 +81,11 @@ def status(
           AND n.id NOT IN (SELECT DISTINCT source_id FROM links)
     """).fetchone()["c"]
 
-    total_words = conn.execute(
-        "SELECT COALESCE(SUM(word_count), 0) as c FROM notes"
-    ).fetchone()["c"]
+    total_words = conn.execute("SELECT COALESCE(SUM(word_count), 0) as c FROM notes").fetchone()[
+        "c"
+    ]
 
-    last_sync = conn.execute(
-        "SELECT value FROM _meta WHERE key = 'last_sync'"
-    ).fetchone()
+    last_sync = conn.execute("SELECT value FROM _meta WHERE key = 'last_sync'").fetchone()
     last_sync_val = last_sync["value"] if last_sync else "never"
 
     data = {

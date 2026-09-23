@@ -38,9 +38,9 @@ def minhash_signature(shingles: set[str], num_perm: int = 128) -> list[int]:
     for s in shingles:
         s_bytes = s.encode("utf-8")
         for i in range(num_perm):
-            h = struct.unpack("<I", hashlib.sha256(
-                i.to_bytes(2, "little") + s_bytes
-            ).digest()[:4])[0]
+            h = struct.unpack("<I", hashlib.sha256(i.to_bytes(2, "little") + s_bytes).digest()[:4])[
+                0
+            ]
             if h < sig[i]:
                 sig[i] = h
     return sig

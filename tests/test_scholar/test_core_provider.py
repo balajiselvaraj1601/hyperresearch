@@ -38,7 +38,9 @@ PLOS_RECORD = {
     "sourceFulltextUrls": ["http://europepmc.org/articles/PMC1790863?pdf=render"],
     "journals": [{"title": None, "identifiers": []}],
     "links": [{"type": "display", "url": "https://core.ac.uk/works/84982915"}],
-    "dataProviders": [{"id": 1, "name": "DOAJ", "url": "https://api.core.ac.uk/v3/data-providers/1"}],
+    "dataProviders": [
+        {"id": 1, "name": "DOAJ", "url": "https://api.core.ac.uk/v3/data-providers/1"}
+    ],
     "identifiers": [{"identifier": "10.1371/journal.pone.0000217", "type": "doi"}],
 }
 
@@ -181,31 +183,55 @@ class TestMapping:
         assert p.work_type == "article"  # conference-paper maps to article
 
     def test_work_type_vocabulary(self):
-        assert core_oa.paper_from_record({"title": "T", "documentType": "thesis"}).work_type == "thesis"
-        assert core_oa.paper_from_record({"title": "T", "fieldOfStudy": "preprint"}).work_type == "preprint"
-        assert core_oa.paper_from_record({"title": "T", "documentType": "slides"}).work_type == "other"
-        assert core_oa.paper_from_record({"title": "T", "documentType": "zzz"}).work_type == "article"
+        p = core_oa.paper_from_record({"title": "T", "documentType": "thesis"})
+        assert p is not None
+        assert p.work_type == "thesis"
+        p = core_oa.paper_from_record({"title": "T", "fieldOfStudy": "preprint"})
+        assert p is not None
+        assert p.work_type == "preprint"
+        p = core_oa.paper_from_record({"title": "T", "documentType": "slides"})
+        assert p is not None
+        assert p.work_type == "other"
+        p = core_oa.paper_from_record({"title": "T", "documentType": "zzz"})
+        assert p is not None
+        assert p.work_type == "article"
 
     def test_record_without_title_is_dropped(self):
         assert core_oa.paper_from_record({"id": 1, "doi": "10.1/x"}) is None
         assert core_oa.paper_from_record({"id": 1, "title": "   "}) is None
 
     def test_minimal_record_falls_back_to_core_page_then_doi(self):
-        assert core_oa.paper_from_record({"title": "T", "id": 7}).url == "https://core.ac.uk/works/7"
-        assert core_oa.paper_from_record({"title": "T", "doi": "10.1/x"}).url == "https://doi.org/10.1/x"
-        assert core_oa.paper_from_record({"title": "T"}).url is None
+        p = core_oa.paper_from_record({"title": "T", "id": 7})
+        assert p is not None
+        assert p.url == "https://core.ac.uk/works/7"
+        p = core_oa.paper_from_record({"title": "T", "doi": "10.1/x"})
+        assert p is not None
+        assert p.url == "https://doi.org/10.1/x"
+        p = core_oa.paper_from_record({"title": "T"})
+        assert p is not None
+        assert p.url is None
 
     def test_year_falls_back_to_published_date(self):
         p = core_oa.paper_from_record({"title": "T", "publishedDate": "2019-05-01T00:00:00+00:00"})
+        assert p is not None
         assert p.year == 2019
 
     def test_citation_count_rejects_non_ints(self):
-        assert core_oa.paper_from_record({"title": "T", "citationCount": "12"}).citation_count is None
-        assert core_oa.paper_from_record({"title": "T", "citationCount": True}).citation_count is None
-        assert core_oa.paper_from_record({"title": "T", "citationCount": -1}).citation_count is None
+        p = core_oa.paper_from_record({"title": "T", "citationCount": "12"})
+        assert p is not None
+        assert p.citation_count is None
+        p = core_oa.paper_from_record({"title": "T", "citationCount": True})
+        assert p is not None
+        assert p.citation_count is None
+        p = core_oa.paper_from_record({"title": "T", "citationCount": -1})
+        assert p is not None
+        assert p.citation_count is None
 
     def test_authors_tolerate_bare_strings_and_junk(self):
-        p = core_oa.paper_from_record({"title": "T", "authors": ["A. Smith", {"name": ""}, 3, None]})
+        p = core_oa.paper_from_record(
+            {"title": "T", "authors": ["A. Smith", {"name": ""}, 3, None]}
+        )
+        assert p is not None
         assert p.authors == ("A. Smith",)
 
 
@@ -216,8 +242,12 @@ class TestFullText:
     def test_public_tier_sentinel_is_not_text(self):
         """Unauthenticated callers get a real string in `fullText`. It must
         never be mistaken for a paper."""
-        assert core_oa.full_text_from_work({"fullText": "Not available for public API users."}) is None
-        assert core_oa.full_text_from_work({"fullText": "NOT AVAILABLE FOR PUBLIC API USERS"}) is None
+        assert (
+            core_oa.full_text_from_work({"fullText": "Not available for public API users."}) is None
+        )
+        assert (
+            core_oa.full_text_from_work({"fullText": "NOT AVAILABLE FOR PUBLIC API USERS"}) is None
+        )
 
     def test_missing_or_empty_is_none(self):
         assert core_oa.full_text_from_work({"fullText": ""}) is None

@@ -33,9 +33,7 @@ INLINE_CODE_RE = re.compile(r"`[^`]+`")
 # markdown. These originate from Wikipedia-style footnote markup like
 # `[[100]](https://en.wikipedia.org/wiki/Foo#cite_note-100)` where the
 # visible text is the citation number in brackets.
-_CITATION_FOOTNOTE_RE = re.compile(
-    r"^\^?\d+(?:[\s,;\-]+\d+)*$"
-)
+_CITATION_FOOTNOTE_RE = re.compile(r"^\^?\d+(?:[\s,;\-]+\d+)*$")
 
 # Explicit citation prefixes: [[cite-1]], [[ref_2]], [[fn:3]], [[note-4]],
 # [[Note 1]], [[Footnote 12]]. The space-separated variant ("Note 1") leaks
@@ -58,9 +56,7 @@ _ROMAN_FOOTNOTE_RE = re.compile(
 
 # Symbol footnotes: [[*]], [[**]], [[†]], [[‡]], [[§]], [[¶]], [[#]], [[△]].
 # Typography-style footnote markers used in older academic publishing.
-_SYMBOL_FOOTNOTE_RE = re.compile(
-    r"^[\*\u2020\u2021\u00a7\u00b6#\u25b3\u25bd]{1,3}$"
-)
+_SYMBOL_FOOTNOTE_RE = re.compile(r"^[\*\u2020\u2021\u00a7\u00b6#\u25b3\u25bd]{1,3}$")
 
 # Figure / table / equation references: [[fig-3]], [[tab-1]], [[eq-2]],
 # [[table1]], [[figure-4b]], [[eq:7]], [[scheme-3]]. These are cross-

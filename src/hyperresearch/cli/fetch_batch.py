@@ -122,7 +122,7 @@ def fetch_batch(
     if normal_urls:
         if hasattr(prov, "fetch_many"):
             try:
-                results.extend(prov.fetch_many(normal_urls))
+                results.extend(prov.fetch_many(normal_urls))  # type: ignore[attr-defined]
             except Exception as e:
                 # fetch_many can return zero results on a single bad URL
                 # inside the batch comprehension. Fall back to per-URL so we
@@ -178,11 +178,11 @@ def fetch_batch(
                     "Run 'hyperresearch setup' to create a login profile."
                 )
             continue
-        pending.append((burl, rescued, loc, reason))
+        pending.append((burl, rescued, loc, reason))  # type: ignore[arg-type]
         rescued_urls.add(burl)
         if not json_output:
             console.print(
-                f"  [cyan]Blocked — recovered an open-access copy:[/] {burl} (via {loc.resolver})"
+                f"  [cyan]Blocked — recovered an open-access copy:[/] {burl} (via {loc.resolver if loc is not None else 'unknown'})"
             )
 
     # A rescued URL is no longer lost, so it should not still be reported as a

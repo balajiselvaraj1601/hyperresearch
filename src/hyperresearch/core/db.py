@@ -254,6 +254,7 @@ def init_schema(conn: sqlite3.Connection) -> None:
 
     # Run any pending migrations (may ALTER TABLE to add new columns)
     from hyperresearch.core.migrations import migrate
+
     migrate(conn, SCHEMA_VERSION)
 
     # Indexes that depend on migration-added columns run last

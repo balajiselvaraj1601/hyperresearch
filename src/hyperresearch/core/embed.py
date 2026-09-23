@@ -113,8 +113,8 @@ def embed_sync(vault, batch_size: int = 32) -> dict:
     cfg = vault.config.embeddings
     if cfg.provider == "none":
         raise EmbeddingError(
-            "embeddings disabled: set [embeddings] provider = \"voyage\" or "
-            "\"openai\" in .hyperresearch/config.toml"
+            'embeddings disabled: set [embeddings] provider = "voyage" or '
+            '"openai" in .hyperresearch/config.toml'
         )
     model = cfg.model or DEFAULT_MODELS.get(cfg.provider, "")
     conn = vault.db
@@ -164,9 +164,7 @@ def semantic_search(vault, query: str, limit: int = 20) -> list[dict]:
     """Brute-force cosine search. Returns [{id, score}] best-first."""
     cfg = vault.config.embeddings
     if cfg.provider == "none":
-        raise EmbeddingError(
-            "embeddings disabled: set [embeddings] provider in config.toml"
-        )
+        raise EmbeddingError("embeddings disabled: set [embeddings] provider in config.toml")
     model = cfg.model or DEFAULT_MODELS.get(cfg.provider, "")
     [query_vec] = _http_embed(cfg.provider, model, [query])
 

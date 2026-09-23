@@ -343,14 +343,14 @@ GRAPH_JS = """
 class HyperresearchHandler(BaseHTTPRequestHandler):
     # Bound reads from browser preconnections that never send a request.
     timeout = 30
-    vault = None
+    vault: object = None
     _db: sqlite3.Connection | None = None
 
     @property
     def db(self) -> sqlite3.Connection:
         # A handler runs in its own thread; never share its connection with other handlers.
         if self._db is None:
-            self._db = sqlite3.connect(str(self.__class__.vault.db_path))
+            self._db = sqlite3.connect(str(self.__class__.vault.db_path))  # type: ignore[attr-defined]
             self._db.row_factory = sqlite3.Row
         return self._db
 
@@ -387,7 +387,14 @@ class HyperresearchHandler(BaseHTTPRequestHandler):
         else:
             self._send(404, "<h1>Not Found</h1>")
 
-    def _send(self, code: int, body_html: str, title: str = "Home", extra_head: str = "", extra_body: str = ""):
+    def _send(
+        self,
+        code: int,
+        body_html: str,
+        title: str = "Home",
+        extra_head: str = "",
+        extra_body: str = "",
+    ):
         nav = self._build_nav()
         full = f"""<!DOCTYPE html><html><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -409,7 +416,7 @@ class HyperresearchHandler(BaseHTTPRequestHandler):
 
     def _build_nav(self) -> str:
         vault = self.__class__.vault
-        name = vault.config.name
+        name = vault.config.name  # type: ignore[attr-defined]
         lines = [
             '<div class="nav-top">',
             '<div class="brand">LLM-Hyperresearch</div>',
@@ -418,15 +425,17 @@ class HyperresearchHandler(BaseHTTPRequestHandler):
             '<input type="text" name="q" placeholder="Search..."></div></form>',
             '<a href="/">Home</a>',
             '<a href="/tags">Tags</a>',
-            '<h3>Recent</h3>',
+            "<h3>Recent</h3>",
         ]
         rows = self.db.execute(
             "SELECT id, title FROM notes WHERE type NOT IN ('index') "
             "ORDER BY COALESCE(updated, created) DESC LIMIT 15"
         ).fetchall()
         for r in rows:
-            lines.append(f'<a href="/note/{html_mod.escape(r["id"])}">{html_mod.escape(r["title"])}</a>')
-        lines.append('</div>')
+            lines.append(
+                f'<a href="/note/{html_mod.escape(r["id"])}">{html_mod.escape(r["title"])}</a>'
+            )
+        lines.append("</div>")
         lines.append(
             '<div class="nav-bottom">'
             '<a href="/graph" title="Knowledge Graph" style="display:flex;align-items:center;gap:6px">'
@@ -437,7 +446,7 @@ class HyperresearchHandler(BaseHTTPRequestHandler):
             '<line x1="7" y1="7" x2="10" y2="9"/><line x1="17" y1="7" x2="14" y2="9"/>'
             '<line x1="12" y1="12.5" x2="12" y2="15.5"/>'
             '<line x1="7" y1="17" x2="10" y2="16"/><line x1="17" y1="17" x2="14" y2="16"/>'
-            '</svg>Graph</a></div>'
+            "</svg>Graph</a></div>"
         )
         return "\n".join(lines)
 
@@ -448,7 +457,11 @@ class HyperresearchHandler(BaseHTTPRequestHandler):
         ).fetchall()
         body = "<h1>All Notes</h1>\n<ul>\n"
         for r in rows:
-            summary = f' <span style="color:var(--fg-dim);font-size:0.85rem">-- {html_mod.escape(r["summary"] or "")}</span>' if r["summary"] else ""
+            summary = (
+                f' <span style="color:var(--fg-dim);font-size:0.85rem">-- {html_mod.escape(r["summary"] or "")}</span>'
+                if r["summary"]
+                else ""
+            )
             body += f'<li><a href="/note/{html_mod.escape(r["id"])}">{html_mod.escape(r["title"])}</a>{summary}</li>\n'
         body += "</ul>"
         self._send(200, body, "Home")
@@ -463,7 +476,9 @@ class HyperresearchHandler(BaseHTTPRequestHandler):
             self._send(404, f"<h1>Note not found: {html_mod.escape(note_id)}</h1>")
             return
 
-        tags = [r["tag"] for r in self.db.execute("SELECT tag FROM tags WHERE note_id = ?", (note_id,))]
+        tags = [
+            r["tag"] for r in self.db.execute("SELECT tag FROM tags WHERE note_id = ?", (note_id,))
+        ]
         backlinks = self.db.execute(
             "SELECT l.source_id, n.title FROM links l "
             "JOIN notes n ON l.source_id = n.id WHERE l.target_id = ? ORDER BY n.title",
@@ -471,19 +486,23 @@ class HyperresearchHandler(BaseHTTPRequestHandler):
         ).fetchall()
 
         html_body = render_markdown(row["body"])
-        tags_html = " ".join(f'<a href="/tag/{html_mod.escape(t)}" class="tag">{html_mod.escape(t)}</a>' for t in tags)
+        tags_html = " ".join(
+            f'<a href="/tag/{html_mod.escape(t)}" class="tag">{html_mod.escape(t)}</a>'
+            for t in tags
+        )
         status_class = row["status"]
         meta = (
             f'<div class="meta">'
             f'<span class="status {status_class}">{html_mod.escape(row["status"])}</span> '
-            f'{tags_html} '
-            f'<span>{row["word_count"]} words</span>'
-            f'</div>'
+            f"{tags_html} "
+            f"<span>{row['word_count']} words</span>"
+            f"</div>"
         )
         bl_html = ""
         if backlinks:
             bl_items = "\n".join(
-                f'<li><a href="/note/{html_mod.escape(r["source_id"])}">{html_mod.escape(r["title"])}</a></li>' for r in backlinks
+                f'<li><a href="/note/{html_mod.escape(r["source_id"])}">{html_mod.escape(r["title"])}</a></li>'
+                for r in backlinks
             )
             bl_html = f'<div class="backlinks"><h3>Backlinks</h3><ul>{bl_items}</ul></div>'
         self._send(200, f"{meta}\n{html_body}\n{bl_html}", html_mod.escape(row["title"]))
@@ -497,7 +516,11 @@ class HyperresearchHandler(BaseHTTPRequestHandler):
         safe_tag = html_mod.escape(tag)
         body = f"<h1>Tag: {safe_tag}</h1>\n<p>{len(rows)} notes</p>\n<ul>\n"
         for r in rows:
-            summary = f' <span style="color:var(--fg-dim);font-size:0.85rem">-- {html_mod.escape(r["summary"] or "")}</span>' if r["summary"] else ""
+            summary = (
+                f' <span style="color:var(--fg-dim);font-size:0.85rem">-- {html_mod.escape(r["summary"] or "")}</span>'
+                if r["summary"]
+                else ""
+            )
             body += f'<li><a href="/note/{html_mod.escape(r["id"])}">{html_mod.escape(r["title"])}</a>{summary}</li>\n'
         body += "</ul>"
         self._send(200, body, f"Tag: {safe_tag}")
@@ -514,13 +537,14 @@ class HyperresearchHandler(BaseHTTPRequestHandler):
 
     def _serve_search(self, query: str):
         safe_q = html_mod.escape(query)
-        body = f'<h1>Search: {safe_q}</h1>\n'
+        body = f"<h1>Search: {safe_q}</h1>\n"
         if not query:
             body += "<p>Enter a search term.</p>"
             self._send(200, body, "Search")
             return
 
         from hyperresearch.search.fts import SearchQueryError, search_fts
+
         try:
             results = search_fts(self.db, query, limit=50)
         except SearchQueryError as e:
@@ -554,7 +578,7 @@ class HyperresearchHandler(BaseHTTPRequestHandler):
             '<canvas id="graph-canvas"></canvas>'
             '<input type="text" class="graph-search" id="graph-search" placeholder="Filter nodes...">'
             '<div class="graph-info" id="graph-info">Loading...</div>'
-            '</div>'
+            "</div>"
         )
         self._send(200, body, "Graph", extra_body=GRAPH_JS)
 
@@ -569,8 +593,13 @@ class HyperresearchHandler(BaseHTTPRequestHandler):
             inbound_counts[r["target_id"]] = r["c"]
 
         nodes = [
-            {"id": r["id"], "title": r["title"], "status": r["status"],
-             "words": r["word_count"], "inbound": inbound_counts.get(r["id"], 0)}
+            {
+                "id": r["id"],
+                "title": r["title"],
+                "status": r["status"],
+                "words": r["word_count"],
+                "inbound": inbound_counts.get(r["id"], 0),
+            }
             for r in nodes_rows
         ]
         edges_rows = self.db.execute(
@@ -620,6 +649,7 @@ def run_server(vault, port: int = 8080, open_browser: bool = False) -> int:
 
     if open_browser:
         import webbrowser
+
         webbrowser.open(url)
 
     running = True

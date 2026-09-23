@@ -85,7 +85,10 @@ class BuiltinProvider:
         # Post-download PDF detection: a PDF behind a URL that does not look
         # like one (download?id=…, a redirect) is decoded here as text and
         # would otherwise be reported as binary garbage.
-        if resp.content.startswith(b"%PDF-") or "application/pdf" in resp.headers.get("content-type", "").lower():
+        if (
+            resp.content.startswith(b"%PDF-")
+            or "application/pdf" in resp.headers.get("content-type", "").lower()
+        ):
             result, pdf_failure = extract_pdf(
                 resp.url, resp.content, self._settings, resp.headers.get("content-type", "")
             )

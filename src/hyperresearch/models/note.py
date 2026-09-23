@@ -30,6 +30,7 @@ class NoteType(StrEnum):
 
 class Tier(StrEnum):
     """Epistemic role of a source — how it functions as evidence."""
+
     GROUND_TRUTH = "ground_truth"
     INSTITUTIONAL = "institutional"
     PRACTITIONER = "practitioner"
@@ -39,6 +40,7 @@ class Tier(StrEnum):
 
 class ContentType(StrEnum):
     """Artifact kind — what the note physically is."""
+
     PAPER = "paper"
     DOCS = "docs"
     ARTICLE = "article"
@@ -71,6 +73,7 @@ def slugify(text: str) -> str:
     if not result:
         # Fallback for titles with only punctuation/symbols
         import hashlib
+
         result = "note-" + hashlib.sha256(text.encode()).hexdigest()[:8]
     # Cap length twice: characters (Windows MAX_PATH) and UTF-8 bytes, since most
     # filesystems limit a filename to 255 *bytes* and one CJK character costs 3.
@@ -95,30 +98,30 @@ class NoteMeta(BaseModel):
     fetch_provider: str | None = None
     status: NoteStatus = NoteStatus.DRAFT
     type: NoteType = NoteType.NOTE
-    tier: Tier | None = None             # Epistemic role (ground_truth/institutional/practitioner/commentary)
+    tier: Tier | None = None  # Epistemic role (ground_truth/institutional/practitioner/commentary)
     content_type: ContentType | None = None  # Artifact kind (paper/docs/article/blog/...)
     aliases: list[str] = Field(default_factory=list)
     parent: str | None = None
-    deprecated: bool = False             # Explicitly marked as outdated
-    reviewed: datetime | None = None     # Last time a human verified accuracy
-    expires: datetime | None = None      # Auto-stale after this date
+    deprecated: bool = False  # Explicitly marked as outdated
+    reviewed: datetime | None = None  # Last time a human verified accuracy
+    expires: datetime | None = None  # Auto-stale after this date
     summary: str | None = None
-    raw_file: str | None = None          # Relative path to raw artifact (e.g. raw/<id>.pdf)
+    raw_file: str | None = None  # Relative path to raw artifact (e.g. raw/<id>.pdf)
     # Source-ranking fields (frontmatter-mirrored; markdown stays truth).
     # Derived scores (authority/centrality/independence/quality) are DB-cache
     # only and deliberately NOT in frontmatter — they are recomputed.
-    doi: str | None = None               # DOI or arXiv id (e.g. 10.1234/x, arXiv:2501.01234)
-    utility_score: float | None = None   # Step-2 fetch-selection composite (0-18)
-    citation_count: int | None = None    # External citation count (OpenAlex/S2)
-    venue: str | None = None             # Publication venue, when known
-    is_retracted: bool | None = None     # None = unchecked; set by `hpr sources score`
+    doi: str | None = None  # DOI or arXiv id (e.g. 10.1234/x, arXiv:2501.01234)
+    utility_score: float | None = None  # Step-2 fetch-selection composite (0-18)
+    citation_count: int | None = None  # External citation count (OpenAlex/S2)
+    venue: str | None = None  # Publication venue, when known
+    is_retracted: bool | None = None  # None = unchecked; set by `hpr sources score`
     # Open-access recovery (core/oa.py). When these are set, the note BODY came
     # from `oa_url`, NOT from `source` — `source` stays the URL that was asked
     # for, because the note is about the paper and the DOI is its identity.
-    oa_url: str | None = None            # Where the body's bytes actually came from
-    oa_source: str | None = None         # Resolver: unpaywall | europepmc | core
-    oa_version: str | None = None        # publishedVersion | acceptedVersion | submittedVersion
-    oa_license: str | None = None        # Licence reported by the resolver, when known
+    oa_url: str | None = None  # Where the body's bytes actually came from
+    oa_source: str | None = None  # Resolver: unpaywall | europepmc | core
+    oa_version: str | None = None  # publishedVersion | acceptedVersion | submittedVersion
+    oa_license: str | None = None  # Licence reported by the resolver, when known
     # substituted = a thin page was replaced. rescued = the source could not be
     # read at all, so the ENTIRE note (title and authors included) is the
     # open-access copy and nothing in it came from `source`.

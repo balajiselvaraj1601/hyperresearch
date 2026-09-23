@@ -49,7 +49,9 @@ def source_list(
         output(success(sources, count=len(sources), vault=str(vault.root)), json_mode=True)
     else:
         if not sources:
-            console.print("[dim]No sources fetched yet. Use 'hyperresearch fetch <url>' to start.[/]")
+            console.print(
+                "[dim]No sources fetched yet. Use 'hyperresearch fetch <url>' to start.[/]"
+            )
             return
         for s in sources:
             status_color = "green" if s["status"] == "active" else "red"
@@ -99,8 +101,12 @@ def source_check(
 
 @app.command("score")
 def sources_score(
-    tag: str | None = typer.Option(None, "--tag", "-t", help="Only notes with this tag (e.g. vault_tag)"),
-    fresh: bool = typer.Option(False, "--fresh", help="Bypass the api_cache TTL and re-check already-enriched notes"),
+    tag: str | None = typer.Option(
+        None, "--tag", "-t", help="Only notes with this tag (e.g. vault_tag)"
+    ),
+    fresh: bool = typer.Option(
+        False, "--fresh", help="Bypass the api_cache TTL and re-check already-enriched notes"
+    ),
     limit: int | None = typer.Option(None, "--limit", "-n", help="Max notes to enrich this run"),
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
 ) -> None:
@@ -243,7 +249,9 @@ def sources_independence(
     result = compute_independence(vault, tag=tag)
 
     if json_output:
-        output(success(result, count=len(result["clusters"]), vault=str(vault.root)), json_mode=True)
+        output(
+            success(result, count=len(result["clusters"]), vault=str(vault.root)), json_mode=True
+        )
     else:
         console.print(
             f"[green]Independence:[/] {result['scored']} notes scored, "

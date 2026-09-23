@@ -45,7 +45,7 @@ def _serve(vault_path, events, timeout):
         with event_lock:
             events.send(("accepted", handler.client_address))
 
-    HyperresearchHandler.setup = report_client
+    HyperresearchHandler.setup = report_client  # type: ignore[misc]
     if timeout is not None and HyperresearchHandler.timeout is not None:
         HyperresearchHandler.timeout = min(timeout, HyperresearchHandler.timeout)
     sys.stdout = _PipeStdout(events)
@@ -156,7 +156,7 @@ def test_shutdown_does_not_wait_for_idle_preconnection(seeded_vault):
         socket.create_connection(address, timeout=2),
     ):
         _wait_for(events, "accepted")
-        os.kill(process.pid, signal.SIGINT)
+        os.kill(process.pid, signal.SIGINT)  # type: ignore[misc]
         process.join(3)
         assert process.exitcode == 0
 

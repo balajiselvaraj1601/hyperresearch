@@ -164,7 +164,7 @@ def archive_run(
     # need to remember to mkdir it.
     (research_dir / "temp").mkdir(exist_ok=True)
 
-    data = {
+    result = {
         "archived": True,
         "archive_dir": archive_dir.relative_to(vault.root).as_posix(),
         "files_moved": len(moved),
@@ -172,7 +172,7 @@ def archive_run(
         "previous_vault_tag": prev_tag,
     }
     if json_output:
-        output(success(data, vault=str(vault.root)), json_mode=True)
+        output(success(result, vault=str(vault.root)), json_mode=True)
     else:
         console.print(
             f"[green]Archived[/] {len(moved)} items to "

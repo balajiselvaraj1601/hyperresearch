@@ -661,7 +661,7 @@ def lint(
             JOIN note_content nc ON n.id = nc.note_id
             WHERE n.id IN (SELECT note_id FROM tags WHERE tag = 'scaffold')
         """):
-            body_lines = (row["body"] or "").splitlines()
+            body_lines = [str(line) for line in (row["body"] or "").splitlines()]
             # Look for the header within the first 20 non-blank lines
             header_line_idx = None
             seen_non_blank = 0
@@ -1914,7 +1914,7 @@ def lint(
                     }
                 )
 
-    summary = {
+    summary_result = {
         "errors": sum(1 for i in issues if i.get("severity") == "error"),
         "warnings": sum(1 for i in issues if i.get("severity") == "warning"),
         "info": sum(1 for i in issues if i.get("severity") == "info"),
@@ -1924,7 +1924,9 @@ def lint(
     if json_output:
         output(
             success(
-                {"issues": issues, "summary": summary}, count=len(issues), vault=str(vault.root)
+                {"issues": issues, "summary": summary_result},
+                count=len(issues),
+                vault=str(vault.root),
             ),
             json_mode=True,
         )
@@ -1941,6 +1943,6 @@ def lint(
             console.print(f"  [{style}]{issue['rule']}[/] {loc}{line}: {issue['message']}")
 
         console.print(
-            f"\n[bold]Summary:[/] {summary['errors']} errors, "
-            f"{summary['warnings']} warnings, {summary['info']} info"
+            f"\n[bold]Summary:[/] {summary_result['errors']} errors, "
+            f"{summary_result['warnings']} warnings, {summary_result['info']} info"
         )

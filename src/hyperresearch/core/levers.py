@@ -238,9 +238,7 @@ def compose_shims(levers: dict) -> dict[str, str]:
     reg, depth = lv["register"], lv["inference_depth"]
 
     research = (
-        _header(lv)
-        + _domain_block(lv)
-        + f"\n### Inference depth\n\n{_INFERENCE_RESEARCH[depth]}\n"
+        _header(lv) + _domain_block(lv) + f"\n### Inference depth\n\n{_INFERENCE_RESEARCH[depth]}\n"
     )
     drafting = (
         _header(lv)

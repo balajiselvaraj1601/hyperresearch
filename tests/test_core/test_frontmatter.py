@@ -31,8 +31,8 @@ def test_serialize_roundtrip():
         title="Test Note",
         id="test-note",
         tags=["python", "test"],
-        status="draft",
-        type="note",
+        status="draft",  # type: ignore[arg-type]
+        type="note",  # type: ignore[arg-type]
     )
     serialized = serialize_frontmatter(meta)
     assert "title: Test Note" in serialized

@@ -19,7 +19,14 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-REASONS = ("login_wall", "bot_block", "captcha", "fetch_failed", "interactive_needed", "scholar_search")
+REASONS = (
+    "login_wall",
+    "bot_block",
+    "captcha",
+    "fetch_failed",
+    "interactive_needed",
+    "scholar_search",
+)
 STATUSES = ("queued", "in_progress", "fetched", "needs_human", "abandoned")
 
 
@@ -84,9 +91,14 @@ def maybe_enqueue_blocked_fetch(
         if count >= cfg.max_items_per_run:
             return None
     return enqueue(
-        vault.db, url, reason,
-        vault_tag=vault_tag, requested_by="fetch-gate",
-        suggested_by=suggested_by, utility_score=utility_score, detail=detail,
+        vault.db,
+        url,
+        reason,
+        vault_tag=vault_tag,
+        requested_by="fetch-gate",
+        suggested_by=suggested_by,
+        utility_score=utility_score,
+        detail=detail,
     )
 
 
@@ -151,7 +163,8 @@ def list_items(
     limit: int = 100,
 ) -> list[dict]:
     query = "SELECT * FROM escalations"
-    conds, params = [], []
+    conds: list[str] = []
+    params: list[str | int] = []
     if status:
         conds.append("status = ?")
         params.append(status)

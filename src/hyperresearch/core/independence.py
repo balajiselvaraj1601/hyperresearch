@@ -24,9 +24,17 @@ from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from hyperresearch.core.similarity import jaccard, shingle
 
 WIRE_MARKERS = (
-    "prnewswire", "pr newswire", "business wire", "businesswire",
-    "globe newswire", "globenewswire", "(reuters)", "(ap)", "associated press",
-    "accesswire", "newsfile corp",
+    "prnewswire",
+    "pr newswire",
+    "business wire",
+    "businesswire",
+    "globe newswire",
+    "globenewswire",
+    "(reuters)",
+    "(ap)",
+    "associated press",
+    "accesswire",
+    "newsfile corp",
 )
 
 _TRACKING_PARAMS_RE = re.compile(r"^(utm_|fbclid|gclid|ref$|source$)")
@@ -38,9 +46,9 @@ def canonical_url(url: str) -> str:
     p = urlparse(url.strip().lower())
     host = p.netloc.removeprefix("www.")
     path = p.path.rstrip("/")
-    query = urlencode(sorted(
-        (k, v) for k, v in parse_qsl(p.query) if not _TRACKING_PARAMS_RE.match(k)
-    ))
+    query = urlencode(
+        sorted((k, v) for k, v in parse_qsl(p.query) if not _TRACKING_PARAMS_RE.match(k))
+    )
     return urlunparse(("https", host, path, "", query, ""))
 
 
@@ -108,7 +116,9 @@ def compute_independence(vault, tag: str | None = None) -> dict:
 
     # 3. Near-duplicate bodies (pairwise Jaccard on shingles; vaults are
     # small enough per-tag, and dedup's MinHash/LSH path exists for scale)
-    shingles = {r["id"]: shingle(r["body_plain"] or "", n=vault.config.dedup.shingle_size) for r in rows}
+    shingles = {
+        r["id"]: shingle(r["body_plain"] or "", n=vault.config.dedup.shingle_size) for r in rows
+    }
     ids = [r["id"] for r in rows]
     for i in range(len(ids)):
         for j in range(i + 1, len(ids)):
@@ -135,17 +145,20 @@ def compute_independence(vault, tag: str | None = None) -> dict:
         conn.execute("UPDATE notes SET independence = 1.0 WHERE id = ?", (root["id"],))
         kinds = {
             cluster_kind.get(frozenset((a["id"], b["id"])))
-            for a in members for b in members
+            for a in members
+            for b in members
             if cluster_kind.get(frozenset((a["id"], b["id"])))
         }
         for m in members[1:]:
             conn.execute("UPDATE notes SET independence = ? WHERE id = ?", (share, m["id"]))
         scored += len(members)
-        clusters.append({
-            "root": root["id"],
-            "members": [m["id"] for m in members[1:]],
-            "size": len(members),
-            "kind": "+".join(sorted(k for k in kinds if k)) or "mixed",
-        })
+        clusters.append(
+            {
+                "root": root["id"],
+                "members": [m["id"] for m in members[1:]],
+                "size": len(members),
+                "kind": "+".join(sorted(k for k in kinds if k)) or "mixed",
+            }
+        )
     conn.commit()
     return {"scored": scored, "clusters": clusters}

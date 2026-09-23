@@ -21,7 +21,7 @@ def parse_frontmatter(content: str) -> tuple[NoteMeta, str]:
         return NoteMeta(title="Untitled"), content
 
     yaml_str = match.group(1)
-    body = content[match.end():]
+    body = content[match.end() :]
 
     data = yaml.safe_load(yaml_str) or {}
     if not isinstance(data, dict):

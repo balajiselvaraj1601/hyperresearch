@@ -273,7 +273,7 @@ class TestParsing:
             _md("dc.contributor.author", None),
             _md("dc.contributor.author", "   "),
             {"value": "no key"},
-            "not even a dict",
+            "not even a dict",  # type: ignore[arg-type]
             _md("dc.date.issued", "not a year"),
         )
         _stub(monkeypatch, [item])

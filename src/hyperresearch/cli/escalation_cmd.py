@@ -37,7 +37,9 @@ def _vault_or_exit(json_output: bool):
 
 @app.command("list")
 def escalation_list(
-    status: str | None = typer.Option(None, "--status", "-s", help="queued|in_progress|fetched|needs_human|abandoned"),
+    status: str | None = typer.Option(
+        None, "--status", "-s", help="queued|in_progress|fetched|needs_human|abandoned"
+    ),
     tag: str | None = typer.Option(None, "--tag", "-t", help="Only items for this vault_tag"),
     limit: int = typer.Option(100, "--limit", "-n", help="Max items"),
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
@@ -50,7 +52,10 @@ def escalation_list(
     stats = queue_stats(vault.db, vault_tag=tag)
 
     if json_output:
-        output(success({"items": items, "stats": stats}, count=len(items), vault=str(vault.root)), json_mode=True)
+        output(
+            success({"items": items, "stats": stats}, count=len(items), vault=str(vault.root)),
+            json_mode=True,
+        )
     else:
         for it in items:
             score = f"u{it['utility_score']:g}" if it["utility_score"] is not None else "u?"
@@ -61,10 +66,19 @@ def escalation_list(
 @app.command("add")
 def escalation_add(
     url: str = typer.Argument(..., help="URL (or Scholar query for --reason scholar_search)"),
-    reason: str = typer.Option(..., "--reason", "-r", help="login_wall|bot_block|captcha|fetch_failed|interactive_needed|scholar_search"),
+    reason: str = typer.Option(
+        ...,
+        "--reason",
+        "-r",
+        help="login_wall|bot_block|captcha|fetch_failed|interactive_needed|scholar_search",
+    ),
     tag: str | None = typer.Option(None, "--tag", "-t", help="vault_tag"),
-    utility: float | None = typer.Option(None, "--utility", help="Utility score (drives drain priority)"),
-    suggested_by: str | None = typer.Option(None, "--suggested-by", help="Note id that surfaced this URL"),
+    utility: float | None = typer.Option(
+        None, "--utility", help="Utility score (drives drain priority)"
+    ),
+    suggested_by: str | None = typer.Option(
+        None, "--suggested-by", help="Note id that surfaced this URL"
+    ),
     detail: str | None = typer.Option(None, "--detail", help="One-line context"),
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
 ) -> None:
@@ -74,8 +88,14 @@ def escalation_add(
     vault = _vault_or_exit(json_output)
     try:
         item_id = enqueue(
-            vault.db, url, reason, vault_tag=tag, requested_by="manual",
-            suggested_by=suggested_by, utility_score=utility, detail=detail,
+            vault.db,
+            url,
+            reason,
+            vault_tag=tag,
+            requested_by="manual",
+            suggested_by=suggested_by,
+            utility_score=utility,
+            detail=detail,
         )
     except EscalationError as e:
         if json_output:
@@ -104,7 +124,10 @@ def escalation_claim(
     item = claim_next(vault.db, claimed_by, vault_tag=tag)
 
     if json_output:
-        output(success({"item": item, "queue_empty": item is None}, vault=str(vault.root)), json_mode=True)
+        output(
+            success({"item": item, "queue_empty": item is None}, vault=str(vault.root)),
+            json_mode=True,
+        )
     else:
         if item is None:
             console.print("[dim]Queue empty.[/]")
@@ -116,8 +139,12 @@ def escalation_claim(
 def escalation_ingest(
     item_id: int = typer.Argument(..., help="Claimed escalation item id"),
     title: str = typer.Option(..., "--title", help="Page title"),
-    body_file: str = typer.Option(..., "--body-file", help="File containing the extracted page content (markdown/plain text)"),
-    tags: list[str] = typer.Option([], "--tag", "-t", help="Tags (repeatable; the item's vault_tag is added automatically)"),
+    body_file: str = typer.Option(
+        ..., "--body-file", help="File containing the extracted page content (markdown/plain text)"
+    ),
+    tags: list[str] = typer.Option(
+        [], "--tag", "-t", help="Tags (repeatable; the item's vault_tag is added automatically)"
+    ),
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
 ) -> None:
     """Complete a claimed item: write the note + source row, sync, resolve.
@@ -167,8 +194,13 @@ def escalation_ingest(
         body = f"*Suggested by [[{item['suggested_by']}]]*\n\n" + body
 
     note_path = write_note(
-        vault.notes_dir, title=title, body=body, tags=all_tags,
-        status="draft", source=url, extra_frontmatter=extra_meta,
+        vault.notes_dir,
+        title=title,
+        body=body,
+        tags=all_tags,
+        status="draft",
+        source=url,
+        extra_frontmatter=extra_meta,
     )
     note_id = note_path.stem
 
@@ -208,7 +240,11 @@ def escalation_ingest(
 @app.command("human")
 def escalation_human(
     item_id: int = typer.Argument(..., help="Item id"),
-    detail: str = typer.Option(..., "--detail", help="One line: what the human must do (e.g. 'solve CAPTCHA on nature.com')"),
+    detail: str = typer.Option(
+        ...,
+        "--detail",
+        help="One line: what the human must do (e.g. 'solve CAPTCHA on nature.com')",
+    ),
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
 ) -> None:
     """Mark an item as needing the human (CAPTCHA / 2FA / login). NEVER solve these automatically."""

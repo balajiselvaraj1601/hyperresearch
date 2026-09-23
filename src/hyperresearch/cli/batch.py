@@ -16,6 +16,7 @@ VALID_STATUSES = {"draft", "review", "evergreen", "stale", "deprecated", "archiv
 def _discover_vault(json_output: bool):
     """Discover vault with proper error handling."""
     from hyperresearch.core.vault import Vault, VaultError
+
     try:
         return Vault.discover()
     except VaultError as e:
@@ -24,6 +25,7 @@ def _discover_vault(json_output: bool):
         else:
             console.print(f"[red]Error:[/] {e}")
         raise typer.Exit(1)
+
 
 app = typer.Typer()
 
@@ -68,6 +70,7 @@ def _batch_update_files(vault, notes: list[dict], updates: dict) -> tuple[list[s
     # Sync after all modifications
     if modified:
         from hyperresearch.core.sync import compute_sync_plan, execute_sync
+
         plan = compute_sync_plan(vault, force=True)
         execute_sync(vault, plan)
     return modified, errors
@@ -97,6 +100,7 @@ def _update_file_frontmatter(vault_root: Path, rel_path: str, updates: dict) -> 
 
 # --- Tag operations ---
 
+
 @app.command("tag-add")
 def batch_tag_add(
     tag: str = typer.Argument(..., help="Tag to add"),
@@ -125,12 +129,19 @@ def batch_tag_add(
         _update_file_frontmatter(vault.root, n["path"], {"add_tag": tag})
 
     from hyperresearch.core.sync import compute_sync_plan, execute_sync
+
     plan = compute_sync_plan(vault, force=True)
     execute_sync(vault, plan)
 
     if json_output:
-        output(success({"action": "tag-add", "tag": tag, "modified": [n["id"] for n in notes]},
-                        count=len(notes), vault=str(vault.root)), json_mode=True)
+        output(
+            success(
+                {"action": "tag-add", "tag": tag, "modified": [n["id"] for n in notes]},
+                count=len(notes),
+                vault=str(vault.root),
+            ),
+            json_mode=True,
+        )
     else:
         console.print(f"[green]Added tag '{tag}' to {len(notes)} notes.[/]")
 
@@ -163,21 +174,31 @@ def batch_tag_remove(
         _update_file_frontmatter(vault.root, n["path"], {"remove_tag": tag})
 
     from hyperresearch.core.sync import compute_sync_plan, execute_sync
+
     plan = compute_sync_plan(vault, force=True)
     execute_sync(vault, plan)
 
     if json_output:
-        output(success({"action": "tag-remove", "tag": tag, "modified": [n["id"] for n in notes]},
-                        count=len(notes), vault=str(vault.root)), json_mode=True)
+        output(
+            success(
+                {"action": "tag-remove", "tag": tag, "modified": [n["id"] for n in notes]},
+                count=len(notes),
+                vault=str(vault.root),
+            ),
+            json_mode=True,
+        )
     else:
         console.print(f"[green]Removed tag '{tag}' from {len(notes)} notes.[/]")
 
 
 # --- Status operations ---
 
+
 @app.command("set-status")
 def batch_set_status(
-    new_status: str = typer.Argument(..., help="New status: draft|review|evergreen|stale|deprecated|archive"),
+    new_status: str = typer.Argument(
+        ..., help="New status: draft|review|evergreen|stale|deprecated|archive"
+    ),
     status: str | None = typer.Option(None, "--status", "-s", help="Filter by current status"),
     tag: str | None = typer.Option(None, "--tag", "-t", help="Filter by tag"),
     parent: str | None = typer.Option(None, "--parent", "-p", help="Filter by parent topic"),
@@ -199,9 +220,18 @@ def batch_set_status(
 
     if dry_run:
         if json_output:
-            output(success({"action": "set-status", "status": new_status,
-                            "would_modify": [n["id"] for n in notes]},
-                           count=len(notes), vault=str(vault.root)), json_mode=True)
+            output(
+                success(
+                    {
+                        "action": "set-status",
+                        "status": new_status,
+                        "would_modify": [n["id"] for n in notes],
+                    },
+                    count=len(notes),
+                    vault=str(vault.root),
+                ),
+                json_mode=True,
+            )
         else:
             console.print(f"[bold]Would set status '{new_status}' on {len(notes)} notes.[/]")
         return
@@ -210,18 +240,29 @@ def batch_set_status(
         _update_file_frontmatter(vault.root, n["path"], {"status": new_status})
 
     from hyperresearch.core.sync import compute_sync_plan, execute_sync
+
     plan = compute_sync_plan(vault, force=True)
     execute_sync(vault, plan)
 
     if json_output:
-        output(success({"action": "set-status", "status": new_status,
-                        "modified": [n["id"] for n in notes]},
-                       count=len(notes), vault=str(vault.root)), json_mode=True)
+        output(
+            success(
+                {
+                    "action": "set-status",
+                    "status": new_status,
+                    "modified": [n["id"] for n in notes],
+                },
+                count=len(notes),
+                vault=str(vault.root),
+            ),
+            json_mode=True,
+        )
     else:
         console.print(f"[green]Set status '{new_status}' on {len(notes)} notes.[/]")
 
 
 # --- Deprecate ---
+
 
 @app.command("deprecate")
 def batch_deprecate(
@@ -238,9 +279,14 @@ def batch_deprecate(
 
     if dry_run:
         if json_output:
-            output(success({"action": "deprecate",
-                            "would_modify": [n["id"] for n in notes]},
-                           count=len(notes), vault=str(vault.root)), json_mode=True)
+            output(
+                success(
+                    {"action": "deprecate", "would_modify": [n["id"] for n in notes]},
+                    count=len(notes),
+                    vault=str(vault.root),
+                ),
+                json_mode=True,
+            )
         else:
             console.print(f"[bold]Would deprecate {len(notes)} notes.[/]")
         return
@@ -251,17 +297,25 @@ def batch_deprecate(
         _update_file_frontmatter(vault.root, n["path"], updates)
 
     from hyperresearch.core.sync import compute_sync_plan, execute_sync
+
     plan = compute_sync_plan(vault, force=True)
     execute_sync(vault, plan)
 
     if json_output:
-        output(success({"action": "deprecate", "modified": [n["id"] for n in notes]},
-                       count=len(notes), vault=str(vault.root)), json_mode=True)
+        output(
+            success(
+                {"action": "deprecate", "modified": [n["id"] for n in notes]},
+                count=len(notes),
+                vault=str(vault.root),
+            ),
+            json_mode=True,
+        )
     else:
         console.print(f"[green]Deprecated {len(notes)} notes.[/]")
 
 
 # --- Parent ---
+
 
 @app.command("set-parent")
 def batch_set_parent(
@@ -279,9 +333,18 @@ def batch_set_parent(
 
     if dry_run:
         if json_output:
-            output(success({"action": "set-parent", "parent": new_parent,
-                            "would_modify": [n["id"] for n in notes]},
-                           count=len(notes), vault=str(vault.root)), json_mode=True)
+            output(
+                success(
+                    {
+                        "action": "set-parent",
+                        "parent": new_parent,
+                        "would_modify": [n["id"] for n in notes],
+                    },
+                    count=len(notes),
+                    vault=str(vault.root),
+                ),
+                json_mode=True,
+            )
         else:
             console.print(f"[bold]Would set parent '{new_parent}' on {len(notes)} notes.[/]")
         return
@@ -290,12 +353,22 @@ def batch_set_parent(
         _update_file_frontmatter(vault.root, n["path"], {"parent": new_parent})
 
     from hyperresearch.core.sync import compute_sync_plan, execute_sync
+
     plan = compute_sync_plan(vault, force=True)
     execute_sync(vault, plan)
 
     if json_output:
-        output(success({"action": "set-parent", "parent": new_parent,
-                        "modified": [n["id"] for n in notes]},
-                       count=len(notes), vault=str(vault.root)), json_mode=True)
+        output(
+            success(
+                {
+                    "action": "set-parent",
+                    "parent": new_parent,
+                    "modified": [n["id"] for n in notes],
+                },
+                count=len(notes),
+                vault=str(vault.root),
+            ),
+            json_mode=True,
+        )
     else:
         console.print(f"[green]Set parent '{new_parent}' on {len(notes)} notes.[/]")

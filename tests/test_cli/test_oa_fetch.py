@@ -92,7 +92,7 @@ def vault_dir(tmp_path: Path, monkeypatch) -> Path:
     monkeypatch.setattr(
         scholar, "_http_get_json", lambda url: UNPAYWALL if "unpaywall" in url else None
     )
-    monkeypatch.setattr(oa.socket, "getaddrinfo", lambda h, p: [(2, 1, 6, "", ("93.184.216.34", 0))])
+    monkeypatch.setattr(oa.socket, "getaddrinfo", lambda h, p: [(2, 1, 6, "", ("93.184.216.34", 0))])  # type: ignore[reportPrivateImportUsage]
     monkeypatch.setattr(
         pdf_lane,
         "fetch_pdf",
@@ -294,7 +294,7 @@ def test_recovery_is_off_without_an_email(tmp_path: Path, monkeypatch):
 
     seen: list[str] = []
     monkeypatch.setattr("hyperresearch.web.base.get_provider", lambda *a, **k: _AbstractOnlyProvider())
-    monkeypatch.setattr(oa.socket, "getaddrinfo", lambda h, p: [(2, 1, 6, "", ("93.184.216.34", 0))])
+    monkeypatch.setattr(oa.socket, "getaddrinfo", lambda h, p: [(2, 1, 6, "", ("93.184.216.34", 0))])  # type: ignore[reportPrivateImportUsage]
 
     def track(url):
         seen.append(url)

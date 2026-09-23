@@ -92,7 +92,6 @@ SORT_RELEVANCE = "relevance"
 SORT_CITATIONS = "citations"
 
 
-
 def _invert_abstract(index: Any) -> str | None:
     """Rebuild abstract prose from OpenAlex's ``{word: [positions]}`` map.
 

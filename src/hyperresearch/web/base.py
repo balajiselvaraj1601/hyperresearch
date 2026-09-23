@@ -76,8 +76,15 @@ class WebResult:
         """Check if the result appears to be a login/signup redirect rather than real content."""
         gates = gates or DEFAULT_GATES
         login_signals = (
-            "sign in", "sign up", "log in", "login", "create account",
-            "auth", "register", "sso", "verify your identity",
+            "sign in",
+            "sign up",
+            "log in",
+            "login",
+            "create account",
+            "auth",
+            "register",
+            "sso",
+            "verify your identity",
             *gates.extra_login_signals,
         )
         title_lower = (self.title or "").lower()
@@ -87,9 +94,8 @@ class WebResult:
         title_match = any(s in title_lower for s in login_signals)
 
         # Content is mostly login form (very short with login keywords)
-        content_match = (
-            len(self.content or "") < gates.login_wall_max_chars
-            and any(s in content_lower for s in login_signals)
+        content_match = len(self.content or "") < gates.login_wall_max_chars and any(
+            s in content_lower for s in login_signals
         )
 
         # URL changed to a login/auth path
@@ -117,22 +123,40 @@ class WebResult:
 
         # Cloudflare / bot detection pages
         cf_signals = (
-            "just a moment", "checking your browser", "ray id", "cloudflare",
-            "please wait while we verify", "unusual activity", "captcha",
-            "recaptcha", "verify you are human", "verify you are not a robot",
-            "please complete the security check", "access denied",
-            "enable javascript and cookies", "browser check",
-            "ddos protection", "attention required",
+            "just a moment",
+            "checking your browser",
+            "ray id",
+            "cloudflare",
+            "please wait while we verify",
+            "unusual activity",
+            "captcha",
+            "recaptcha",
+            "verify you are human",
+            "verify you are not a robot",
+            "please complete the security check",
+            "access denied",
+            "enable javascript and cookies",
+            "browser check",
+            "ddos protection",
+            "attention required",
         )
-        if any(s in title_lower or s in content_lower for s in cf_signals + tuple(gates.extra_junk_signals)):
+        if any(
+            s in title_lower or s in content_lower
+            for s in cf_signals + tuple(gates.extra_junk_signals)
+        ):
             return f"Bot detection page: {self.title}"
 
         # Error pages
         error_signals = (
-            "404 not found", "page not found", "403 forbidden",
-            "500 internal server error", "502 bad gateway",
-            "an error occurred", "this page isn't available",
-            "the page you requested", "sorry, we couldn't find",
+            "404 not found",
+            "page not found",
+            "403 forbidden",
+            "500 internal server error",
+            "502 bad gateway",
+            "an error occurred",
+            "this page isn't available",
+            "the page you requested",
+            "sorry, we couldn't find",
         )
         if any(s in title_lower or s in content_lower for s in error_signals):
             return f"Error page: {self.title}"
@@ -154,8 +178,12 @@ class WebResult:
         # Cookie consent / boilerplate pages (short with mostly nav/cookie text)
         if len(content.strip()) < gates.cookie_wall_max_chars:
             cookie_signals = (
-                "we use cookies", "cookie policy", "accept cookies", "cookie consent",
-                "there appears to be a technical issue", "please enable javascript",
+                "we use cookies",
+                "cookie policy",
+                "accept cookies",
+                "cookie consent",
+                "there appears to be a technical issue",
+                "please enable javascript",
             )
             if any(s in content_lower for s in cookie_signals):
                 return "Cookie/boilerplate page"
@@ -221,7 +249,7 @@ def get_provider(
 
             return TavilyProvider()
         except ImportError:
-            raise ImportError("tavily provider requires: pip install \"hyperresearch[tavily]\"")
+            raise ImportError('tavily provider requires: pip install "hyperresearch[tavily]"')
 
     if name == "parallel":
         try:

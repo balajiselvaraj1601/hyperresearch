@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Generator
 from pathlib import Path
 
 import pytest
@@ -17,14 +18,14 @@ runner = CliRunner()
 
 
 @pytest.fixture
-def mcp_vault(tmp_path: Path) -> Path:
+def mcp_vault(tmp_path: Path) -> Generator[Path]:  # type: ignore[return-value]
     vault_dir = tmp_path / "kb"
     runner.invoke(app, ["init", str(vault_dir)])
     os.chdir(vault_dir)
     runner.invoke(app, ["note", "new", "Alpha Note"])
     runner.invoke(app, ["sync"])
     mcp._vault = None  # module-global cache; force rediscovery under tmp_path
-    yield vault_dir
+    yield vault_dir  # type: ignore[return-value]
     mcp._vault = None
 
 

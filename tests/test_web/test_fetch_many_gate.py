@@ -56,7 +56,7 @@ def test_fetch_many_skips_refused_urls_and_fetches_the_rest(monkeypatch, caplog)
     monkeypatch.setattr(provider, "_fetch_pdf", fake_fetch_pdf)
 
     inst = provider.Crawl4AIProvider.__new__(provider.Crawl4AIProvider)
-    inst._settings = provider.FetchSettings()
+    inst._settings = provider.FetchSettings()  # type: ignore[reportPrivateImportUsage]
 
     urls = [
         "http://127.0.0.1/internal.pdf",  # loopback — refused

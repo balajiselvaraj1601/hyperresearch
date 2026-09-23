@@ -14,8 +14,10 @@ import pytest
 # minimal install lacks the browser_adapter API (introduced in crawl4ai 0.7.3).
 pytest.importorskip("crawl4ai.browser_adapter")
 
-from crawl4ai.async_crawler_strategy import AsyncPlaywrightCrawlerStrategy
-from crawl4ai.browser_adapter import UndetectedAdapter
+from crawl4ai.async_crawler_strategy import (  # type: ignore[import-untyped]
+    AsyncPlaywrightCrawlerStrategy,  # type: ignore[import-untyped]
+)
+from crawl4ai.browser_adapter import UndetectedAdapter  # type: ignore[import-untyped]
 
 from hyperresearch.web.crawl4ai_provider import Crawl4AIProvider
 
@@ -37,7 +39,7 @@ def test_browser_manager_marked_undetected() -> None:
     """
     crawler = Crawl4AIProvider(headless=True)._make_crawler()
 
-    assert crawler.crawler_strategy.browser_manager.use_undetected is True
+    assert crawler.crawler_strategy.browser_manager.use_undetected is True  # type: ignore[attr-defined]
 
 
 def test_undetected_wiring_survives_profile_path() -> None:
@@ -45,5 +47,5 @@ def test_undetected_wiring_survives_profile_path() -> None:
     (user_data_dir / managed browser) is configured — the two are compatible."""
     crawler = Crawl4AIProvider(headless=True, user_data_dir="/tmp/does-not-matter")._make_crawler()
 
-    assert isinstance(crawler.crawler_strategy.adapter, UndetectedAdapter)
-    assert crawler.crawler_strategy.browser_manager.use_undetected is True
+    assert isinstance(crawler.crawler_strategy.adapter, UndetectedAdapter)  # type: ignore[attr-defined]
+    assert crawler.crawler_strategy.browser_manager.use_undetected is True  # type: ignore[attr-defined]

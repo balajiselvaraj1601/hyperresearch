@@ -83,9 +83,7 @@ def _migrate_v7_interim_note_type(conn: sqlite3.Connection) -> None:
     new_cols = {row[1] for row in conn.execute("PRAGMA table_info(notes_v7)")}
     shared = sorted(old_cols & new_cols)
     col_list = ", ".join(shared)
-    conn.execute(
-        f"INSERT INTO notes_v7 ({col_list}) SELECT {col_list} FROM notes"
-    )
+    conn.execute(f"INSERT INTO notes_v7 ({col_list}) SELECT {col_list} FROM notes")
     conn.executescript("""
         DROP TABLE notes;
         ALTER TABLE notes_v7 RENAME TO notes;
@@ -149,9 +147,7 @@ def _migrate_v8_source_analysis_note_type(conn: sqlite3.Connection) -> None:
     new_cols = {row[1] for row in conn.execute("PRAGMA table_info(notes_v8)")}
     shared = sorted(old_cols & new_cols)
     col_list = ", ".join(shared)
-    conn.execute(
-        f"INSERT INTO notes_v8 ({col_list}) SELECT {col_list} FROM notes"
-    )
+    conn.execute(f"INSERT INTO notes_v8 ({col_list}) SELECT {col_list} FROM notes")
     conn.executescript("""
         DROP TABLE notes;
         ALTER TABLE notes_v8 RENAME TO notes;

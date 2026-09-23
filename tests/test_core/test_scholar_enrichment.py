@@ -242,7 +242,7 @@ def _stub_httpx(monkeypatch, sequence: list[_Resp]):
 @pytest.fixture
 def no_sleep(monkeypatch):
     slept: list[float] = []
-    monkeypatch.setattr(scholar.time, "sleep", lambda s: slept.append(s))
+    monkeypatch.setattr(scholar.time, "sleep", lambda s: slept.append(s))  # type: ignore[reportPrivateImportUsage]
     return slept
 
 

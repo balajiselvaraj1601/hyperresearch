@@ -78,6 +78,4 @@ def embed_status(
     if json_output:
         output(success(data, vault=str(vault.root)), json_mode=True)
     else:
-        console.print(
-            f"provider: {data['provider']}  embedded: {embedded}/{total} notes"
-        )
+        console.print(f"provider: {data['provider']}  embedded: {embedded}/{total} notes")

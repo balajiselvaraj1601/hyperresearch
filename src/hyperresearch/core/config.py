@@ -38,8 +38,12 @@ class FetchSettings:
     image_timeout_s: int = 15
     # Sites that kill headless sessions on first contact → auto-visible browser
     visible_browser_domains: tuple[str, ...] = (
-        "linkedin.com", "twitter.com", "x.com", "facebook.com",
-        "instagram.com", "tiktok.com",
+        "linkedin.com",
+        "twitter.com",
+        "x.com",
+        "facebook.com",
+        "instagram.com",
+        "tiktok.com",
     )
 
 
@@ -229,8 +233,18 @@ class VaultConfig:
     auto_sync: bool = True
     exclude_patterns: list[str] = field(
         default_factory=lambda: [
-            ".hyperresearch/*", "exports/*", ".git/*", ".venv/*", "node_modules/*", "templates/*",
-            "CLAUDE.md", "AGENTS.md", "agents.md", "GEMINI.md", "README.md", "CHANGELOG.md",
+            ".hyperresearch/*",
+            "exports/*",
+            ".git/*",
+            ".venv/*",
+            "node_modules/*",
+            "templates/*",
+            "CLAUDE.md",
+            "AGENTS.md",
+            "agents.md",
+            "GEMINI.md",
+            "README.md",
+            "CHANGELOG.md",
         ]
     )
 
@@ -286,7 +300,9 @@ class VaultConfig:
             search_tags_weight=search.get("tags_weight", cls.search_tags_weight),
             search_aliases_weight=search.get("aliases_weight", cls.search_aliases_weight),
             search_boost_evergreen=search.get("boost_evergreen", cls.search_boost_evergreen),
-            search_penalize_deprecated=search.get("penalize_deprecated", cls.search_penalize_deprecated),
+            search_penalize_deprecated=search.get(
+                "penalize_deprecated", cls.search_penalize_deprecated
+            ),
             search_penalize_stale=search.get("penalize_stale", cls.search_penalize_stale),
             search_default_limit=search.get("default_limit", cls.search_default_limit),
             search_chars_per_token=search.get("chars_per_token", cls.search_chars_per_token),

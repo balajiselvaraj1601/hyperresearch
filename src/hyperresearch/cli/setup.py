@@ -177,7 +177,7 @@ def setup(
         )
     )
     console.print()
-    console.print(f"  [dim]Start researching:[/]  {hpr_path} fetch \"https://...\" --tag topic -j")
+    console.print(f'  [dim]Start researching:[/]  {hpr_path} fetch "https://..." --tag topic -j')
     console.print("  [dim]Change settings:[/]    hyperresearch config show")
     console.print("  [dim]Re-run setup:[/]       hyperresearch setup")
     console.print()
@@ -209,10 +209,7 @@ def _list_profiles() -> list[str]:
     profiles_dir = Path.home() / ".crawl4ai" / "profiles"
     if not profiles_dir.exists():
         return []
-    return sorted(
-        d.name for d in profiles_dir.iterdir()
-        if d.is_dir() and (d / "Default").exists()
-    )
+    return sorted(d.name for d in profiles_dir.iterdir() if d.is_dir() and (d / "Default").exists())
 
 
 def _create_profile_interactive() -> str:
@@ -248,7 +245,10 @@ def _create_profile_interactive() -> str:
 
     try:
         result = subprocess.run(
-            [sys.executable, "-c", f"""
+            [
+                sys.executable,
+                "-c",
+                f"""
 import asyncio
 from crawl4ai import BrowserProfiler
 async def main():
@@ -256,7 +256,8 @@ async def main():
     path = await profiler.create_profile("{profile_name}")
     print(f"PROFILE_PATH={{path}}")
 asyncio.run(main())
-"""],
+""",
+            ],
             capture_output=False,
             timeout=600,
         )
@@ -264,7 +265,9 @@ asyncio.run(main())
             console.print(f"  [green]Profile '{profile_name}' saved.[/]")
             return profile_name
         else:
-            console.print("  [yellow]Profile creation exited. Run 'hyperresearch setup' to retry.[/]")
+            console.print(
+                "  [yellow]Profile creation exited. Run 'hyperresearch setup' to retry.[/]"
+            )
             return ""
     except subprocess.TimeoutExpired:
         console.print("  [yellow]Timed out. Run 'hyperresearch setup' to try again.[/]")
@@ -277,7 +280,8 @@ asyncio.run(main())
 
 def _check_crawl4ai() -> bool:
     try:
-        import crawl4ai  # noqa: F401
+        import crawl4ai  # type: ignore[import-untyped]
+
         return True
     except ImportError:
         return False
@@ -295,7 +299,7 @@ def _ensure_browser() -> None:
         try:
             from patchright.sync_api import sync_playwright
         except ImportError:
-            from playwright.sync_api import sync_playwright
+            from playwright.sync_api import sync_playwright  # type: ignore[assignment]
 
         pw = sync_playwright().start()
         browser = pw.chromium.launch(headless=True)

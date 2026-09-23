@@ -13,7 +13,9 @@ from hyperresearch.models.output import error, success
 
 def import_vault(
     source: str = typer.Argument(..., help="Source directory to import from"),
-    prefix: str = typer.Option("", "--prefix", "-p", help="Path prefix for imported notes (e.g. imported/ml)"),
+    prefix: str = typer.Option(
+        "", "--prefix", "-p", help="Path prefix for imported notes (e.g. imported/ml)"
+    ),
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview what would be imported"),
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
 ) -> None:
@@ -43,7 +45,8 @@ def import_vault(
     # Skip .hyperresearch/, templates/ etc. from source
     skip_dirs = {".hyperresearch", ".git", ".venv", "node_modules", "templates"}
     md_files = [
-        f for f in md_files
+        f
+        for f in md_files
         if not any(part in skip_dirs for part in f.relative_to(source_path).parts)
     ]
 
@@ -69,13 +72,20 @@ def import_vault(
 
     if not dry_run:
         from hyperresearch.core.sync import compute_sync_plan, execute_sync
+
         plan = compute_sync_plan(vault)
         execute_sync(vault, plan)
 
     if json_output:
         action = "would_import" if dry_run else "imported"
-        output(success({action: imported, "count": len(imported)}, count=len(imported),
-                       vault=str(vault.root)), json_mode=True)
+        output(
+            success(
+                {action: imported, "count": len(imported)},
+                count=len(imported),
+                vault=str(vault.root),
+            ),
+            json_mode=True,
+        )
     else:
         verb = "Would import" if dry_run else "Imported"
         console.print(f"[green]{verb} {len(imported)} files:[/]")

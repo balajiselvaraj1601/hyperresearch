@@ -58,7 +58,9 @@ def tag_alias(
     vault.db.commit()
 
     if json_output:
-        output(success({"alias": from_tag, "canonical": to_tag}, vault=str(vault.root)), json_mode=True)
+        output(
+            success({"alias": from_tag, "canonical": to_tag}, vault=str(vault.root)), json_mode=True
+        )
     else:
         console.print(f"[green]Alias:[/] {from_tag} -> {to_tag}")
         console.print("[dim]Run 'hyperresearch sync --force' to apply.[/]")
@@ -89,20 +91,32 @@ def tag_suggest(
         for ptag, pcount in popular:
             sim = SequenceMatcher(None, stag, ptag).ratio()
             if sim >= threshold and stag != ptag:
-                suggestions.append({
-                    "singleton": stag,
-                    "suggested_canonical": ptag,
-                    "similarity": round(sim, 2),
-                    "canonical_count": pcount,
-                })
+                suggestions.append(
+                    {
+                        "singleton": stag,
+                        "suggested_canonical": ptag,
+                        "similarity": round(sim, 2),
+                        "canonical_count": pcount,
+                    }
+                )
                 break  # Best match
 
         # Also catch simple plurals
     tag_set = {t[0] for t in tags}
     for stag, _sc in singletons:
-        if stag.endswith("s") and stag[:-1] in tag_set and stag not in [s["singleton"] for s in suggestions]:
-            suggestions.append({"singleton": stag, "suggested_canonical": stag[:-1],
-                "similarity": 0.95, "canonical_count": next((c for t, c in tags if t == stag[:-1]), 0)})
+        if (
+            stag.endswith("s")
+            and stag[:-1] in tag_set
+            and stag not in [s["singleton"] for s in suggestions]
+        ):
+            suggestions.append(
+                {
+                    "singleton": stag,
+                    "suggested_canonical": stag[:-1],
+                    "similarity": 0.95,
+                    "canonical_count": next((c for t, c in tags if t == stag[:-1]), 0),
+                }
+            )
 
     suggestions.sort(key=lambda s: s["similarity"], reverse=True)
 

@@ -35,8 +35,8 @@ class IndexGenerator:
         now_iso = datetime.now(UTC).isoformat()
         content = (
             f"---\n"
-            f"title: \"{title}\"\n"
-            f"id: \"{filename.replace('.md', '')}\"\n"
+            f'title: "{title}"\n'
+            f'id: "{filename.replace(".md", "")}"\n'
             f"type: index\n"
             f"created: {now_iso}\n"
             f"updated: {now_iso}\n"
@@ -67,7 +67,9 @@ class IndexGenerator:
             for n in notes:
                 status_badge = f"`{n['status']}`"
                 summary = f" — {n['summary']}" if n["summary"] else ""
-                lines.append(f"- [[{n['id']}]] — {n['title']}{summary} {status_badge} ({n['word_count']} words)")
+                lines.append(
+                    f"- [[{n['id']}]] — {n['title']}{summary} {status_badge} ({n['word_count']} words)"
+                )
 
         return self._write_index("_index.md", "Master Index", "\n".join(lines))
 
@@ -150,9 +152,9 @@ class IndexGenerator:
         broken = self.vault.db.execute(
             "SELECT COUNT(*) as c FROM links WHERE target_id IS NULL"
         ).fetchone()["c"]
-        total_tags = self.vault.db.execute(
-            "SELECT COUNT(DISTINCT tag) as c FROM tags"
-        ).fetchone()["c"]
+        total_tags = self.vault.db.execute("SELECT COUNT(DISTINCT tag) as c FROM tags").fetchone()[
+            "c"
+        ]
 
         by_status = {}
         for r in self.vault.db.execute("SELECT status, COUNT(*) as c FROM notes GROUP BY status"):
@@ -188,7 +190,10 @@ class IndexGenerator:
             "SELECT id, title, path, created FROM notes WHERE type = 'raw' ORDER BY created DESC"
         ).fetchall()
 
-        lines = ["# Unprocessed (Pending Compilation)\n", f"**{len(rows)}** raw notes awaiting compilation.\n"]
+        lines = [
+            "# Unprocessed (Pending Compilation)\n",
+            f"**{len(rows)}** raw notes awaiting compilation.\n",
+        ]
         for r in rows:
             date = r["created"][:10] if r["created"] and len(r["created"]) > 10 else r["created"]
             lines.append(f"- `{date}` [[{r['id']}]] — {r['title']}")
@@ -218,12 +223,15 @@ class IndexGenerator:
                 date = (r["created"] or "")[:10]
                 summary = f" — {r['summary']}" if r["summary"] else ""
                 lines.append(f"- `{date}` [[{r['id']}]] — {r['title']}{summary}")
-            built.append(self._write_index(f"_month-{month}.md", f"Month: {month}", "\n".join(lines)))
+            built.append(
+                self._write_index(f"_month-{month}.md", f"Month: {month}", "\n".join(lines))
+            )
         return built
 
     def _build_stale(self) -> str:
         """Evergreen notes not updated in 6+ months — candidates for review."""
         from datetime import datetime, timedelta
+
         cutoff = (datetime.now(UTC) - timedelta(days=180)).isoformat()
         rows = self.vault.db.execute(
             "SELECT id, title, status, updated, created, word_count FROM notes "

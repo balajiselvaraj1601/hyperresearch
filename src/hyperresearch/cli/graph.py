@@ -46,7 +46,11 @@ def graph_backlinks(
 
     if json_output:
         output(
-            success({"note_id": note_id, "backlinks": backlinks}, count=len(backlinks), vault=str(vault.root)),
+            success(
+                {"note_id": note_id, "backlinks": backlinks},
+                count=len(backlinks),
+                vault=str(vault.root),
+            ),
             json_mode=True,
         )
     else:
@@ -97,7 +101,11 @@ def graph_outlinks(
 
     if json_output:
         output(
-            success({"note_id": note_id, "outlinks": outlinks}, count=len(outlinks), vault=str(vault.root)),
+            success(
+                {"note_id": note_id, "outlinks": outlinks},
+                count=len(outlinks),
+                vault=str(vault.root),
+            ),
             json_mode=True,
         )
     else:
@@ -130,7 +138,9 @@ def graph_orphans(
         ORDER BY n.title
     """).fetchall()
 
-    orphans = [{"id": r["id"], "title": r["title"], "path": r["path"], "status": r["status"]} for r in rows]
+    orphans = [
+        {"id": r["id"], "title": r["title"], "path": r["path"], "status": r["status"]} for r in rows
+    ]
 
     if json_output:
         output(success(orphans, count=len(orphans), vault=str(vault.root)), json_mode=True)
@@ -180,8 +190,7 @@ def graph_broken(
         console.print(f"[bold red]Broken links ({len(broken)}):[/]")
         for b in broken:
             console.print(
-                f"  [cyan]{b['source_id']}[/] line {b['line_number']}: "
-                f"[[{b['target_ref']}]]"
+                f"  [cyan]{b['source_id']}[/] line {b['line_number']}: [[{b['target_ref']}]]"
             )
 
 
@@ -212,7 +221,10 @@ def graph_stub(
 
     if dry_run:
         if json_output:
-            output(success({"would_stub": targets, "count": len(targets)}, vault=str(vault.root)), json_mode=True)
+            output(
+                success({"would_stub": targets, "count": len(targets)}, vault=str(vault.root)),
+                json_mode=True,
+            )
         else:
             console.print(f"[bold]Would create {len(targets)} stub notes:[/]")
             for t in targets:
@@ -233,15 +245,21 @@ def graph_stub(
             status="draft",
             summary=stub_summary(target),
         )
-        created.append({"id": target, "title": title, "path": path.relative_to(vault.root).as_posix()})
+        created.append(
+            {"id": target, "title": title, "path": path.relative_to(vault.root).as_posix()}
+        )
 
     # Sync to resolve the links
     from hyperresearch.core.sync import compute_sync_plan, execute_sync
+
     plan = compute_sync_plan(vault)
     execute_sync(vault, plan)
 
     if json_output:
-        output(success({"stubbed": created, "count": len(created)}, vault=str(vault.root)), json_mode=True)
+        output(
+            success({"stubbed": created, "count": len(created)}, vault=str(vault.root)),
+            json_mode=True,
+        )
     else:
         console.print(f"[green]Created {len(created)} stub notes:[/]")
         for c in created:
@@ -272,7 +290,9 @@ def graph_hubs(
         (limit,),
     ).fetchall()
 
-    hubs = [{"id": r["target_id"], "title": r["title"], "inbound_links": r["inbound"]} for r in rows]
+    hubs = [
+        {"id": r["target_id"], "title": r["title"], "inbound_links": r["inbound"]} for r in rows
+    ]
 
     if json_output:
         output(success(hubs, count=len(hubs), vault=str(vault.root)), json_mode=True)

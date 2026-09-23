@@ -5,7 +5,6 @@
 accented Latin text — was silently discarded as binary garbage.
 """
 
-# ruff: noqa: RUF001
 # RUF001/RUF003 flag fullwidth punctuation as "ambiguous" ASCII lookalikes.
 # Here it is the correct punctuation for the language being tested, and real
 # non-ASCII text is the entire point of this file — substituting ASCII commas

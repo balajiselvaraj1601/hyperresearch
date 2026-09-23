@@ -23,4 +23,5 @@ def serve(
     vault.auto_sync()
 
     from hyperresearch.serve.server import run_server
+
     run_server(vault, port=port, open_browser=open_browser)

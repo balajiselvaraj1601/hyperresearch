@@ -20,7 +20,9 @@ def _result(content: str, url: str = "https://publisher.example.com/doi/10.1/x",
 def public_dns(monkeypatch):
     """Resolve every hostname to a public address, with no network access."""
     monkeypatch.setattr(
-        oa.socket, "getaddrinfo", lambda host, port: [(2, 1, 6, "", ("93.184.216.34", 0))]
+        oa.socket,  # type: ignore[reportPrivateImportUsage]
+        "getaddrinfo",
+        lambda host, port: [(2, 1, 6, "", ("93.184.216.34", 0))],  # type: ignore[reportPrivateImportUsage]
     )
 
 
@@ -53,9 +55,7 @@ UNPAYWALL_PDF = {
 
 EPMC_HIT = {
     "resultList": {
-        "result": [
-            {"pmcid": "PMC12345", "isOpenAccess": "Y", "inEPMC": "Y", "license": "cc-by"}
-        ]
+        "result": [{"pmcid": "PMC12345", "isOpenAccess": "Y", "inEPMC": "Y", "license": "cc-by"}]
     }
 }
 
@@ -82,13 +82,17 @@ class TestCheckOaUrl:
 
     def test_rejects_private_address(self, monkeypatch):
         monkeypatch.setattr(
-            oa.socket, "getaddrinfo", lambda h, p: [(2, 1, 6, "", ("169.254.169.254", 0))]
+            oa.socket,  # type: ignore[reportPrivateImportUsage]
+            "getaddrinfo",
+            lambda h, p: [(2, 1, 6, "", ("169.254.169.254", 0))],  # type: ignore[reportPrivateImportUsage]
         )
         ok, reason = oa.check_oa_url("https://metadata.example.org/p.pdf")
         assert ok is False and "non-public address" in reason
 
     def test_rejects_loopback_ip_literal(self, monkeypatch):
-        monkeypatch.setattr(oa.socket, "getaddrinfo", lambda h, p: [(2, 1, 6, "", ("127.0.0.1", 0))])
+        monkeypatch.setattr(
+            oa.socket, "getaddrinfo", lambda h, p: [(2, 1, 6, "", ("127.0.0.1", 0))]  # type: ignore[reportPrivateImportUsage]
+        )  # type: ignore[reportPrivateImportUsage]
         ok, reason = oa.check_oa_url("https://127.0.0.1/p.pdf")
         assert ok is False and "non-public address" in reason
 
@@ -96,7 +100,7 @@ class TestCheckOaUrl:
         def boom(host, port):
             raise OSError("nope")
 
-        monkeypatch.setattr(oa.socket, "getaddrinfo", boom)
+        monkeypatch.setattr(oa.socket, "getaddrinfo", boom)  # type: ignore[reportPrivateImportUsage]
         ok, reason = oa.check_oa_url("https://nowhere.example.org/p.pdf")
         assert ok is False and "DNS resolution failed" in reason
 
@@ -163,10 +167,15 @@ class TestResolve:
     def test_unpaywall_pdf_preferred(self, tmp_vault, monkeypatch):
         _stub_http(monkeypatch, {"unpaywall": UNPAYWALL_PDF})
         loc = oa.resolve_oa(tmp_vault.db, "10.1/x", 30, email="a@b.co")
+        assert loc is not None
         assert loc.url == "https://repo.example.org/record/1.pdf"
+        assert loc is not None
         assert loc.resolver == "unpaywall"
+        assert loc is not None
         assert loc.kind == "pdf"
+        assert loc is not None
         assert loc.version == "publishedVersion"
+        assert loc is not None
         assert loc.license == "cc-by"
 
     def test_published_version_beats_preprint(self, tmp_vault, monkeypatch):
@@ -181,6 +190,7 @@ class TestResolve:
         }
         _stub_http(monkeypatch, {"unpaywall": payload})
         loc = oa.resolve_oa(tmp_vault.db, "10.1/x", 30, email="a@b.co")
+        assert loc is not None
         assert loc.url == "https://a.example.org/pub.pdf"
 
     def test_pdf_beats_a_better_version_without_one(self, tmp_vault, monkeypatch):
@@ -193,20 +203,26 @@ class TestResolve:
         }
         _stub_http(monkeypatch, {"unpaywall": payload})
         loc = oa.resolve_oa(tmp_vault.db, "10.1/x", 30, email="a@b.co")
+        assert loc is not None
         assert loc.url == "https://a.example.org/acc.pdf"
+        assert loc is not None
         assert loc.kind == "pdf"
 
     def test_landing_page_used_when_no_pdf_anywhere(self, tmp_vault, monkeypatch):
         payload = {"is_oa": True, "best_oa_location": {"url": "https://a.example.org/landing"}}
         _stub_http(monkeypatch, {"unpaywall": payload})
         loc = oa.resolve_oa(tmp_vault.db, "10.1/x", 30, email="a@b.co")
+        assert loc is not None
         assert loc.url == "https://a.example.org/landing"
+        assert loc is not None
         assert loc.kind == "page"
 
     def test_closed_access_falls_through_to_epmc(self, tmp_vault, monkeypatch):
         _stub_http(monkeypatch, {"unpaywall": {"is_oa": False}, "europepmc": EPMC_HIT})
         loc = oa.resolve_oa(tmp_vault.db, "10.1/x", 30, email="a@b.co")
+        assert loc is not None
         assert loc.resolver == "europepmc"
+        assert loc is not None
         assert loc.url.endswith("/PMC12345/fullTextXML")
 
     def test_epmc_requires_open_access_flag(self, tmp_vault, monkeypatch):
@@ -253,7 +269,9 @@ class TestDisclosure:
 
     def test_version_of_record_gets_no_warning(self):
         loc = oa.OALocation(
-            url="https://a.example.org/p.pdf", resolver="europepmc", kind="pdf",
+            url="https://a.example.org/p.pdf",
+            resolver="europepmc",
+            kind="pdf",
             version="publishedVersion",
         )
         assert "Quote this source with care" not in oa.recovery_notice(loc, "https://p/x", 900)
@@ -270,7 +288,9 @@ class TestDisclosure:
         """The rescue banner makes the stronger claim, because it is true: the
         source was never read, so the title and authors are the copy's too."""
         loc = oa.OALocation(
-            url="https://repo.example.org/p.xml", resolver="europepmc", kind="jats",
+            url="https://repo.example.org/p.xml",
+            resolver="europepmc",
+            kind="jats",
             version="publishedVersion",
         )
         text = oa.recovery_notice(
@@ -317,9 +337,11 @@ class TestRecoverFullText:
     def test_happy_path_swaps_the_body(self, vault, monkeypatch, public_dns):
         _stub_http(monkeypatch, {"unpaywall": UNPAYWALL_PDF})
         self._stub_pdf(monkeypatch, _result(FULL_TEXT, url="https://repo.example.org/record/1.pdf"))
-        out, loc = oa.recover_full_text(vault, None, "https://p.example.com/x", "10.1/x",
-                                        _result(ABSTRACT))
+        out, loc = oa.recover_full_text(
+            vault, None, "https://p.example.com/x", "10.1/x", _result(ABSTRACT)
+        )
         assert loc is not None and loc.resolver == "unpaywall"
+        assert out is not None
         assert out.content == FULL_TEXT
 
     def test_no_doi_is_a_no_op(self, vault, monkeypatch):
@@ -341,7 +363,9 @@ class TestRecoverFullText:
         }
         _stub_http(monkeypatch, {"unpaywall": payload})
         monkeypatch.setattr(
-            oa.socket, "getaddrinfo", lambda h, p: [(2, 1, 6, "", ("169.254.169.254", 0))]
+            oa.socket,  # type: ignore[reportPrivateImportUsage]
+            "getaddrinfo",
+            lambda h, p: [(2, 1, 6, "", ("169.254.169.254", 0))],  # type: ignore[reportPrivateImportUsage]
         )
         self._stub_pdf(monkeypatch, _result(FULL_TEXT))
         original = _result(ABSTRACT)
@@ -379,7 +403,9 @@ class TestRecoverFullText:
         monkeypatch.setattr(pdf_lane, "fetch_pdf", flaky)
         out, loc = oa.recover_full_text(vault, None, "https://p/x", "10.1/x", _result(ABSTRACT))
         assert tried == ["https://blocked.example.org/a.pdf", "https://mirror.example.org/b.pdf"]
+        assert loc is not None
         assert loc.url == "https://mirror.example.org/b.pdf"
+        assert out is not None
         assert out.content == FULL_TEXT
 
     def test_attempt_cap_is_honoured(self, vault, monkeypatch, public_dns):
@@ -396,9 +422,7 @@ class TestRecoverFullText:
         from hyperresearch.web import pdf as pdf_lane
 
         tried: list[str] = []
-        monkeypatch.setattr(
-            pdf_lane, "fetch_pdf", lambda url, s: tried.append(url) or None
-        )
+        monkeypatch.setattr(pdf_lane, "fetch_pdf", lambda url, s: tried.append(url) or None)
         original = _result(ABSTRACT)
         out, loc = oa.recover_full_text(vault, None, "https://p/x", "10.1/x", original)
         assert len(tried) == 2
@@ -454,9 +478,11 @@ class TestRecoverFullText:
             def fetch(self, url):
                 return _result(FULL_TEXT, url=url)
 
-        out, loc = oa.recover_full_text(vault, FakeProvider(), "https://p/x", "10.1/x",
-                                        _result(ABSTRACT))
+        out, loc = oa.recover_full_text(
+            vault, FakeProvider(), "https://p/x", "10.1/x", _result(ABSTRACT)
+        )
         assert loc is not None and loc.kind == "page"
+        assert out is not None
         assert out.content == FULL_TEXT
 
 
@@ -470,10 +496,15 @@ JATS = """<article>
       <p>Widgets matter <xref ref-type="bibr" rid="b1">[1]</xref> a great deal.</p>
       <sec><title>Prior work</title><p>Others tried.</p></sec>
     </sec>
+    assert md is not None
     <sec><title>Methods</title>
+      assert md is not None
       <p>We used calipers.</p>
+      assert md is not None
       <fig><caption><p>Figure 1. A widget.</p></caption></fig>
+      assert md is not None
       <list><list-item><p>first</p></list-item><list-item><p>second</p></list-item></list>
+    assert md is not None
     </sec>
   </body>
   <back><ref-list><ref id="b1"><mixed-citation>Someone 1999</mixed-citation></ref></ref-list></back>
@@ -483,6 +514,7 @@ JATS = """<article>
 class TestJats:
     def test_structure_and_inline_flattening(self):
         md = oa.jats_to_markdown(JATS)
+        assert md is not None
         assert md.startswith("# Widgets and Gadgets")
         assert "## Abstract" in md
         assert "We measured widgets." in md
@@ -493,11 +525,14 @@ class TestJats:
 
     def test_xref_markers_are_dropped_without_eating_the_sentence(self):
         md = oa.jats_to_markdown(JATS)
+        assert md is not None
         assert "Widgets matter a great deal." in md
         assert "[1]" not in md
 
     def test_back_matter_is_excluded(self):
-        assert "Someone 1999" not in oa.jats_to_markdown(JATS)
+        md = oa.jats_to_markdown(JATS)
+        assert md is not None
+        assert "Someone 1999" not in md
 
     def test_unparseable_xml_returns_none(self):
         assert oa.jats_to_markdown("<article><body>") is None
@@ -529,6 +564,7 @@ class TestEpmcRecovery:
         out, loc = oa.recover_full_text(
             tmp_vault, None, "https://p.example.com/x", "10.1/x", original
         )
+        assert out is not None
         assert out is original and loc is None
 
 
@@ -551,6 +587,7 @@ class TestRescueFullText:
         self._stub_pdf(monkeypatch, _result(FULL_TEXT))
         out, loc = oa.rescue_full_text(vault, None, "https://p.example.com/x", "10.1/x")
         assert loc is not None and loc.resolver == "unpaywall"
+        assert out is not None
         assert out.content == FULL_TEXT
 
     def test_still_requires_real_full_text(self, vault, monkeypatch, public_dns):
@@ -567,9 +604,7 @@ class TestRescueFullText:
         assert calls == []
 
     def test_switchable_independently_of_recovery(self, tmp_vault, monkeypatch):
-        tmp_vault.config.scholar = ScholarSettings(
-            contact_email="a@b.co", oa_rescue_blocked=False
-        )
+        tmp_vault.config.scholar = ScholarSettings(contact_email="a@b.co", oa_rescue_blocked=False)
         calls = _stub_http(monkeypatch, {"unpaywall": UNPAYWALL_PDF})
         assert oa.rescue_full_text(tmp_vault, None, "https://p/x", "10.1/x") == (None, None)
         assert calls == []
@@ -587,7 +622,9 @@ class TestRescueFullText:
         }
         _stub_http(monkeypatch, {"unpaywall": payload})
         monkeypatch.setattr(
-            oa.socket, "getaddrinfo", lambda h, p: [(2, 1, 6, "", ("169.254.169.254", 0))]
+            oa.socket,  # type: ignore[reportPrivateImportUsage]
+            "getaddrinfo",
+            lambda h, p: [(2, 1, 6, "", ("169.254.169.254", 0))],  # type: ignore[reportPrivateImportUsage]
         )
         self._stub_pdf(monkeypatch, _result(FULL_TEXT))
         assert oa.rescue_full_text(vault, None, "https://p/x", "10.1/x") == (None, None)

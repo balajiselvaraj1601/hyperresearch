@@ -77,7 +77,7 @@ def test_provider_registered_via_factory(parallel_module: ModuleType) -> None:
     provider = get_provider("parallel", settings=FetchSettings(page_timeout_ms=4321))
 
     assert isinstance(provider, parallel_module.ParallelProvider)
-    assert provider._timeout == timedelta(milliseconds=4321)
+    assert provider._timeout == timedelta(milliseconds=4321)  # type: ignore[attr-defined]
 
 
 def test_missing_sdk_names_parallel_extra(monkeypatch: pytest.MonkeyPatch) -> None:

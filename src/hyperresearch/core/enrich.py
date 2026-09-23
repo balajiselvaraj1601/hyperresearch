@@ -33,6 +33,7 @@ def auto_tag(body_plain: str, existing_tags: list[dict]) -> list[str]:
         if matches:
             # Score: fraction of tag words found * log popularity
             import math
+
             frac = len(matches) / len(tag_words)
             score = frac * (1 + math.log(max(count, 1)))
             scored.append((tag, score))

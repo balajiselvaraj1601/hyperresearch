@@ -95,8 +95,7 @@ def profile_list(
             console.print(f"    {r['description']}")
         if r["sources"]:
             console.print(
-                f"    [dim]sources {r['sources'][0]}-{r['sources'][1]}"
-                f"  {r['time_estimate']}[/]"
+                f"    [dim]sources {r['sources'][0]}-{r['sources'][1]}  {r['time_estimate']}[/]"
             )
     console.print(
         "\n[dim]Tiers route per query (light auto, dissertation opt-in). "
@@ -106,7 +105,9 @@ def profile_list(
 
 @app.command("use")
 def profile_use(
-    name: str = typer.Argument(..., help="Gear profile to switch to (full, premier, or a [profile.*] overlay)"),
+    name: str = typer.Argument(
+        ..., help="Gear profile to switch to (full, premier, or a [profile.*] overlay)"
+    ),
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
 ) -> None:
     """Switch the pipeline scale gear: re-render installed skills/agents from this profile and persist it as the project default."""
@@ -174,7 +175,9 @@ def profile_use(
         console.print(f"  re-rendered {len(actions)} skill/agent file(s)")
     else:
         console.print("  [dim]all installed prompts already at this gear[/]")
-    console.print("[dim]Takes effect on the next /hyperresearch run. Revert with: hyperresearch profile use full[/]")
+    console.print(
+        "[dim]Takes effect on the next /hyperresearch run. Revert with: hyperresearch profile use full[/]"
+    )
 
 
 @app.command("show")
@@ -227,7 +230,10 @@ def profile_validate(
 
     if json_output:
         if ok:
-            output(success({"profiles": results, "all_valid": True}, count=len(results)), json_mode=True)
+            output(
+                success({"profiles": results, "all_valid": True}, count=len(results)),
+                json_mode=True,
+            )
         else:
             bad = "; ".join(f"{r['name']}: {r['error']}" for r in results if not r["valid"])
             output(error(f"invalid profile(s) — {bad}", "INVALID_PROFILE"), json_mode=True)

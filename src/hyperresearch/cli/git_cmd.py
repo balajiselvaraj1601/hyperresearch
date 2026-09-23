@@ -57,8 +57,8 @@ def git_log(
         raise typer.Exit(1)
 
     # Parse git log output
-    commits = []
-    current_commit = None
+    commits: list[dict[str, str | list[str]]] = []
+    current_commit: dict[str, str | list[str]] | None = None
     for line in out.strip().split("\n"):
         if not line:
             continue
@@ -70,9 +70,10 @@ def git_log(
                 "date": parts[2].strip()[:10],
                 "files": [],
             }
-            commits.append(current_commit)
+            commits.append(current_commit)  # type: ignore[arg-type]
         elif current_commit and line.endswith(".md"):
-            current_commit["files"].append(line.strip())
+            if isinstance(current_commit["files"], list):
+                current_commit["files"].append(line.strip())
 
     if json_output:
         output(success(commits, count=len(commits), vault=str(vault.root)), json_mode=True)
@@ -114,7 +115,10 @@ def git_blame(
         raise typer.Exit(1)
 
     if json_output:
-        output(success({"note_id": note_id, "path": row["path"], "blame": out}, vault=str(vault.root)), json_mode=True)
+        output(
+            success({"note_id": note_id, "path": row["path"], "blame": out}, vault=str(vault.root)),
+            json_mode=True,
+        )
     else:
         # Simplified blame output
         _rc2, simple = _run_git(vault.root, ["blame", "--date=short", row["path"]])
@@ -157,5 +161,10 @@ def git_changed(
             console.print("[green]No uncommitted changes to .md files.[/]")
             return
         for c in changes:
-            style = {"modified": "yellow", "added": "green", "deleted": "red", "untracked": "dim"}.get(c["status"], "")
+            style = {
+                "modified": "yellow",
+                "added": "green",
+                "deleted": "red",
+                "untracked": "dim",
+            }.get(c["status"], "")
             console.print(f"  [{style}]{c['status']:10s}[/] {c['path']}")

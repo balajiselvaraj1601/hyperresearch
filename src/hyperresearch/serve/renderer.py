@@ -75,6 +75,7 @@ def render_markdown(body: str) -> str:
 
     # Handle code blocks (preserve them)
     code_blocks = []
+
     def save_code_block(m):
         code_blocks.append(m.group(0))
         return f"\x00CODE{len(code_blocks) - 1}\x00"
@@ -83,7 +84,7 @@ def render_markdown(body: str) -> str:
 
     # Apply markdown patterns
     for pattern, replacement in MD_PATTERNS:
-        text = pattern.sub(replacement, text)
+        text = pattern.sub(replacement, text)  # type: ignore[call-overload]
 
     # Wiki links: [[target|display]] or [[target]]
     def replace_wiki_link(m):
@@ -107,7 +108,7 @@ def render_markdown(body: str) -> str:
     # Tables
     lines = text.split("\n")
     in_table = False
-    table_lines = []
+    table_lines: list[str] = []
     result_lines = []
     for line in lines:
         if "|" in line and line.strip().startswith("|"):

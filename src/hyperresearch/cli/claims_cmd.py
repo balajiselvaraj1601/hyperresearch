@@ -35,7 +35,9 @@ def claims_ingest(
         ),
     ),
     vault_tag: str | None = typer.Option(
-        None, "--tag", "-t",
+        None,
+        "--tag",
+        "-t",
         help="vault_tag to stamp on ingested claims; also narrows the default scan to that run's temp/",
     ),
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
@@ -45,13 +47,20 @@ def claims_ingest(
     Fetchers write `output/runs/<vault_tag>/temp/claims-<note-id>.json`;
     the no-argument form finds those (and the legacy flat `output/temp/`).
     """
-    from hyperresearch.core.claims import ingest_claims_dir, ingest_claims_file
+    from hyperresearch.core.claims import _IngestSummary, ingest_claims_dir, ingest_claims_file
 
     vault = _vault_or_exit(json_output)
     vault.auto_sync()
 
     if paths:
-        summary = {"files": len(paths), "ingested": 0, "skipped": 0, "errors": []}
+        summary: _IngestSummary = {
+            "files": len(paths),
+            "ingested": 0,
+            "skipped": 0,
+            "errors": [],
+            "scanned": [],
+            "hint": "",
+        }
         for p in paths:
             r = ingest_claims_file(vault.db, Path(p), vault_tag)
             summary["ingested"] += r["ingested"]
@@ -77,7 +86,9 @@ def claims_ingest(
 @app.command("list")
 def claims_list(
     note: str | None = typer.Option(None, "--note", help="Only claims from this source note"),
-    vault_tag: str | None = typer.Option(None, "--tag", "-t", help="Only claims with this vault_tag"),
+    vault_tag: str | None = typer.Option(
+        None, "--tag", "-t", help="Only claims with this vault_tag"
+    ),
     limit: int = typer.Option(100, "--limit", "-n", help="Max claims"),
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
 ) -> None:
@@ -116,13 +127,17 @@ def claims_search(
         for r in rows:
             console.print(f"  [cyan]{r['note_id']}[/] {r['claim'][:120]}")
             if r.get("quoted_support"):
-                console.print(f"    [dim]\"{r['quoted_support'][:160]}\"[/]")
+                console.print(f'    [dim]"{r["quoted_support"][:160]}"[/]')
 
 
 @app.command("matrix")
 def claims_matrix(
-    vault_tag: str | None = typer.Option(None, "--tag", "-t", help="Only claims with this vault_tag"),
-    out: str | None = typer.Option(None, "--out", "-o", help="Write the markdown table to this file"),
+    vault_tag: str | None = typer.Option(
+        None, "--tag", "-t", help="Only claims with this vault_tag"
+    ),
+    out: str | None = typer.Option(
+        None, "--out", "-o", help="Write the markdown table to this file"
+    ),
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
 ) -> None:
     """Literature-review matrix: one row per claimed source (tier, quality, key finding).
@@ -140,7 +155,10 @@ def claims_matrix(
         Path(out).write_text(render_matrix_markdown(rows), encoding="utf-8")
 
     if json_output:
-        output(success({"rows": rows, "written_to": out}, count=len(rows), vault=str(vault.root)), json_mode=True)
+        output(
+            success({"rows": rows, "written_to": out}, count=len(rows), vault=str(vault.root)),
+            json_mode=True,
+        )
     else:
         console.print(render_matrix_markdown(rows))
         if out:
@@ -149,8 +167,12 @@ def claims_matrix(
 
 @app.command("targets")
 def claims_targets(
-    vault_tag: str | None = typer.Option(None, "--tag", "-t", help="Only claims with this vault_tag"),
-    min_sources: int = typer.Option(2, "--min-sources", help="Only targets addressed by >= N distinct sources"),
+    vault_tag: str | None = typer.Option(
+        None, "--tag", "-t", help="Only claims with this vault_tag"
+    ),
+    min_sources: int = typer.Option(
+        2, "--min-sources", help="Only targets addressed by >= N distinct sources"
+    ),
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
 ) -> None:
     """Group claims by stance_target across sources — meta-analysis substrate.
@@ -164,7 +186,11 @@ def claims_targets(
     groups = group_by_target(vault.db, vault_tag=vault_tag, min_sources=min_sources)
 
     if json_output:
-        output(success({"targets": groups}, count=len(groups), vault=str(vault.root)), json_mode=True)
+        output(
+            success({"targets": groups}, count=len(groups), vault=str(vault.root)), json_mode=True
+        )
     else:
         for g in groups:
-            console.print(f"  [cyan]{g['stance_target']}[/] {g['n_sources']} sources, {g['n_claims']} claims, stances={g['stances']}")
+            console.print(
+                f"  [cyan]{g['stance_target']}[/] {g['n_sources']} sources, {g['n_claims']} claims, stances={g['stances']}"
+            )

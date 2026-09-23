@@ -50,7 +50,7 @@ class _FakeCR:
         self.url = url
         self.markdown = f"browser text for {url}"  # str path -> content = markdown
         self.metadata = {"title": "Fallback Title"}
-        self.media = {}
+        self.media: dict[str, str] = {}
         self.screenshot = None
         self.html = "<html></html>"
 
@@ -89,7 +89,7 @@ def test_failed_pdf_falls_back_to_browser_lane(monkeypatch):
     captured: list[str] = []
     inst = _bare_provider(captured, monkeypatch)
 
-    results = _run(inst._fetch_many_async(["http://8.8.8.8/paper.pdf"]))
+    results = _run(inst._fetch_many_async(["http://8.8.8.8/paper.pdf"]))  # type: ignore[attr-defined]
 
     assert captured == ["http://8.8.8.8/paper.pdf"]
     assert len(results) == 1
@@ -104,7 +104,7 @@ def test_successful_pdf_does_not_reach_browser_lane(monkeypatch):
     captured: list[str] = []
     inst = _bare_provider(captured, monkeypatch)
 
-    results = _run(inst._fetch_many_async(["http://8.8.8.8/paper.pdf"]))
+    results = _run(inst._fetch_many_async(["http://8.8.8.8/paper.pdf"]))  # type: ignore[attr-defined]
 
     assert captured == []  # browser lane never entered
     assert results == [real]

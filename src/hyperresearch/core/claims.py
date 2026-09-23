@@ -19,6 +19,25 @@ import json
 import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import TypedDict
+
+
+class _IngestResult(TypedDict):
+    file: str
+    note_id: str | None
+    ingested: int
+    skipped: int
+    errors: list[str]
+
+
+class _IngestSummary(TypedDict):
+    files: int
+    ingested: int
+    skipped: int
+    errors: list[str]
+    scanned: list[str]
+    hint: str
+
 
 # Claims files are written by agents from fetched (hostile) page content.
 # Bound what one file can cost: a size cap before it is read into memory,
@@ -68,7 +87,7 @@ def _note_id_from_filename(path: Path) -> str | None:
     """claims-<note-id>.json -> <note-id>."""
     stem = path.stem
     if stem.startswith("claims-"):
-        return stem[len("claims-"):]
+        return stem[len("claims-") :]
     return None
 
 
@@ -83,10 +102,16 @@ def _iter_claim_dicts(data) -> list[dict]:
     return []
 
 
-def ingest_claims_file(conn, path: Path, vault_tag: str | None = None) -> dict:
+def ingest_claims_file(conn, path: Path, vault_tag: str | None = None) -> _IngestResult:
     """Ingest one claims JSON file. Returns {ingested, skipped, errors}."""
     note_id = _note_id_from_filename(path)
-    result = {"file": str(path), "note_id": note_id, "ingested": 0, "skipped": 0, "errors": []}
+    result: _IngestResult = {
+        "file": str(path),
+        "note_id": note_id,
+        "ingested": 0,
+        "skipped": 0,
+        "errors": [],
+    }
     if note_id is None:
         result["errors"].append("filename does not match claims-<note-id>.json")
         return result
@@ -205,7 +230,9 @@ def discover_claims_files(vault, vault_tag: str | None = None) -> list[Path]:
     return sorted(files)
 
 
-def ingest_claims_dir(vault, temp_dir: Path | None = None, vault_tag: str | None = None) -> dict:
+def ingest_claims_dir(
+    vault, temp_dir: Path | None = None, vault_tag: str | None = None
+) -> _IngestSummary:
     """Ingest claims-*.json files. Returns a summary.
 
     `temp_dir` given: scan exactly that directory (no recursion). Otherwise
@@ -220,12 +247,13 @@ def ingest_claims_dir(vault, temp_dir: Path | None = None, vault_tag: str | None
     else:
         scanned = [temp_dir]
         files = _glob_claims(temp_dir)
-    summary = {
+    summary: _IngestSummary = {
         "files": len(files),
         "ingested": 0,
         "skipped": 0,
         "errors": [],
         "scanned": [str(d) for d in scanned],
+        "hint": "",
     }
     if not files:
         summary["hint"] = (
@@ -267,7 +295,8 @@ def list_claims(
         "SELECT id, note_id, claim, quoted_support, numbers, confidence, "
         "evidence_type, stance_target, stance, vault_tag FROM claims"
     )
-    conds, params = [], []
+    conds: list[str] = []
+    params: list[str | int] = []
     if note_id:
         conds.append("note_id = ?")
         params.append(note_id)
@@ -364,9 +393,7 @@ def group_by_target(conn, vault_tag: str | None = None, min_sources: int = 2) ->
     for row in conn.execute(query, params).fetchall():
         target = row["stance_target"]
         detail_params: list = [target]
-        detail_query = (
-            "SELECT note_id, stance, numbers, claim FROM claims WHERE stance_target = ?"
-        )
+        detail_query = "SELECT note_id, stance, numbers, claim FROM claims WHERE stance_target = ?"
         if vault_tag:
             detail_query += " AND vault_tag = ?"
             detail_params.append(vault_tag)
@@ -381,11 +408,13 @@ def group_by_target(conn, vault_tag: str | None = None, min_sources: int = 2) ->
                     values.append({"note_id": d["note_id"], "numbers": json.loads(d["numbers"])})
                 except json.JSONDecodeError:
                     pass
-        groups.append({
-            "stance_target": target,
-            "n_sources": row["n_sources"],
-            "n_claims": row["n_claims"],
-            "stances": stances,
-            "quantified": values,
-        })
+        groups.append(
+            {
+                "stance_target": target,
+                "n_sources": row["n_sources"],
+                "n_claims": row["n_claims"],
+                "stances": stances,
+                "quantified": values,
+            }
+        )
     return groups

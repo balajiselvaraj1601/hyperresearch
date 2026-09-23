@@ -46,9 +46,7 @@ class ExaProvider:
         try:
             from exa_py import Exa
         except ImportError as exc:
-            raise ImportError(
-                'exa provider requires: pip install "hyperresearch[exa]"'
-            ) from exc
+            raise ImportError('exa provider requires: pip install "hyperresearch[exa]"') from exc
 
         key = api_key or os.environ.get("EXA_API_KEY", "").strip()
         if not key:

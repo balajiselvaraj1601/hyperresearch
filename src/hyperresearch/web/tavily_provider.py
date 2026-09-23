@@ -40,7 +40,7 @@ class TavilyProvider:
         exclude_domains: list[str] | None = None,
     ):
         try:
-            from tavily import TavilyClient
+            from tavily import TavilyClient  # type: ignore[import-not-found]
         except ImportError as exc:
             raise ImportError(
                 'tavily provider requires: pip install "hyperresearch[tavily]"'
@@ -49,8 +49,7 @@ class TavilyProvider:
         key = api_key or os.environ.get("TAVILY_API_KEY", "").strip()
         if not key:
             raise RuntimeError(
-                "TAVILY_API_KEY is not set. Get a free key at "
-                "https://app.tavily.com and export it."
+                "TAVILY_API_KEY is not set. Get a free key at https://app.tavily.com and export it."
             )
 
         self._client = TavilyClient(api_key=key)

@@ -56,8 +56,8 @@ class _FakeCR:
         self.redirected_url = final_url or requested
         self.markdown = f"browser text for {requested}"
         self.metadata = {"title": "T"}
-        self.media = {}
-        self.links = {}
+        self.media: dict[str, str] = {}
+        self.links: dict[str, str] = {}
         self.screenshot = None
         self.html = "<html></html>"
 
@@ -94,9 +94,7 @@ def _bare_provider(
     inst._run_config = object()
     inst._headless = True
     inst._data_dir = None
-    monkeypatch.setattr(
-        inst, "_make_crawler", lambda: _FakeCrawler(captured, redirects or {})
-    )
+    monkeypatch.setattr(inst, "_make_crawler", lambda: _FakeCrawler(captured, redirects or {}))
     return inst
 
 
@@ -110,9 +108,7 @@ def test_same_host_final_url_skips_re_resolution():
     already vouched for this hostname."""
     with patch("hyperresearch.web.safe_http.socket.getaddrinfo") as gai:
         gai.side_effect = AssertionError("must not re-resolve same-host final URL")
-        provider._check_final_url(
-            "http://a.example/x", "http://a.example/y", FetchSettings()
-        )
+        provider._check_final_url("http://a.example/x", "http://a.example/y", FetchSettings())
 
 
 def test_unchanged_or_missing_final_url_is_a_noop():
@@ -143,21 +139,23 @@ def test_final_url_recheck_honors_the_allowlist():
 def test_single_fetch_refuses_result_that_landed_private(monkeypatch):
     captured: list[str] = []
     inst = _bare_provider(
-        captured, monkeypatch,
+        captured,
+        monkeypatch,
         redirects={"http://8.8.8.8/a": "http://127.0.0.1/admin"},
     )
     with pytest.raises(SafeHTTPError, match="ended at refused URL"):
-        _run(inst._fetch_async("http://8.8.8.8/a"))
+        _run(inst._fetch_async("http://8.8.8.8/a"))  # type: ignore[attr-defined]
 
 
 def test_batch_drops_only_the_result_that_landed_private(monkeypatch):
     captured: list[str] = []
     inst = _bare_provider(
-        captured, monkeypatch,
+        captured,
+        monkeypatch,
         redirects={"http://8.8.8.8/bad": "http://127.0.0.1/admin"},
     )
     results = _run(
-        inst._fetch_many_async(["http://8.8.8.8/bad", "http://8.8.8.8/good"])
+        inst._fetch_many_async(["http://8.8.8.8/bad", "http://8.8.8.8/good"])  # type: ignore[attr-defined]
     )
     assert [r.url for r in results] == ["http://8.8.8.8/good"]
 
@@ -178,7 +176,7 @@ def test_batch_cert_refused_pdf_is_skipped_not_browsered(monkeypatch):
     captured: list[str] = []
     inst = _bare_provider(captured, monkeypatch)
 
-    results = _run(inst._fetch_many_async(["http://8.8.8.8/paper.pdf"]))
+    results = _run(inst._fetch_many_async(["http://8.8.8.8/paper.pdf"]))  # type: ignore[attr-defined]
 
     assert results == []
     assert captured == []  # browser lane never entered
@@ -190,5 +188,5 @@ def test_single_fetch_cert_refusal_propagates_without_browser(monkeypatch):
     inst = _bare_provider(captured, monkeypatch)
 
     with pytest.raises(CertVerificationError):
-        inst.fetch("http://8.8.8.8/paper.pdf")
+        inst.fetch("http://8.8.8.8/paper.pdf")  # type: ignore[attr-defined]
     assert captured == []

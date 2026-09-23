@@ -85,7 +85,7 @@ def render_header(profile_name: str, version: str) -> str:
     `---` would break frontmatter parsing.
     """
     return (
-        f"<!-- rendered from profile \"{profile_name}\" (hyperresearch {version}) "
+        f'<!-- rendered from profile "{profile_name}" (hyperresearch {version}) '
         "— edit the profile or the package template, not this file -->"
     )
 

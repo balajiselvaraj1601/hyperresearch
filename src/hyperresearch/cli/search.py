@@ -13,25 +13,53 @@ def search(
     tag: list[str] = typer.Option([], "--tag", "-t", help="Filter by tag (AND logic)"),
     status: str | None = typer.Option(None, "--status", "-s", help="Filter by status"),
     note_type: str | None = typer.Option(None, "--type", help="Filter by type"),
-    tier: str | None = typer.Option(None, "--tier", help="Filter by epistemic tier: ground_truth|institutional|practitioner|commentary|unknown"),
-    content_type: str | None = typer.Option(None, "--content-type", help="Filter by artifact kind: paper|docs|article|blog|forum|dataset|policy|code|book|transcript|review|unknown"),
+    tier: str | None = typer.Option(
+        None,
+        "--tier",
+        help="Filter by epistemic tier: ground_truth|institutional|practitioner|commentary|unknown",
+    ),
+    content_type: str | None = typer.Option(
+        None,
+        "--content-type",
+        help="Filter by artifact kind: paper|docs|article|blog|forum|dataset|policy|code|book|transcript|review|unknown",
+    ),
     parent: str | None = typer.Option(None, "--parent", "-p", help="Filter by parent topic"),
     after: str | None = typer.Option(None, "--after", help="Created after date (YYYY-MM-DD)"),
     before: str | None = typer.Option(None, "--before", help="Created before date (YYYY-MM-DD)"),
     path_glob: str | None = typer.Option(None, "--path", help="Glob filter on path"),
     min_words: int | None = typer.Option(None, "--min-words", help="Minimum word count"),
     max_words: int | None = typer.Option(None, "--max-words", help="Maximum word count"),
-    linked_from: str | None = typer.Option(None, "--linked-from", help="Only notes linked FROM this note ID"),
-    linked_to: str | None = typer.Option(None, "--linked-to", help="Only notes that link TO this note ID"),
-    min_inbound: int | None = typer.Option(None, "--min-inbound", help="Minimum inbound link count"),
+    linked_from: str | None = typer.Option(
+        None, "--linked-from", help="Only notes linked FROM this note ID"
+    ),
+    linked_to: str | None = typer.Option(
+        None, "--linked-to", help="Only notes that link TO this note ID"
+    ),
+    min_inbound: int | None = typer.Option(
+        None, "--min-inbound", help="Minimum inbound link count"
+    ),
     has_backlinks: bool = typer.Option(False, "--has-backlinks", help="Only notes with backlinks"),
-    include_body: bool = typer.Option(False, "--include-body", help="Include full note body (auto-enabled with --json)"),
-    no_body: bool = typer.Option(False, "--no-body", help="Disable auto body inclusion in JSON mode"),
-    limit: int | None = typer.Option(None, "--limit", "-l", help="Max results (default from [search] config)"),
-    ranked: bool = typer.Option(False, "--ranked", help="Fold composite source-quality scores into ranking (tier + utility + authority + centrality)"),
-    semantic: bool = typer.Option(False, "--semantic", help="Blend in embedding similarity (requires [embeddings] provider)"),
+    include_body: bool = typer.Option(
+        False, "--include-body", help="Include full note body (auto-enabled with --json)"
+    ),
+    no_body: bool = typer.Option(
+        False, "--no-body", help="Disable auto body inclusion in JSON mode"
+    ),
+    limit: int | None = typer.Option(
+        None, "--limit", "-l", help="Max results (default from [search] config)"
+    ),
+    ranked: bool = typer.Option(
+        False,
+        "--ranked",
+        help="Fold composite source-quality scores into ranking (tier + utility + authority + centrality)",
+    ),
+    semantic: bool = typer.Option(
+        False, "--semantic", help="Blend in embedding similarity (requires [embeddings] provider)"
+    ),
     offset: int = typer.Option(0, "--offset", help="Offset for pagination"),
-    max_tokens: int | None = typer.Option(None, "--max-tokens", help="Truncate results to fit token budget (1 token ~ 4 chars)"),
+    max_tokens: int | None = typer.Option(
+        None, "--max-tokens", help="Truncate results to fit token budget (1 token ~ 4 chars)"
+    ),
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
 ) -> None:
     """Full-text search across all notes."""
@@ -47,7 +75,10 @@ def search(
         except ValueError:
             valid = ", ".join(t.value for t in Tier)
             if json_output:
-                output(error(f"Invalid --tier '{tier}'. Must be one of: {valid}", "INVALID_TIER"), json_mode=True)
+                output(
+                    error(f"Invalid --tier '{tier}'. Must be one of: {valid}", "INVALID_TIER"),
+                    json_mode=True,
+                )
             else:
                 console.print(f"[red]Invalid --tier '{tier}'.[/] Must be one of: {valid}")
             raise typer.Exit(1)
@@ -57,9 +88,17 @@ def search(
         except ValueError:
             valid = ", ".join(c.value for c in ContentType)
             if json_output:
-                output(error(f"Invalid --content-type '{content_type}'. Must be one of: {valid}", "INVALID_CONTENT_TYPE"), json_mode=True)
+                output(
+                    error(
+                        f"Invalid --content-type '{content_type}'. Must be one of: {valid}",
+                        "INVALID_CONTENT_TYPE",
+                    ),
+                    json_mode=True,
+                )
             else:
-                console.print(f"[red]Invalid --content-type '{content_type}'.[/] Must be one of: {valid}")
+                console.print(
+                    f"[red]Invalid --content-type '{content_type}'.[/] Must be one of: {valid}"
+                )
             raise typer.Exit(1)
 
     try:
@@ -103,8 +142,13 @@ def search(
     }
     try:
         results = search_fts(
-            vault.db, query, filters=filters, limit=limit, offset=offset,
-            ranking=ranking, quality_ranked=ranked,
+            vault.db,
+            query,
+            filters=filters,
+            limit=limit,
+            offset=offset,
+            ranking=ranking,
+            quality_ranked=ranked,
         )
     except SearchQueryError as e:
         if json_output:
@@ -131,9 +175,7 @@ def search(
                 console.print(f"[red]Error:[/] {e}")
             raise typer.Exit(1)
 
-        fused = reciprocal_rank_fusion(
-            [[r["id"] for r in results], [h["id"] for h in sem_hits]]
-        )
+        fused = reciprocal_rank_fusion([[r["id"] for r in results], [h["id"] for h in sem_hits]])
         by_id = {r["id"]: r for r in results}
         merged = []
         for note_id, fused_score in fused[:limit]:

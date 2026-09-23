@@ -148,12 +148,12 @@ class TestQualityComposite:
     def test_full_composite_weighting(self):
         q = compute_quality_for_row(self.R, "commentary", 9.0, 0.5, 0.5, False)
         # (0.35*0.4 + 0.2*0.5 + 0.25*0.5 + 0.2*0.5) / 1.0
-        assert abs(q - (0.35 * 0.4 + 0.2 * 0.5 + 0.25 * 0.5 + 0.2 * 0.5)) < 1e-9
+        assert abs(q - (0.35 * 0.4 + 0.2 * 0.5 + 0.25 * 0.5 + 0.2 * 0.5)) < 1e-9  # type: ignore[operator]
 
     def test_ground_truth_beats_commentary(self):
         gt = compute_quality_for_row(self.R, "ground_truth", None, None, None, False)
         com = compute_quality_for_row(self.R, "commentary", None, None, None, False)
-        assert gt > com
+        assert gt > com  # type: ignore[operator]
 
     def test_compute_all(self, seeded_vault):
         conn = seeded_vault.db

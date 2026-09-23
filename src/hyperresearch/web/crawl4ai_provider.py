@@ -16,10 +16,17 @@ import sys
 import threading
 from datetime import UTC, datetime
 
-from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, DefaultMarkdownGenerator
-from crawl4ai.async_crawler_strategy import AsyncPlaywrightCrawlerStrategy
-from crawl4ai.browser_adapter import UndetectedAdapter
-from crawl4ai.content_filter_strategy import PruningContentFilter
+from crawl4ai import (  # type: ignore[import-untyped]
+    AsyncWebCrawler,
+    BrowserConfig,
+    CrawlerRunConfig,
+    DefaultMarkdownGenerator,
+)
+from crawl4ai.async_crawler_strategy import (  # type: ignore[import-untyped]
+    AsyncPlaywrightCrawlerStrategy,  # type: ignore[import-untyped]
+)
+from crawl4ai.browser_adapter import UndetectedAdapter  # type: ignore[import-untyped]
+from crawl4ai.content_filter_strategy import PruningContentFilter  # type: ignore[import-untyped]
 
 from hyperresearch.core.config import FetchSettings, JunkGates
 from hyperresearch.web.base import WebResult, is_binary_garbage
@@ -27,9 +34,6 @@ from hyperresearch.web.pdf import PDF_FAILURE_KEY
 from hyperresearch.web.pdf import failure_reason as _pdf_failure_reason
 from hyperresearch.web.pdf import fetch_pdf as _fetch_pdf
 from hyperresearch.web.pdf import is_pdf_url as _is_pdf_url
-from hyperresearch.web.pdf import (
-    safe_get_pdf as _safe_get_pdf,  # noqa: F401  # kept for callers that import it here
-)
 
 # Fix Windows encoding before crawl4ai's managed browser tries to log Unicode
 if sys.platform == "win32":
@@ -38,7 +42,7 @@ if sys.platform == "win32":
     for _stream in (sys.stdout, sys.stderr):
         if hasattr(_stream, "reconfigure"):
             try:
-                _stream.reconfigure(encoding="utf-8", errors="replace")
+                _stream.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
             except Exception:
                 pass
 
@@ -252,13 +256,15 @@ class Crawl4AIProvider:
 
         async with async_playwright() as pw:
             context = await pw.chromium.launch_persistent_context(
-                user_data_dir=self._data_dir,
+                user_data_dir=self._data_dir,  # type: ignore[arg-type]
                 headless=False,
                 viewport={"width": 1280, "height": 900},
                 ignore_https_errors=True,
             )
             page = context.pages[0] if context.pages else await context.new_page()
-            await page.goto(url, wait_until="domcontentloaded", timeout=self._settings.page_timeout_ms)
+            await page.goto(
+                url, wait_until="domcontentloaded", timeout=self._settings.page_timeout_ms
+            )
 
             # Smart wait — same logic (and same builder) as the headless config
             await page.evaluate(_smart_wait_js(self._settings))
@@ -396,7 +402,8 @@ class Crawl4AIProvider:
                     "SKIPPED (TLS certificate invalid): %s -- a potentially "
                     "valuable source was not fetched. To include it, set "
                     "pdf_verify_tls = false under [fetch] in config.toml. (%s)",
-                    url, exc,
+                    url,
+                    exc,
                 )
                 continue
             if pdf_result is not None:
@@ -410,7 +417,7 @@ class Crawl4AIProvider:
         if browser_urls:
             async with self._make_crawler() as crawler:
                 results = await crawler.arun_many(urls=browser_urls, config=self._run_config)
-                for cr, url in zip(results, browser_urls, strict=False):
+                for cr, url in zip(results, browser_urls, strict=False):  # type: ignore[arg-type]
                     if not cr.success:
                         continue
                     try:
@@ -456,16 +463,18 @@ class Crawl4AIProvider:
                         except Exception:
                             pass
 
-                    web_results.append(WebResult(
-                        url=cr.url or url,
-                        title=metadata.get("title", ""),
-                        content=content,
-                        raw_html=cr.html,
-                        fetched_at=datetime.now(UTC),
-                        metadata=metadata,
-                        media=media,
-                        screenshot=screenshot_bytes,
-                    ))
+                    web_results.append(
+                        WebResult(
+                            url=cr.url or url,
+                            title=metadata.get("title", ""),
+                            content=content,
+                            raw_html=cr.html,
+                            fetched_at=datetime.now(UTC),
+                            metadata=metadata,
+                            media=media,
+                            screenshot=screenshot_bytes,
+                        )
+                    )
         return web_results
 
     def search(self, query: str, max_results: int = 5) -> list[WebResult]:
@@ -473,5 +482,3 @@ class Crawl4AIProvider:
             "crawl4ai does not support web search. "
             "Use your agent's built-in search, then pipe URLs into 'hyperresearch fetch'."
         )
-
-

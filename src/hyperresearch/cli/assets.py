@@ -13,7 +13,9 @@ app = typer.Typer()
 @app.command("list")
 def assets_list(
     note_id: str | None = typer.Option(None, "--note", "-n", help="Filter by note ID"),
-    asset_type: str | None = typer.Option(None, "--type", "-t", help="Filter by type: image|screenshot|pdf"),
+    asset_type: str | None = typer.Option(
+        None, "--type", "-t", help="Filter by type: image|screenshot|pdf"
+    ),
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
 ) -> None:
     """List downloaded assets (images, screenshots, PDFs)."""
@@ -65,16 +67,16 @@ def assets_list(
         for a in assets:
             size = f"{a['size_bytes'] / 1024:.0f}KB" if a["size_bytes"] else "?"
             alt = f" — {a['alt_text'][:60]}" if a["alt_text"] else ""
-            console.print(
-                f"  [{a['type']}] {a['note_id']}: {a['filename']} ({size}){alt}"
-            )
+            console.print(f"  [{a['type']}] {a['note_id']}: {a['filename']} ({size}){alt}")
         console.print(f"\n[dim]{len(assets)} assets total[/]")
 
 
 @app.command("path")
 def asset_path(
     note_id: str = typer.Argument(..., help="Note ID"),
-    asset_type: str = typer.Option("screenshot", "--type", "-t", help="Asset type: screenshot|image"),
+    asset_type: str = typer.Option(
+        "screenshot", "--type", "-t", help="Asset type: screenshot|image"
+    ),
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
 ) -> None:
     """Get the file path for a note's asset (for viewing with Read tool)."""
@@ -97,7 +99,9 @@ def asset_path(
 
     if not rows:
         if json_output:
-            output(error(f"No {asset_type} assets for note '{note_id}'", "NOT_FOUND"), json_mode=True)
+            output(
+                error(f"No {asset_type} assets for note '{note_id}'", "NOT_FOUND"), json_mode=True
+            )
         else:
             console.print(f"[yellow]No {asset_type} assets for note '{note_id}'[/]")
         raise typer.Exit(1)

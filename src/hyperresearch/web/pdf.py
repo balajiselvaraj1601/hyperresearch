@@ -110,11 +110,14 @@ def safe_get_pdf(url: str, settings: FetchSettings):
     from hyperresearch.web.safe_http import CertVerificationError, safe_get
 
     try:
-        return safe_get(url, max_bytes=settings.max_pdf_bytes,
-                        timeout=settings.pdf_timeout_s,
-                        headers=PDF_FETCH_HEADERS,
-                        verify=settings.pdf_verify_tls,
-                        allow_private_hosts=settings.allow_private_hosts)
+        return safe_get(
+            url,
+            max_bytes=settings.max_pdf_bytes,
+            timeout=settings.pdf_timeout_s,
+            headers=PDF_FETCH_HEADERS,
+            verify=settings.pdf_verify_tls,
+            allow_private_hosts=settings.allow_private_hosts,
+        )
     except Exception as exc:
         if settings.pdf_verify_tls and _is_cert_error(exc):
             # Refuse, but say how to opt out for a trusted cert-broken mirror.
@@ -184,7 +187,7 @@ def extract_pdf(
     try:
         for page in doc:
             text = page.get_text("text")
-            if text.strip():
+            if text.strip():  # type: ignore[union-attr]
                 pages.append(text)
         page_count = doc.page_count
     except Exception as e:
@@ -224,7 +227,8 @@ def extract_pdf(
 
 
 def fetch_pdf_ex(
-    url: str, settings: FetchSettings | None = None,
+    url: str,
+    settings: FetchSettings | None = None,
 ) -> tuple[WebResult | None, str | None]:
     """Download a PDF and extract its text. Returns (result, None) or (None, reason).
 

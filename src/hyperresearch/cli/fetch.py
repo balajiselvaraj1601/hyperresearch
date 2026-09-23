@@ -465,9 +465,10 @@ def fetch(
         nonlocal rescue_reason, oa_location, rescue_doi
         rescue_reason, oa_location, rescue_doi = reason, loc, doi
         if not json_output:
+            resolver = loc.resolver if loc is not None else "unknown"
             console.print(
                 f"[cyan]Source blocked — recovered an open-access copy[/] "
-                f"({loc.resolver}, {len(rescued.content or ''):,} chars)"
+                f"({resolver}, {len(rescued.content or ''):,} chars)"
             )
         return rescued
 
@@ -589,7 +590,7 @@ def fetch(
             )
         )
     if utility_score is not None:
-        extra_meta["utility_score"] = utility_score
+        extra_meta["utility_score"] = utility_score  # type: ignore[assignment]
 
     # Build body with backlink breadcrumb if this fetch was suggested by another note.
     # Prepending `*Suggested by [[source-id]] — reason*` lines creates wiki-links the

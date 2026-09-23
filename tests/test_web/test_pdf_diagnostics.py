@@ -186,7 +186,7 @@ def test_cert_error_refuses_with_no_unverified_retry(monkeypatch):
 
     with pytest.raises(SafeHTTPError, match="pdf_verify_tls"):
         provider.safe_get_pdf(
-            "https://broken-cert.example.edu/paper.pdf", provider.FetchSettings()
+            "https://broken-cert.example.edu/paper.pdf", provider.FetchSettings()  # type: ignore[reportPrivateImportUsage]
         )
 
     assert calls == [True], "exactly one verified attempt, no unverified retry"
@@ -207,7 +207,7 @@ def test_non_cert_error_propagates_untranslated(monkeypatch):
     monkeypatch.setattr("hyperresearch.web.safe_http.safe_get", fake_safe_get)
 
     with pytest.raises(httpx.ConnectError):
-        provider.safe_get_pdf("https://down.example.com/x.pdf", provider.FetchSettings())
+        provider.safe_get_pdf("https://down.example.com/x.pdf", provider.FetchSettings())  # type: ignore[reportPrivateImportUsage]
 
     assert calls == [True]
 
@@ -225,7 +225,7 @@ def test_pdf_verify_tls_false_fetches_unverified(monkeypatch):
     monkeypatch.setattr("hyperresearch.web.safe_http.safe_get", fake_safe_get)
 
     resp = provider.safe_get_pdf(
-        "https://mirror.example.org/x.pdf", provider.FetchSettings(pdf_verify_tls=False)
+        "https://mirror.example.org/x.pdf", provider.FetchSettings(pdf_verify_tls=False)  # type: ignore[reportPrivateImportUsage]
     )
 
     assert calls == [False], "config opt-out must fetch unverified on the first attempt"

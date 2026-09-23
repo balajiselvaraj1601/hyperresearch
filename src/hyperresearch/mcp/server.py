@@ -535,7 +535,7 @@ def update_note(
 
     changed = []
     if status:
-        meta.status = status
+        meta.status = NoteStatus(status)
         changed.append(f"status={status}")
     for t in [t.strip() for t in add_tags.split(",") if t.strip()]:
         if t.lower() not in meta.tags:

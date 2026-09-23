@@ -54,7 +54,9 @@ def topic_tree(
         console.print(root)
 
 
-def _build_rich_tree(parent_node, topics: dict, max_depth: int, prefix: str = "", current_depth: int = 0):
+def _build_rich_tree(
+    parent_node, topics: dict, max_depth: int, prefix: str = "", current_depth: int = 0
+):
     """Recursively build a Rich tree from topic paths."""
     if max_depth > 0 and current_depth >= max_depth:
         return
@@ -65,7 +67,7 @@ def _build_rich_tree(parent_node, topics: dict, max_depth: int, prefix: str = ""
         if prefix:
             if not path.startswith(prefix + "/"):
                 continue
-            remainder = path[len(prefix) + 1:]
+            remainder = path[len(prefix) + 1 :]
         else:
             remainder = path
 
@@ -75,7 +77,9 @@ def _build_rich_tree(parent_node, topics: dict, max_depth: int, prefix: str = ""
     for child_name, count in sorted(children.items()):
         full_path = f"{prefix}/{child_name}" if prefix else child_name
         # Count all notes under this subtree
-        subtree_count = sum(v for k, v in topics.items() if k == full_path or k.startswith(full_path + "/"))
+        subtree_count = sum(
+            v for k, v in topics.items() if k == full_path or k.startswith(full_path + "/")
+        )
         label = f"[cyan]{child_name}[/]"
         if count > 0:
             label += f" ({count} notes)"
@@ -141,18 +145,23 @@ def topic_show(
     notes = []
     for row in rows:
         tag_list = row["tag_list"].split(",") if row["tag_list"] else []
-        notes.append({
-            "id": row["id"],
-            "title": row["title"],
-            "parent": row["parent"],
-            "status": row["status"],
-            "tags": tag_list,
-            "word_count": row["word_count"],
-            "summary": row["summary"],
-        })
+        notes.append(
+            {
+                "id": row["id"],
+                "title": row["title"],
+                "parent": row["parent"],
+                "status": row["status"],
+                "tags": tag_list,
+                "word_count": row["word_count"],
+                "summary": row["summary"],
+            }
+        )
 
     if json_output:
-        output(success({"topic": topic, "notes": notes}, count=len(notes), vault=str(vault.root)), json_mode=True)
+        output(
+            success({"topic": topic, "notes": notes}, count=len(notes), vault=str(vault.root)),
+            json_mode=True,
+        )
     else:
         if not notes:
             console.print(f"[dim]No notes under topic '{topic}'[/]")

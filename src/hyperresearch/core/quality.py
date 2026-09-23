@@ -56,8 +56,7 @@ def compute_quality_for_row(
 def compute_quality_scores(conn, ranking: RankingSettings) -> int:
     """Recompute quality_score for every note. Returns count updated."""
     rows = conn.execute(
-        "SELECT id, tier, utility_score, authority_score, centrality_score, is_retracted "
-        "FROM notes"
+        "SELECT id, tier, utility_score, authority_score, centrality_score, is_retracted FROM notes"
     ).fetchall()
     updated = 0
     for row in rows:

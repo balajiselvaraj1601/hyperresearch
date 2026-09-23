@@ -110,7 +110,6 @@ _WS_RE = re.compile(r"\s+")
 _DOI_RE = re.compile(r"\b(10\.\d{4,9}/\S+)", re.IGNORECASE)
 
 
-
 def _sanitize(query: str) -> str:
     """Natural-language query -> something Solr will not choke on.
 

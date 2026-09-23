@@ -15,7 +15,12 @@ from hyperresearch.models.output import success
 
 
 def dedup(
-    threshold: float | None = typer.Option(None, "--threshold", "-t", help="Similarity threshold (0.0-1.0); default from [dedup] config"),
+    threshold: float | None = typer.Option(
+        None,
+        "--threshold",
+        "-t",
+        help="Similarity threshold (0.0-1.0); default from [dedup] config",
+    ),
     limit: int = typer.Option(20, "--limit", "-l", help="Max pairs to show"),
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
 ) -> None:
@@ -46,7 +51,9 @@ def dedup(
 
     if len(rows) < 2:
         if json_output:
-            output(success({"pairs": [], "total_compared": 0}, vault=str(vault.root)), json_mode=True)
+            output(
+                success({"pairs": [], "total_compared": 0}, vault=str(vault.root)), json_mode=True
+            )
         else:
             console.print("[dim]Not enough notes to compare.[/]")
         return
@@ -78,8 +85,14 @@ def dedup(
     if json_output:
         output(
             success(
-                {"pairs": pairs, "total_compared": total_compared, "threshold": threshold, "method": method},
-                count=len(pairs), vault=str(vault.root),
+                {
+                    "pairs": pairs,
+                    "total_compared": total_compared,
+                    "threshold": threshold,
+                    "method": method,
+                },
+                count=len(pairs),
+                vault=str(vault.root),
             ),
             json_mode=True,
         )

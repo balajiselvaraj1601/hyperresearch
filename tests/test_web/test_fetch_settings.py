@@ -77,8 +77,8 @@ class TestGetProviderThreading:
             settings=FetchSettings(page_timeout_ms=12345),
             gates=JunkGates(binary_garbage_ratio=0.9),
         )
-        assert prov._run_config.page_timeout == 12345
-        assert prov._gates.binary_garbage_ratio == 0.9
+        assert prov._run_config.page_timeout == 12345  # type: ignore[attr-defined]
+        assert prov._gates.binary_garbage_ratio == 0.9  # type: ignore[attr-defined]
 
 
 class TestByteCapThreading:

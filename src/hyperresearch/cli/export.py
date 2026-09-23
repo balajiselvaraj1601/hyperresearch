@@ -29,22 +29,27 @@ def export_json(
     for row in vault.db.execute(
         "SELECT n.*, nc.body FROM notes n JOIN note_content nc ON n.id = nc.note_id ORDER BY n.title"
     ):
-        tags = [r["tag"] for r in vault.db.execute("SELECT tag FROM tags WHERE note_id = ?", (row["id"],))]
-        notes.append({
-            "id": row["id"],
-            "title": row["title"],
-            "path": row["path"],
-            "status": row["status"],
-            "type": row["type"],
-            "tags": tags,
-            "created": row["created"],
-            "updated": row["updated"],
-            "word_count": row["word_count"],
-            "source": row["source"],
-            "parent": row["parent"],
-            "summary": row["summary"],
-            "body": row["body"],
-        })
+        tags = [
+            r["tag"]
+            for r in vault.db.execute("SELECT tag FROM tags WHERE note_id = ?", (row["id"],))
+        ]
+        notes.append(
+            {
+                "id": row["id"],
+                "title": row["title"],
+                "path": row["path"],
+                "status": row["status"],
+                "type": row["type"],
+                "tags": tags,
+                "created": row["created"],
+                "updated": row["updated"],
+                "word_count": row["word_count"],
+                "source": row["source"],
+                "parent": row["parent"],
+                "summary": row["summary"],
+                "body": row["body"],
+            }
+        )
 
     out = Path(output_path) if output_path else vault.exports_dir / "vault.json"
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -52,7 +57,9 @@ def export_json(
     out.write_text(json.dumps(notes, indent=indent, default=str), encoding="utf-8")
 
     if json_output:
-        output(success({"path": str(out), "count": len(notes)}, vault=str(vault.root)), json_mode=True)
+        output(
+            success({"path": str(out), "count": len(notes)}, vault=str(vault.root)), json_mode=True
+        )
     else:
         console.print(f"[green]Exported {len(notes)} notes to:[/] {out}")
 
@@ -104,8 +111,14 @@ def export_vault(
 
     if json_output:
         action = "would_export" if dry_run else "exported"
-        output(success({action: exported, "count": len(exported), "output_path": str(out_dir)},
-                       count=len(exported), vault=str(vault.root)), json_mode=True)
+        output(
+            success(
+                {action: exported, "count": len(exported), "output_path": str(out_dir)},
+                count=len(exported),
+                vault=str(vault.root),
+            ),
+            json_mode=True,
+        )
     else:
         verb = "Would export" if dry_run else "Exported"
         console.print(f"[green]{verb} {len(exported)} notes to:[/] {out_dir}")
@@ -113,5 +126,3 @@ def export_vault(
             console.print(f"  {item['path']}")
         if len(exported) > 20:
             console.print(f"  [dim]...and {len(exported) - 20} more[/]")
-
-

@@ -225,7 +225,7 @@ def _setup_crawl4ai(vault) -> str:
              'not_installed' (crawl4ai not available).
     """
     try:
-        import crawl4ai  # noqa: F401
+        import crawl4ai  # type: ignore[import-untyped]
     except ImportError:
         return "not_installed"
 
@@ -242,7 +242,7 @@ def _setup_crawl4ai(vault) -> str:
         try:
             from patchright.sync_api import sync_playwright
         except ImportError:
-            from playwright.sync_api import sync_playwright
+            from playwright.sync_api import sync_playwright  # type: ignore[assignment]
 
         pw = sync_playwright().start()
         browser = pw.chromium.launch(headless=True)

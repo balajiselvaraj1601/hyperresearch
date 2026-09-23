@@ -164,7 +164,7 @@ def test_skill_render_matches_golden(skill_name, ctx):
 
 @pytest.mark.parametrize("skill_name", GOLDEN_SKILLS)
 def test_no_unrendered_variables_in_skills(skill_name, ctx):
-    rendered = render_prompt(_read_skill_source(f"{skill_name}.md"), ctx)
+    rendered = render_prompt(_read_skill_source(f"{skill_name}.md"), ctx)  # type: ignore[arg-type]
     assert "<<" not in rendered and ">>" not in rendered
 
 
@@ -173,7 +173,7 @@ def test_profile_override_changes_render(tmp_path):
     cfg = tmp_path / "config.toml"
     cfg.write_text("[profile.full]\nsource_min = 200\n", encoding="utf-8")
     ctx = build_render_context(cfg, primary="full")
-    rendered = render_prompt(_read_skill_source("hyperresearch-2-width-sweep.md"), ctx)
+    rendered = render_prompt(_read_skill_source("hyperresearch-2-width-sweep.md"), ctx)  # type: ignore[arg-type]
     assert "| `full` | 200 |" in rendered
 
 
@@ -182,7 +182,7 @@ def test_premier_gear_renders_cleanly(skill_name):
     """Every golden-covered skill must render without holes at premier gear,
     and the scale-bearing ones must carry premier numbers."""
     ctx = build_render_context(None, primary="premier")
-    rendered = render_prompt(_read_skill_source(f"{skill_name}.md"), ctx)
+    rendered = render_prompt(_read_skill_source(f"{skill_name}.md"), ctx)  # type: ignore[arg-type]
     assert "<<" not in rendered and ">>" not in rendered
     if skill_name == "hyperresearch-2-width-sweep":
         assert "| `full` | 90 | 100–130 |" in rendered
@@ -306,7 +306,7 @@ def _all_skill_names() -> list[str]:
 
 @pytest.mark.parametrize("skill_file", _all_skill_names())
 def test_rendered_skills_have_no_cost_or_model_claims(skill_file, ctx):
-    rendered = render_prompt(_read_skill_source(skill_file), ctx)
+    rendered = render_prompt(_read_skill_source(skill_file), ctx)  # type: ignore[arg-type]
     assert not _DOLLAR_RANGE.search(rendered), f"dollar-cost range in {skill_file}"
     assert not _MODEL_CLAIM.search(rendered), f"hardcoded model claim in {skill_file}"
 
@@ -335,7 +335,7 @@ _SKILL_SHIM_ROLES = {
 
 @pytest.mark.parametrize("skill_name,role", sorted(_SKILL_SHIM_ROLES.items()))
 def test_spawning_skills_carry_their_shim_paste_line(skill_name, role, ctx):
-    rendered = render_prompt(_read_skill_source(f"{skill_name}.md"), ctx)
+    rendered = render_prompt(_read_skill_source(f"{skill_name}.md"), ctx)  # type: ignore[arg-type]
     assert f"shims/{role}.md" in rendered, (
         f"{skill_name} spawn template lost its shims/{role}.md paste line"
     )
@@ -343,7 +343,7 @@ def test_spawning_skills_carry_their_shim_paste_line(skill_name, role, ctx):
 
 def test_cite_check_skill_gets_no_shim(ctx):
     rendered = render_prompt(
-        _read_skill_source("hyperresearch-14-5-cite-check.md"), ctx
+        _read_skill_source("hyperresearch-14-5-cite-check.md"), ctx  # type: ignore[arg-type]
     )
     assert "shims/" not in rendered
 

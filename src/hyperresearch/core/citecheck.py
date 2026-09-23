@@ -85,7 +85,9 @@ def extract_pairs(report_text: str, conn) -> list[dict]:
     known_ids = {row["id"] for row in conn.execute("SELECT id FROM notes")}
 
     # Strip the Sources section from the checked body
-    body = re.split(r"^##\s+(?:Sources|References)\b", report_text, maxsplit=1, flags=re.M | re.I)[0]
+    body = re.split(r"^##\s+(?:Sources|References)\b", report_text, maxsplit=1, flags=re.M | re.I)[
+        0
+    ]
 
     pairs: list[dict] = []
     for sentence in _split_sentences(body):
@@ -98,12 +100,15 @@ def extract_pairs(report_text: str, conn) -> list[dict]:
             target = m.group(1).strip()
             cited.append(target if target in known_ids else None)
         for note_id in cited:
-            pairs.append({
-                "sentence": sentence,
-                "note_id": note_id,
-                "numbers": _NUMBER_RE.findall(sentence),
-                "strong": any(k in sentence.lower() for k in _STRONG_MARKERS) or bool(_NUMBER_RE.search(sentence)),
-            })
+            pairs.append(
+                {
+                    "sentence": sentence,
+                    "note_id": note_id,
+                    "numbers": _NUMBER_RE.findall(sentence),
+                    "strong": any(k in sentence.lower() for k in _STRONG_MARKERS)
+                    or bool(_NUMBER_RE.search(sentence)),
+                }
+            )
     return pairs
 
 
@@ -141,10 +146,12 @@ def triage_pairs(pairs: list[dict], conn) -> dict:
             continue
         matched = False
         note_claims = _claims(pair["note_id"])
-        blob = _norm(" ".join(
-            (c["claim"] or "") + " " + (c["quoted_support"] or "") + " " + (c["numbers"] or "")
-            for c in note_claims
-        ))
+        blob = _norm(
+            " ".join(
+                (c["claim"] or "") + " " + (c["quoted_support"] or "") + " " + (c["numbers"] or "")
+                for c in note_claims
+            )
+        )
         if blob:
             nums = [n for n in pair["numbers"] if len(n.replace(",", "")) >= 2]
             if nums and all(n.replace(",", "") in blob.replace(",", "") for n in nums):

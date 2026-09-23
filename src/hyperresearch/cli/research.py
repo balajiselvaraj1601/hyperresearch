@@ -74,7 +74,10 @@ def research(
 
     if not search_results:
         if json_output:
-            output(success({"notes_created": [], "topic": topic}, vault=str(vault.root)), json_mode=True)
+            output(
+                success({"notes_created": [], "topic": topic}, vault=str(vault.root)),
+                json_mode=True,
+            )
         else:
             console.print("[yellow]No results found.[/]")
         return
@@ -123,7 +126,9 @@ def research(
                         fetched_urls.add(link_url)
                         pages_fetched += 1
                         if not json_output:
-                            console.print(f"  [dim]+[/] {note_data['title']} [dim](depth {d + 1})[/]")
+                            console.print(
+                                f"  [dim]+[/] {note_data['title']} [dim](depth {d + 1})[/]"
+                            )
                         # Collect links from this page for next depth
                         next_links.extend(_extract_links_from_results([result]))
                 except Exception:
@@ -139,8 +144,7 @@ def research(
     if created_notes:
         moc_id = slugify(f"research-{topic}")
         wiki_links = "\n".join(
-            f"- [[{n['note_id']}]] — {n.get('summary', n['title'])}"
-            for n in created_notes
+            f"- [[{n['note_id']}]] — {n.get('summary', n['title'])}" for n in created_notes
         )
         moc_body = (
             f"# Research: {topic}\n\n"
@@ -167,12 +171,14 @@ def research(
         if plan.to_add or plan.to_update:
             execute_sync(vault, plan)
 
-        created_notes.append({
-            "note_id": moc_id,
-            "title": f"Research: {topic}",
-            "type": "moc",
-            "path": str(moc_path.relative_to(vault.root)),
-        })
+        created_notes.append(
+            {
+                "note_id": moc_id,
+                "title": f"Research: {topic}",
+                "type": "moc",
+                "path": str(moc_path.relative_to(vault.root)),
+            }
+        )
 
         if not json_output:
             console.print(f"\n[bold green]Synthesis:[/] [[{moc_id}]]")
@@ -189,7 +195,9 @@ def research(
                 execute_sync(vault, plan)
             if not json_output:
                 total_links = sum(len(v) for v in link_report.values())
-                console.print(f"[green]Auto-linked:[/] {total_links} connections across {len(link_report)} notes")
+                console.print(
+                    f"[green]Auto-linked:[/] {total_links} connections across {len(link_report)} notes"
+                )
 
     # Step 7: Surface hub notes
     hubs = []
@@ -199,9 +207,17 @@ def research(
             "WHERE target_id IS NOT NULL GROUP BY target_id ORDER BY cnt DESC LIMIT 5"
         ).fetchall()
         for row in hub_rows:
-            title_row = conn.execute("SELECT title FROM notes WHERE id = ?", (row["target_id"],)).fetchone()
+            title_row = conn.execute(
+                "SELECT title FROM notes WHERE id = ?", (row["target_id"],)
+            ).fetchone()
             if title_row:
-                hubs.append({"id": row["target_id"], "title": title_row["title"], "inbound_links": row["cnt"]})
+                hubs.append(
+                    {
+                        "id": row["target_id"],
+                        "title": title_row["title"],
+                        "inbound_links": row["cnt"],
+                    }
+                )
         if hubs and not json_output:
             console.print("\n[bold]Hub notes[/] (most connected):")
             for h in hubs:

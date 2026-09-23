@@ -290,7 +290,7 @@ def set_status(vault, vault_tag: str, status: str, blocked_on: str | None = None
 
 def list_runs(vault) -> list[dict]:
     """All runs, newest-started first. Tolerates corrupt manifests."""
-    runs = []
+    runs: list[dict] = []
     if not vault.runs_dir.is_dir():
         return runs
     for child in vault.runs_dir.iterdir():

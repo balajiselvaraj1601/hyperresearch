@@ -244,7 +244,9 @@ def _fetch_json(conn, url: str, ttl_days: int, fresh: bool = False) -> dict | No
     """
     now = datetime.now(UTC)
     if not fresh:
-        row = conn.execute("SELECT body, fetched_at FROM api_cache WHERE url = ?", (url,)).fetchone()
+        row = conn.execute(
+            "SELECT body, fetched_at FROM api_cache WHERE url = ?", (url,)
+        ).fetchone()
         if row:
             try:
                 fetched = datetime.fromisoformat(row["fetched_at"])
@@ -352,8 +354,7 @@ def backfill_dois(vault, tag: str | None = None) -> int:
 
     conn = vault.db
     query = (
-        "SELECT n.id, n.path, n.source FROM notes n "
-        "WHERE n.doi IS NULL AND n.source IS NOT NULL"
+        "SELECT n.id, n.path, n.source FROM notes n WHERE n.doi IS NULL AND n.source IS NOT NULL"
     )
     params: tuple = ()
     if tag:

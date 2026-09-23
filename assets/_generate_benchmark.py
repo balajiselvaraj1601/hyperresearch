@@ -12,9 +12,9 @@ Output: assets/benchmark.png
 
 from pathlib import Path
 
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt  # type: ignore[reportMissingImports]
 import numpy as np
-from matplotlib import patheffects
+from matplotlib import patheffects  # type: ignore[reportMissingImports]
 
 # (label, RACE overall score) — 7 entries, descending.
 # Numbers from the live DeepResearch-Bench leaderboard at
@@ -22,13 +22,13 @@ from matplotlib import patheffects
 # (snapshot 2026-04-29). hyperresearch number is the V8.3 stratified
 # pilot mean across 9 queries; full 100-query sweep pending.
 entries = [
-    ("hyperresearch",                 57.77),  # V8.3 stratified pilot (n=9)
-    ("xiaoyi",                        57.00),  # NEW — current public DRB #1
-    ("Grep Deep Research",            56.23),  # DRB #2
-    ("Cellcog Max",                   56.13),  # DRB #3
-    ("nvidia-aiq",                    55.95),  # DRB #4 (Nemotron 3 + GPT 5.2)
-    ("Gemini 2.5 Pro Deep Research",  49.71),
-    ("OpenAI Deep Research",          46.45),
+    ("hyperresearch", 57.77),  # V8.3 stratified pilot (n=9)
+    ("xiaoyi", 57.00),  # NEW — current public DRB #1
+    ("Grep Deep Research", 56.23),  # DRB #2
+    ("Cellcog Max", 56.13),  # DRB #3
+    ("nvidia-aiq", 55.95),  # DRB #4 (Nemotron 3 + GPT 5.2)
+    ("Gemini 2.5 Pro Deep Research", 49.71),
+    ("OpenAI Deep Research", 46.45),
 ]
 
 labels = [e[0] for e in entries]
@@ -39,13 +39,13 @@ scores = [e[1] for e in entries]
 # leaderboard in cool blues / teals, the two hyperscaler products in
 # warm amber/orange (distinguishable from leaders).
 colors = [
-    "#FF4D6D",   # hyperresearch — coral/electric red
-    "#6C63FF",   # xiaoyi — indigo (new front-runner, just overtaken)
-    "#4361EE",   # Grep Deep Research — deep blue
-    "#2E9CCA",   # Cellcog Max — azure
-    "#2EC4B6",   # nvidia-aiq — teal
-    "#B892FF",   # Gemini DR — lavender
-    "#FFB627",   # OpenAI DR — amber
+    "#FF4D6D",  # hyperresearch — coral/electric red
+    "#6C63FF",  # xiaoyi — indigo (new front-runner, just overtaken)
+    "#4361EE",  # Grep Deep Research — deep blue
+    "#2E9CCA",  # Cellcog Max — azure
+    "#2EC4B6",  # nvidia-aiq — teal
+    "#B892FF",  # Gemini DR — lavender
+    "#FFB627",  # OpenAI DR — amber
 ]
 
 # --- figure setup ---------------------------------------------------------
@@ -90,9 +90,14 @@ winner_idx = 0
 crown_x = bars[winner_idx].get_x() + bars[winner_idx].get_width() / 2
 crown_y = scores[winner_idx] + 4.2
 ax.text(
-    crown_x, crown_y, "★",
-    ha="center", va="center",
-    color="#FFD166", fontsize=22, fontweight="bold",
+    crown_x,
+    crown_y,
+    "★",
+    ha="center",
+    va="center",
+    color="#FFD166",
+    fontsize=22,
+    fontweight="bold",
     zorder=5,
 )
 
@@ -154,7 +159,8 @@ ax.set_title(
 
 # Caption
 fig.text(
-    0.5, 0.015,
+    0.5,
+    0.015,
     "leaderboard snapshot: deepresearch-bench.github.io, 2026-04",
     color=dim,
     fontsize=9,

@@ -10,7 +10,9 @@ from hyperresearch.cli._output import console
 
 
 def watch(
-    rebuild_index: bool = typer.Option(False, "--rebuild-index", "-i", help="Rebuild indexes after sync"),
+    rebuild_index: bool = typer.Option(
+        False, "--rebuild-index", "-i", help="Rebuild indexes after sync"
+    ),
     run_lint: bool = typer.Option(False, "--lint", "-l", help="Run lint after sync"),
 ) -> None:
     """Watch for file changes and auto-sync."""
@@ -34,10 +36,10 @@ def watch(
             self._last_event = 0.0
 
         def on_any_event(self, event: FileSystemEvent):
-            if not event.src_path.endswith(".md"):
+            if not event.src_path.endswith(".md"):  # type: ignore[arg-type]
                 return
             # Skip .hyperresearch directory
-            if ".hyperresearch" in event.src_path:
+            if ".hyperresearch" in str(event.src_path):
                 return
             self._pending = True
             self._last_event = time.monotonic()
@@ -63,6 +65,7 @@ def watch(
 
                     if rebuild_index:
                         from hyperresearch.indexgen.generator import IndexGenerator
+
                         gen = IndexGenerator(vault)
                         built = gen.build_all()
                         # Re-sync to index the index pages

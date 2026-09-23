@@ -21,10 +21,10 @@ def _split_alphanum(word: str) -> list[str]:
     'gpt4o' -> ['gpt', '4', 'o'], 'llama3.1' -> ['llama', '3', '1'].
     """
     # Insert space at letter/digit boundaries
-    split = re.sub(r'([a-zA-Z])(\d)', r'\1 \2', word)
-    split = re.sub(r'(\d)([a-zA-Z])', r'\1 \2', split)
+    split = re.sub(r"([a-zA-Z])(\d)", r"\1 \2", word)
+    split = re.sub(r"(\d)([a-zA-Z])", r"\1 \2", split)
     # Also split on dots/hyphens between digits (3.1 -> 3 1)
-    split = re.sub(r'(\d)[.\-](\d)', r'\1 \2', split)
+    split = re.sub(r"(\d)[.\-](\d)", r"\1 \2", split)
     return split.split()
 
 
@@ -52,7 +52,7 @@ def preprocess_query(raw: str) -> str:
                     # double-quote is included because quoted phrases were
                     # already extracted by the outer split — any quote left
                     # here is an unbalanced fragment.
-                    clean = re.sub(r'[*^():{}"]', '', word)
+                    clean = re.sub(r'[*^():{}"]', "", word)
                     if not clean:
                         continue
                     # Split glued alphanumeric (mamba3 -> mamba + 3)
@@ -139,24 +139,26 @@ def search_fts(
     results = []
     for row in rows:
         tag_list = row["tag_list"].split(",") if row["tag_list"] else []
-        results.append({
-            "id": row["id"],
-            "title": row["title"],
-            "path": row["path"],
-            "status": row["status"],
-            "type": row["type"],
-            # sqlite3.Row.__contains__ is broken; row.keys() is reliable.
-            "tier": row["tier"] if "tier" in row.keys() else None,  # noqa: SIM118
-            "content_type": row["content_type"] if "content_type" in row.keys() else None,  # noqa: SIM118
-            "tags": tag_list,
-            "created": row["created"],
-            "updated": row["updated"],
-            "word_count": row["word_count"],
-            "summary": row["summary"],
-            "quality_score": row["quality_score"] if "quality_score" in row.keys() else None,  # noqa: SIM118
-            "score": abs(row["score"]),
-            "snippet": row["snippet"] or "",
-        })
+        results.append(
+            {
+                "id": row["id"],
+                "title": row["title"],
+                "path": row["path"],
+                "status": row["status"],
+                "type": row["type"],
+                # sqlite3.Row.__contains__ is broken; row.keys() is reliable.
+                "tier": row["tier"] if "tier" in row.keys() else None,
+                "content_type": row["content_type"] if "content_type" in row.keys() else None,
+                "tags": tag_list,
+                "created": row["created"],
+                "updated": row["updated"],
+                "word_count": row["word_count"],
+                "summary": row["summary"],
+                "quality_score": row["quality_score"] if "quality_score" in row.keys() else None,
+                "score": abs(row["score"]),
+                "snippet": row["snippet"] or "",
+            }
+        )
 
     # Apply status-based ranking adjustments
     if ranking:

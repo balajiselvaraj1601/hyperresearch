@@ -35,14 +35,14 @@ src = Image.open(SRC).convert("RGBA")
 # --- README banner: pure 3x nearest-neighbor upscale, no canvas -----------
 readme_img = src.resize(
     (src.width * README_SCALE, src.height * README_SCALE),
-    Image.NEAREST,
+    Image.Resampling.NEAREST,
 )
 readme_img.convert("RGB").save(README_OUT, "PNG", optimize=True)
 print(f"wrote {README_OUT.name}  ({readme_img.width}x{readme_img.height})")
 
 # --- Social preview: wordmark on dark canvas at GitHub's required 1280x640
 # Start from the same source, upscale 2x for a base, then resize to fit.
-social_word = src.resize((src.width * 2, src.height * 2), Image.NEAREST)
+social_word = src.resize((src.width * 2, src.height * 2), Image.Resampling.NEAREST)
 
 # Wordmark should DOMINATE the social card. Fill ~92% width.
 max_w = int(SOCIAL_W * 0.92)
@@ -50,7 +50,7 @@ if social_word.width != max_w:
     ratio = max_w / social_word.width
     social_word = social_word.resize(
         (max_w, int(social_word.height * ratio)),
-        Image.NEAREST,
+        Image.Resampling.NEAREST,
     )
 
 # Defensive height cap (source aspect 2.34:1 means width typically constrains)
@@ -59,7 +59,7 @@ if social_word.height > max_h:
     ratio = max_h / social_word.height
     social_word = social_word.resize(
         (int(social_word.width * ratio), max_h),
-        Image.NEAREST,
+        Image.Resampling.NEAREST,
     )
 
 # Compose onto target canvas, centered

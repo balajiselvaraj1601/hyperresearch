@@ -67,8 +67,12 @@ def levers_render(
 @app.command("set")
 def levers_set(
     vault_tag: str = typer.Argument(..., help="Run tag"),
-    assignments: list[str] = typer.Argument(..., help="key=value pairs (register, inference_depth, domain_notes)"),
-    rerender: bool = typer.Option(False, "--rerender", help="Re-render the shim files after updating"),
+    assignments: list[str] = typer.Argument(
+        ..., help="key=value pairs (register, inference_depth, domain_notes)"
+    ),
+    rerender: bool = typer.Option(
+        False, "--rerender", help="Re-render the shim files after updating"
+    ),
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
 ) -> None:
     """Update the run's levers block (e.g. step 4 upgrading inference_depth).
@@ -98,9 +102,9 @@ def levers_set(
     if json_output:
         output(success(result, vault=str(vault.root)), json_mode=True)
     else:
-        lv = result["levers"]
+        lv = result["levers"]  # type: ignore[index]
         suffix = " (shims re-rendered)" if rerender else ""
         console.print(
-            f"[green]Levers updated:[/] register={lv['register']} "
-            f"inference_depth={lv['inference_depth']}{suffix}"
+            f"[green]Levers updated:[/] register={lv['register']} "  # type: ignore[index]
+            f"inference_depth={lv['inference_depth']}{suffix}"  # type: ignore[index]
         )

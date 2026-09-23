@@ -53,6 +53,7 @@ class TestClaimSemantics:
         enqueue(conn, "https://high.com", "bot_block", utility_score=17)
         enqueue(conn, "https://unscored.com", "bot_block")
         item = claim_next(conn, "tester")
+        assert item is not None
         assert item["url"] == "https://high.com"
         assert item["status"] == "in_progress"
         assert item["claimed_by"] == "tester"
@@ -75,13 +76,14 @@ class TestClaimSemantics:
         conn = tmp_vault.db
         item_id = enqueue(conn, "https://x.com/c", "captcha")
         claim_next(conn, "t")
-        item = resolve(conn, item_id, "needs_human", detail="solve CAPTCHA on x.com")
+        item = resolve(conn, item_id, "needs_human", detail="solve CAPTCHA on x.com")  # type: ignore[arg-type]
         assert item["status"] == "needs_human"
         assert queue_stats(conn)["needs_human"] == 1
         # human done -> retry
-        item = resolve(conn, item_id, "queued")
-        assert item["status"] == "queued"
-        assert claim_next(conn, "t")["id"] == item_id
+        item = resolve(conn, item_id, "queued")  # type: ignore[arg-type]
+        _claimed = claim_next(conn, "t")
+        assert _claimed is not None
+        assert _claimed["id"] == item_id
 
 
 class TestChromePolicy:
@@ -290,9 +292,12 @@ class TestRunStatusIntegration:
         init_run(tmp_vault, "esc-status-01")
         enqueue(tmp_vault.db, "https://q.example.com", "login_wall", vault_tag="esc-status-01")
         item_id = enqueue(
-            tmp_vault.db, "https://h.example.com", "captcha", vault_tag="esc-status-01"
+            tmp_vault.db,
+            "https://h.example.com",
+            "captcha",
+            vault_tag="esc-status-01",  # type: ignore[arg-type]
         )
-        resolve(tmp_vault.db, item_id, "needs_human", detail="x")
+        resolve(tmp_vault.db, item_id, "needs_human", detail="x")  # type: ignore[arg-type]
 
         monkeypatch.chdir(tmp_vault.root)
         runner = CliRunner()

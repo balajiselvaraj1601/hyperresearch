@@ -16,7 +16,9 @@ app = typer.Typer()
 def note_new(
     title: str = typer.Argument(..., help="Note title"),
     body_text: str | None = typer.Option(None, "--body", "-b", help="Note body content (markdown)"),
-    body_file: str | None = typer.Option(None, "--body-file", "-B", help="Read body from file path"),
+    body_file: str | None = typer.Option(
+        None, "--body-file", "-B", help="Read body from file path"
+    ),
     body_stdin: bool = typer.Option(False, "--body-stdin", help="Read body from stdin"),
     tags: list[str] = typer.Option([], "--tag", "-t", help="Tags"),
     parent: str | None = typer.Option(None, "--parent", "-p", help="Parent topic"),
@@ -24,9 +26,19 @@ def note_new(
     status: str = typer.Option("draft", "--status", "-s", help="Initial status"),
     summary: str | None = typer.Option(None, "--summary", help="One-line summary"),
     source: str | None = typer.Option(None, "--source", help="Source URL or path"),
-    tier: str | None = typer.Option(None, "--tier", help="Epistemic tier: ground_truth|institutional|practitioner|commentary|unknown"),
-    content_type: str | None = typer.Option(None, "--content-type", help="Artifact kind: paper|docs|article|blog|forum|dataset|policy|code|book|transcript|review|unknown"),
-    template: str | None = typer.Option(None, "--template", "-T", help="Template: note|concept|reference|guide|comparison|moc"),
+    tier: str | None = typer.Option(
+        None,
+        "--tier",
+        help="Epistemic tier: ground_truth|institutional|practitioner|commentary|unknown",
+    ),
+    content_type: str | None = typer.Option(
+        None,
+        "--content-type",
+        help="Artifact kind: paper|docs|article|blog|forum|dataset|policy|code|book|transcript|review|unknown",
+    ),
+    template: str | None = typer.Option(
+        None, "--template", "-T", help="Template: note|concept|reference|guide|comparison|moc"
+    ),
     edit: bool = typer.Option(False, "--edit", "-e", help="Open in $EDITOR"),
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
 ) -> None:
@@ -49,7 +61,10 @@ def note_new(
         except ValueError:
             valid = ", ".join(t.value for t in Tier)
             if json_output:
-                output(error(f"Invalid --tier '{tier}'. Must be one of: {valid}", "INVALID_TIER"), json_mode=True)
+                output(
+                    error(f"Invalid --tier '{tier}'. Must be one of: {valid}", "INVALID_TIER"),
+                    json_mode=True,
+                )
             else:
                 console.print(f"[red]Invalid --tier '{tier}'.[/] Must be one of: {valid}")
             raise typer.Exit(1)
@@ -59,9 +74,17 @@ def note_new(
         except ValueError:
             valid = ", ".join(c.value for c in ContentType)
             if json_output:
-                output(error(f"Invalid --content-type '{content_type}'. Must be one of: {valid}", "INVALID_CONTENT_TYPE"), json_mode=True)
+                output(
+                    error(
+                        f"Invalid --content-type '{content_type}'. Must be one of: {valid}",
+                        "INVALID_CONTENT_TYPE",
+                    ),
+                    json_mode=True,
+                )
             else:
-                console.print(f"[red]Invalid --content-type '{content_type}'.[/] Must be one of: {valid}")
+                console.print(
+                    f"[red]Invalid --content-type '{content_type}'.[/] Must be one of: {valid}"
+                )
             raise typer.Exit(1)
 
     vault = Vault.discover()
@@ -114,28 +137,50 @@ def note_new(
             path = file_path
         else:
             console.print(f"[yellow]Template '{template}' not found, using default.[/]")
-            path = write_note(vault.notes_dir, title, body=body, tags=tags, status=status,
-                              note_type=note_type, parent=parent, summary=summary,
-                              source=source, tier=tier, content_type=content_type)
+            path = write_note(
+                vault.notes_dir,
+                title,
+                body=body,
+                tags=tags,
+                status=status,
+                note_type=note_type,
+                parent=parent,
+                summary=summary,
+                source=source,
+                tier=tier,
+                content_type=content_type,
+            )
     else:
-        path = write_note(vault.notes_dir, title, body=body, tags=tags, status=status,
-                          note_type=note_type, parent=parent, summary=summary,
-                          source=source, tier=tier, content_type=content_type)
+        path = write_note(
+            vault.notes_dir,
+            title,
+            body=body,
+            tags=tags,
+            status=status,
+            note_type=note_type,
+            parent=parent,
+            summary=summary,
+            source=source,
+            tier=tier,
+            content_type=content_type,
+        )
 
     # Sync the new file into the DB so type/tags are indexed immediately
     from hyperresearch.core.sync import compute_sync_plan, execute_sync
+
     plan = compute_sync_plan(vault)
     execute_sync(vault, plan)
 
     # Read back the note ID (may have been collision-adjusted)
     from hyperresearch.core.note import read_note
+
     note = read_note(path, vault.root)
     nid = note.meta.id
 
     rel = path.relative_to(vault.root).as_posix()
 
     if json_output:
-        data = {"id": nid, "path": rel, "title": title}
+        data: dict = {"id": nid, "path": rel, "title": title}
         if similar:
             data["warning"] = f"Similar note already exists: {similar[0]['id']}"
             data["similar"] = [{"id": r["id"], "title": r["title"]} for r in similar]
@@ -158,7 +203,9 @@ def note_new(
 
 @app.command("show")
 def note_show(
-    note_ids: list[str] = typer.Argument(..., help="Note ID(s) — pass multiple to read several at once"),
+    note_ids: list[str] = typer.Argument(
+        ..., help="Note ID(s) — pass multiple to read several at once"
+    ),
     raw: bool = typer.Option(False, "--raw", "-r", help="Show raw markdown"),
     meta: bool = typer.Option(False, "--meta", "-m", help="Show only frontmatter"),
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
@@ -181,25 +228,32 @@ def note_show(
         ).fetchone()
         tags = tag_list["tl"].split(",") if tag_list and tag_list["tl"] else []
         data = {
-            "id": row["id"], "title": row["title"], "path": row["path"],
-            "status": row["status"], "type": row["type"], "tags": tags,
+            "id": row["id"],
+            "title": row["title"],
+            "path": row["path"],
+            "status": row["status"],
+            "type": row["type"],
+            "tags": tags,
             # sqlite3.Row.__contains__ is broken (returns False even for present keys),
             # so use row.keys() explicitly. SIM118 + SIM401 are noqa'd accordingly.
-            "tier": row["tier"] if "tier" in row.keys() else None,  # noqa: SIM118
-            "content_type": row["content_type"] if "content_type" in row.keys() else None,  # noqa: SIM118
-            "created": row["created"], "updated": row["updated"],
-            "word_count": row["word_count"], "source": row["source"],
-            "parent": row["parent"], "summary": row["summary"],
+            "tier": row["tier"] if "tier" in row.keys() else None,
+            "content_type": row["content_type"] if "content_type" in row.keys() else None,
+            "created": row["created"],
+            "updated": row["updated"],
+            "word_count": row["word_count"],
+            "source": row["source"],
+            "parent": row["parent"],
+            "summary": row["summary"],
         }
         # Open-access substitution. Surfaced structurally, not just as the
         # banner in the body, so a reader checking a quotation can tell it is
         # looking at a preprint without having to parse prose. `source` above
         # is still the URL that was requested; `oa_url` is where the body came
         # from. See core/oa.py.
-        if "oa_url" in row.keys() and row["oa_url"]:  # noqa: SIM118
+        if "oa_url" in row.keys() and row["oa_url"]:
             kind = (
                 row["oa_recovery_kind"]
-                if "oa_recovery_kind" in row.keys()  # noqa: SIM118
+                if "oa_recovery_kind" in row.keys()
                 else None
             )
             data["oa"] = {
@@ -217,6 +271,7 @@ def note_show(
         if not meta:
             body = row["body"]
             from hyperresearch.core.untrusted import is_untrusted, wrap_body
+
             if is_untrusted(data.get("source"), data.get("type")):
                 data["body"] = wrap_body(body, data["source"])
                 data["untrusted"] = True
@@ -259,6 +314,7 @@ def note_show(
                 console.print(f"[dim]Status: {data['status']} | Tags: {', '.join(tags)}[/]")
                 console.print()
                 from rich.markdown import Markdown
+
                 console.print(Markdown(data.get("body", "")))
         return
 
@@ -283,6 +339,7 @@ def note_show(
             if not meta:
                 console.print()
                 from rich.markdown import Markdown
+
                 console.print(Markdown(data.get("body", "")))
         if not_found:
             console.print(f"\n[red]Not found:[/] {', '.join(not_found)}")
@@ -294,8 +351,16 @@ def note_list(
     note_type: str | None = typer.Option(None, "--type", help="Filter by type"),
     tag: list[str] = typer.Option([], "--tag", "-t", help="Filter by tag (repeatable, AND logic)"),
     parent: str | None = typer.Option(None, "--parent", "-p", help="Filter by parent"),
-    tier: str | None = typer.Option(None, "--tier", help="Filter by epistemic tier: ground_truth|institutional|practitioner|commentary|unknown"),
-    content_type: str | None = typer.Option(None, "--content-type", help="Filter by artifact kind: paper|docs|article|blog|forum|dataset|policy|code|book|transcript|review|unknown"),
+    tier: str | None = typer.Option(
+        None,
+        "--tier",
+        help="Filter by epistemic tier: ground_truth|institutional|practitioner|commentary|unknown",
+    ),
+    content_type: str | None = typer.Option(
+        None,
+        "--content-type",
+        help="Filter by artifact kind: paper|docs|article|blog|forum|dataset|policy|code|book|transcript|review|unknown",
+    ),
     sort: str = typer.Option("updated", "--sort", help="Sort: created|updated|title|words"),
     limit: int = typer.Option(20, "--limit", "-l", help="Max results"),
     all_notes: bool = typer.Option(False, "--all", "-a", help="Return all notes (no limit)"),
@@ -312,7 +377,10 @@ def note_list(
         except ValueError:
             valid = ", ".join(t.value for t in Tier)
             if json_output:
-                output(error(f"Invalid --tier '{tier}'. Must be one of: {valid}", "INVALID_TIER"), json_mode=True)
+                output(
+                    error(f"Invalid --tier '{tier}'. Must be one of: {valid}", "INVALID_TIER"),
+                    json_mode=True,
+                )
             else:
                 console.print(f"[red]Invalid --tier '{tier}'.[/] Must be one of: {valid}")
             raise typer.Exit(1)
@@ -322,9 +390,17 @@ def note_list(
         except ValueError:
             valid = ", ".join(c.value for c in ContentType)
             if json_output:
-                output(error(f"Invalid --content-type '{content_type}'. Must be one of: {valid}", "INVALID_CONTENT_TYPE"), json_mode=True)
+                output(
+                    error(
+                        f"Invalid --content-type '{content_type}'. Must be one of: {valid}",
+                        "INVALID_CONTENT_TYPE",
+                    ),
+                    json_mode=True,
+                )
             else:
-                console.print(f"[red]Invalid --content-type '{content_type}'.[/] Must be one of: {valid}")
+                console.print(
+                    f"[red]Invalid --content-type '{content_type}'.[/] Must be one of: {valid}"
+                )
             raise typer.Exit(1)
 
     vault = Vault.discover()
@@ -373,21 +449,23 @@ def note_list(
     notes = []
     for row in rows:
         tag_list = row["tag_list"].split(",") if row["tag_list"] else []
-        notes.append({
-            "id": row["id"],
-            "title": row["title"],
-            "path": row["path"],
-            "status": row["status"],
-            "type": row["type"],
-            # sqlite3.Row.__contains__ is broken; row.keys() is reliable.
-            "tier": row["tier"] if "tier" in row.keys() else None,  # noqa: SIM118
-            "content_type": row["content_type"] if "content_type" in row.keys() else None,  # noqa: SIM118
-            "tags": tag_list,
-            "word_count": row["word_count"],
-            "summary": row["summary"],
-            "created": row["created"],
-            "updated": row["updated"],
-        })
+        notes.append(
+            {
+                "id": row["id"],
+                "title": row["title"],
+                "path": row["path"],
+                "status": row["status"],
+                "type": row["type"],
+                # sqlite3.Row.__contains__ is broken; row.keys() is reliable.
+                "tier": row["tier"] if "tier" in row.keys() else None,
+                "content_type": row["content_type"] if "content_type" in row.keys() else None,
+                "tags": tag_list,
+                "word_count": row["word_count"],
+                "summary": row["summary"],
+                "created": row["created"],
+                "updated": row["updated"],
+            }
+        )
 
     if json_output:
         output(
@@ -417,7 +495,9 @@ def note_edit(
         raise typer.Exit(1)
 
     file_path = vault.root / row["path"]
-    editor = os.environ.get("EDITOR", os.environ.get("VISUAL", "notepad" if os.name == "nt" else "vim"))
+    editor = os.environ.get(
+        "EDITOR", os.environ.get("VISUAL", "notepad" if os.name == "nt" else "vim")
+    )
     subprocess.run([editor, str(file_path)])
 
 
@@ -430,8 +510,16 @@ def note_update(
     set_summary: str | None = typer.Option(None, "--summary", help="Set summary"),
     set_parent: str | None = typer.Option(None, "--parent", "-p", help="Set parent topic"),
     set_source: str | None = typer.Option(None, "--source", help="Set source URL/path"),
-    set_tier: str | None = typer.Option(None, "--tier", help="Set epistemic tier: ground_truth|institutional|practitioner|commentary|unknown"),
-    set_content_type: str | None = typer.Option(None, "--content-type", help="Set artifact kind: paper|docs|article|blog|forum|dataset|policy|code|book|transcript|review|unknown"),
+    set_tier: str | None = typer.Option(
+        None,
+        "--tier",
+        help="Set epistemic tier: ground_truth|institutional|practitioner|commentary|unknown",
+    ),
+    set_content_type: str | None = typer.Option(
+        None,
+        "--content-type",
+        help="Set artifact kind: paper|docs|article|blog|forum|dataset|policy|code|book|transcript|review|unknown",
+    ),
     deprecate: bool = typer.Option(False, "--deprecate", help="Mark as deprecated"),
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
 ) -> None:
@@ -450,7 +538,13 @@ def note_update(
         except ValueError:
             valid = ", ".join(s.value for s in NoteStatus)
             if json_output:
-                output(error(f"Invalid --status '{set_status}'. Must be one of: {valid}", "INVALID_STATUS"), json_mode=True)
+                output(
+                    error(
+                        f"Invalid --status '{set_status}'. Must be one of: {valid}",
+                        "INVALID_STATUS",
+                    ),
+                    json_mode=True,
+                )
             else:
                 console.print(f"[red]Invalid --status '{set_status}'.[/] Must be one of: {valid}")
             raise typer.Exit(1)
@@ -460,7 +554,10 @@ def note_update(
         except ValueError:
             valid = ", ".join(t.value for t in Tier)
             if json_output:
-                output(error(f"Invalid --tier '{set_tier}'. Must be one of: {valid}", "INVALID_TIER"), json_mode=True)
+                output(
+                    error(f"Invalid --tier '{set_tier}'. Must be one of: {valid}", "INVALID_TIER"),
+                    json_mode=True,
+                )
             else:
                 console.print(f"[red]Invalid --tier '{set_tier}'.[/] Must be one of: {valid}")
             raise typer.Exit(1)
@@ -470,9 +567,17 @@ def note_update(
         except ValueError:
             valid = ", ".join(c.value for c in ContentType)
             if json_output:
-                output(error(f"Invalid --content-type '{set_content_type}'. Must be one of: {valid}", "INVALID_CONTENT_TYPE"), json_mode=True)
+                output(
+                    error(
+                        f"Invalid --content-type '{set_content_type}'. Must be one of: {valid}",
+                        "INVALID_CONTENT_TYPE",
+                    ),
+                    json_mode=True,
+                )
             else:
-                console.print(f"[red]Invalid --content-type '{set_content_type}'.[/] Must be one of: {valid}")
+                console.print(
+                    f"[red]Invalid --content-type '{set_content_type}'.[/] Must be one of: {valid}"
+                )
             raise typer.Exit(1)
 
     vault = Vault.discover()
@@ -492,7 +597,7 @@ def note_update(
 
     changed = []
     if set_status:
-        meta.status = set_status
+        meta.status = NoteStatus(set_status)
         changed.append(f"status={set_status}")
     for t in add_tag:
         if t.lower() not in meta.tags:
@@ -512,14 +617,14 @@ def note_update(
         meta.source = set_source
         changed.append("source")
     if set_tier is not None:
-        meta.tier = set_tier
+        meta.tier = Tier(set_tier)
         changed.append(f"tier={set_tier}")
     if set_content_type is not None:
-        meta.content_type = set_content_type
+        meta.content_type = ContentType(set_content_type)
         changed.append(f"content_type={set_content_type}")
     if deprecate:
         meta.deprecated = True
-        meta.status = "deprecated"
+        meta.status = NoteStatus("deprecated")
         changed.append("deprecated")
 
     if not changed:
@@ -574,7 +679,10 @@ def note_mv(
     execute_sync(vault, plan)
 
     if json_output:
-        output(success({"old_path": row["path"], "new_path": new_path}, vault=str(vault.root)), json_mode=True)
+        output(
+            success({"old_path": row["path"], "new_path": new_path}, vault=str(vault.root)),
+            json_mode=True,
+        )
     else:
         console.print(f"[green]Moved:[/] {row['path']} → {new_path}")
 
@@ -599,9 +707,7 @@ def note_rm(
     from hyperresearch.core.vault import Vault
 
     vault = Vault.discover()
-    row = vault.db.execute(
-        "SELECT path FROM notes WHERE id = ?", (note_id,)
-    ).fetchone()
+    row = vault.db.execute("SELECT path FROM notes WHERE id = ?", (note_id,)).fetchone()
     if not row:
         if json_output:
             output(error(f"Note not found: {note_id}", "NOT_FOUND"), json_mode=True)
@@ -622,6 +728,7 @@ def note_rm(
     if file_path.exists():
         try:
             from hyperresearch.core.frontmatter import parse_frontmatter
+
             text = file_path.read_text(encoding="utf-8-sig")
             meta, _ = parse_frontmatter(text)
             if meta.raw_file:
@@ -674,5 +781,3 @@ def note_rm(
         if removed_assets:
             msg += f"\n  assets: {len(removed_assets)} file(s)"
         console.print(msg)
-
-

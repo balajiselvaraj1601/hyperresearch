@@ -117,10 +117,7 @@ def search_url(query: str, limit: int) -> str:
     `doi:"10.x/y"` in `q` is CORE's fielded-query syntax and returns exactly
     the work with that DOI — how `core/oa.py` resolves a paywalled paper.
     """
-    return (
-        f"{API_BASE}/search/works/"
-        f"?q={quote(query, safe='')}&limit={limit}&exclude={_EXCLUDE}"
-    )
+    return f"{API_BASE}/search/works/?q={quote(query, safe='')}&limit={limit}&exclude={_EXCLUDE}"
 
 
 def doi_search_url(doi: str) -> str:

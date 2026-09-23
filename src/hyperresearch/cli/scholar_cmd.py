@@ -46,8 +46,12 @@ def scholar_search(
         [], "--source", "-s", help="Provider slug (repeatable; default: every available provider)"
     ),
     limit: int = typer.Option(20, "--limit", "-n", help="Max results per provider"),
-    scope: str = typer.Option("all", "--scope", help="all | papers (papers excludes trials/filings/series)"),
-    year_from: int | None = typer.Option(None, "--year-from", help="Drop records published before this year"),
+    scope: str = typer.Option(
+        "all", "--scope", help="all | papers (papers excludes trials/filings/series)"
+    ),
+    year_from: int | None = typer.Option(
+        None, "--year-from", help="Drop records published before this year"
+    ),
     fresh: bool = typer.Option(False, "--fresh", help="Bypass the API cache and re-query upstream"),
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
 ) -> None:
@@ -135,7 +139,9 @@ def scholar_search(
         return
 
     if not results:
-        console.print(f"[dim]No results for[/] '{query}' [dim]across {len(providers)} provider(s).[/]")
+        console.print(
+            f"[dim]No results for[/] '{query}' [dim]across {len(providers)} provider(s).[/]"
+        )
     for paper in results:
         year = paper.year or "n.d."
         console.print(f"[bold]{paper.title}[/] [dim]({year})[/]")

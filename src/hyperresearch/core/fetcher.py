@@ -103,7 +103,9 @@ def fetch_and_save(
         from hyperresearch.core.escalation import maybe_enqueue_blocked_fetch
 
         item_id = maybe_enqueue_blocked_fetch(
-            vault, url, "login_wall",
+            vault,
+            url,
+            "login_wall",
             vault_tag=tags[0] if tags else None,
             detail=f"login wall: {result.title}",
         )
@@ -123,7 +125,9 @@ def fetch_and_save(
 
             reason = "captcha" if "captcha" in junk_reason.lower() else "bot_block"
             item_id = maybe_enqueue_blocked_fetch(
-                vault, url, reason,
+                vault,
+                url,
+                reason,
                 vault_tag=tags[0] if tags else None,
                 detail=junk_reason,
             )
@@ -188,11 +192,7 @@ def fetch_and_save(
         if note_text.startswith("---") and "raw_file:" not in note_text:
             end = note_text.find("---", 3)
             if end != -1:
-                note_text = (
-                    note_text[:end]
-                    + f"raw_file: {raw_file_path}\n"
-                    + note_text[end:]
-                )
+                note_text = note_text[:end] + f"raw_file: {raw_file_path}\n" + note_text[end:]
                 note_path.write_text(note_text, encoding="utf-8")
 
     # Sync
@@ -224,8 +224,12 @@ def fetch_and_save(
 
         assets_dir = vault.research_dir / "assets" / note_id
         saved_assets = _save_assets(
-            conn, result, note_id, assets_dir,
-            settings=vault.config.assets, image_timeout_s=vault.config.fetch.image_timeout_s,
+            conn,
+            result,
+            note_id,
+            assets_dir,
+            settings=vault.config.assets,
+            image_timeout_s=vault.config.fetch.image_timeout_s,
             max_image_bytes=vault.config.fetch.max_image_bytes,
             allow_private_hosts=vault.config.fetch.allow_private_hosts,
         )

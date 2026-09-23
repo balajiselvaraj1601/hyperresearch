@@ -57,6 +57,7 @@ def _run_coro(coro: Any) -> Any:
         raise box["error"]
     return box["value"]
 
+
 if TYPE_CHECKING:
     from mcp.types import CallToolResult
 
