@@ -1,0 +1,3633 @@
+{
+  "depth_limit": 3,
+  "root": {
+    "name": "hyperresearch",
+    "type": "directory",
+    "purpose_description": "",
+    "children": [
+      {
+        "name": ".agents",
+        "type": "directory",
+        "purpose_description": "",
+        "children": [
+          {
+            "name": "agents",
+            "type": "file",
+            "purpose_description": "",
+            "size_bytes": 4096,
+            "target": "/home/monster/agentspace/.claude/agents"
+          },
+          {
+            "name": "rules",
+            "type": "file",
+            "purpose_description": "",
+            "size_bytes": 4096,
+            "target": "/home/monster/agentspace/.claude/rules"
+          },
+          {
+            "name": "skills",
+            "type": "directory",
+            "purpose_description": "",
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": ".claude",
+        "type": "directory",
+        "purpose_description": "",
+        "children": [
+          {
+            "name": "agents",
+            "type": "file",
+            "purpose_description": "",
+            "size_bytes": 4096,
+            "target": "/home/monster/agentspace/.claude/agents"
+          },
+          {
+            "name": "rules",
+            "type": "file",
+            "purpose_description": "",
+            "size_bytes": 4096,
+            "target": "/home/monster/agentspace/.claude/rules"
+          },
+          {
+            "name": "settings.json",
+            "type": "file",
+            "purpose_description": "",
+            "size_bytes": 18030,
+            "target": "/home/monster/agentspace/.claude/settings.json"
+          },
+          {
+            "name": "settings.local.json",
+            "type": "file",
+            "purpose_description": "",
+            "size_bytes": 73
+          },
+          {
+            "name": "skills",
+            "type": "directory",
+            "purpose_description": "",
+            "children": []
+          }
+        ]
+      },
+      {
+        "name": ".cursor",
+        "type": "directory",
+        "purpose_description": "",
+        "children": [
+          {
+            "name": "rules_md",
+            "type": "file",
+            "purpose_description": "",
+            "size_bytes": 4096,
+            "target": "/home/monster/agentspace/.claude/rules"
+          }
+        ]
+      },
+      {
+        "name": ".github",
+        "type": "directory",
+        "purpose_description": "",
+        "children": [
+          {
+            "name": "dependabot.yml",
+            "type": "file",
+            "purpose_description": "",
+            "size_bytes": 758
+          },
+          {
+            "name": "ISSUE_TEMPLATE",
+            "type": "directory",
+            "purpose_description": "",
+            "children": [
+              {
+                "name": "bug_report.yml",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 2144
+              },
+              {
+                "name": "config.yml",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 490
+              },
+              {
+                "name": "feature_request.yml",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 1395
+              }
+            ]
+          },
+          {
+            "name": "pull_request_template.md",
+            "type": "file",
+            "purpose_description": "",
+            "size_bytes": 1157
+          },
+          {
+            "name": "workflows",
+            "type": "directory",
+            "purpose_description": "",
+            "children": [
+              {
+                "name": "ci.yml",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 1394
+              },
+              {
+                "name": "publish.yml",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 1043
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": ".gitignore",
+        "type": "file",
+        "purpose_description": "",
+        "size_bytes": 743
+      },
+      {
+        "name": ".hyperresearch",
+        "type": "directory",
+        "purpose_description": "",
+        "children": [
+          {
+            "name": "config.toml",
+            "type": "file",
+            "purpose_description": "",
+            "size_bytes": 2335
+          },
+          {
+            "name": "exports",
+            "type": "directory",
+            "purpose_description": "",
+            "children": []
+          },
+          {
+            "name": "hyperresearch.db",
+            "type": "file",
+            "purpose_description": "",
+            "size_bytes": 10915840
+          },
+          {
+            "name": "templates",
+            "type": "directory",
+            "purpose_description": "",
+            "children": [
+              {
+                "name": "note.md",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 394,
+                "target": "../../../manage_environment/manage_templates/active/hyperresearch/note.template.md"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": ".mcp.json",
+        "type": "file",
+        "purpose_description": "",
+        "size_bytes": 1172,
+        "target": "/home/monster/agentspace/.mcp.json"
+      },
+      {
+        "name": "assets",
+        "type": "directory",
+        "purpose_description": "",
+        "children": [
+          {
+            "name": "_banner_src.png",
+            "type": "file",
+            "purpose_description": "",
+            "size_bytes": 12318
+          },
+          {
+            "name": "_generate_banner.py",
+            "type": "file",
+            "purpose_description": "",
+            "size_bytes": 2689
+          },
+          {
+            "name": "_generate_benchmark.py",
+            "type": "file",
+            "purpose_description": "",
+            "size_bytes": 5040
+          },
+          {
+            "name": "banner.png",
+            "type": "file",
+            "purpose_description": "",
+            "size_bytes": 18913
+          },
+          {
+            "name": "banner_social.png",
+            "type": "file",
+            "purpose_description": "",
+            "size_bytes": 16753
+          },
+          {
+            "name": "benchmark.png",
+            "type": "file",
+            "purpose_description": "",
+            "size_bytes": 92083
+          }
+        ]
+      },
+      {
+        "name": "CHANGELOG.md",
+        "type": "file",
+        "purpose_description": "",
+        "size_bytes": 97037
+      },
+      {
+        "name": "CONTRIBUTING.md",
+        "type": "file",
+        "purpose_description": "",
+        "size_bytes": 2394
+      },
+      {
+        "name": "docs",
+        "type": "directory",
+        "purpose_description": "",
+        "children": [
+          {
+            "name": "roadmap-2.0",
+            "type": "directory",
+            "purpose_description": "",
+            "children": [
+              {
+                "name": "phase-0-cleanup.md",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 11795
+              },
+              {
+                "name": "phase-1-config-profiles.md",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 11340
+              },
+              {
+                "name": "phase-2-source-ranking.md",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 12110
+              },
+              {
+                "name": "phase-3-dissertation-scale.md",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 13206
+              },
+              {
+                "name": "phase-4-chrome-lane.md",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 12802
+              },
+              {
+                "name": "phase-5-verification.md",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 11486
+              },
+              {
+                "name": "README.md",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 5768
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "example-reports",
+        "type": "directory",
+        "purpose_description": "",
+        "children": [
+          {
+            "name": "rl-exploration-trajectory-planning.md",
+            "type": "file",
+            "purpose_description": "",
+            "size_bytes": 87022
+          }
+        ]
+      },
+      {
+        "name": "LICENSE",
+        "type": "file",
+        "purpose_description": "",
+        "size_bytes": 1069
+      },
+      {
+        "name": "orchestrator",
+        "type": "directory",
+        "purpose_description": "",
+        "children": [
+          {
+            "name": "ASSESSMENT_2026-09-19.md",
+            "type": "file",
+            "purpose_description": "",
+            "size_bytes": 7299
+          },
+          {
+            "name": "ECOSYSTEM_RECOMMENDATIONS_2026-09-21.md",
+            "type": "file",
+            "purpose_description": "",
+            "size_bytes": 8859
+          },
+          {
+            "name": "launch_lane.sh",
+            "type": "file",
+            "purpose_description": "",
+            "size_bytes": 3935
+          }
+        ]
+      },
+      {
+        "name": "output",
+        "type": "directory",
+        "purpose_description": "",
+        "children": [
+          {
+            "name": "_inbox",
+            "type": "directory",
+            "purpose_description": "",
+            "children": []
+          },
+          {
+            "name": "assets",
+            "type": "directory",
+            "purpose_description": "",
+            "children": []
+          },
+          {
+            "name": "index",
+            "type": "directory",
+            "purpose_description": "",
+            "children": []
+          },
+          {
+            "name": "notes",
+            "type": "directory",
+            "purpose_description": "",
+            "children": [
+              {
+                "name": "agent-os-layers-capabilities-fe30a0",
+                "type": "directory",
+                "purpose_description": "",
+                "children": [
+                  {
+                    "name": "addozhang-sandboxes.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1436
+                  },
+                  {
+                    "name": "aios-llm-agent-operating-system.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1996
+                  },
+                  {
+                    "name": "always-on-agents-survey.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2103
+                  },
+                  {
+                    "name": "api7-mcp-registry.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1514
+                  },
+                  {
+                    "name": "blaxel-code-execution-sandboxes.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1540
+                  },
+                  {
+                    "name": "claude-agent-skills-best-practices.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2550
+                  },
+                  {
+                    "name": "claude-agent-skills-overview.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2192
+                  },
+                  {
+                    "name": "claude-code-best-practices.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3295
+                  },
+                  {
+                    "name": "cognition-dont-build-multi-agents.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1756
+                  },
+                  {
+                    "name": "cortexprism-open-source-agent-os-landscape.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1253
+                  },
+                  {
+                    "name": "cursor-agents-md-config.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2061
+                  },
+                  {
+                    "name": "cyera-lethal-trifecta-boundaries.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1965
+                  },
+                  {
+                    "name": "devto-agentsmd-vs-claudemd.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1684
+                  },
+                  {
+                    "name": "devto-gate-lethal-trifecta.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2033
+                  },
+                  {
+                    "name": "foundra-production-reliability.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1916
+                  },
+                  {
+                    "name": "google-adk-sessions-memory.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1900
+                  },
+                  {
+                    "name": "ijcai-llm-multi-agent-survey.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3184
+                  },
+                  {
+                    "name": "inngest-harness-not-framework.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1930
+                  },
+                  {
+                    "name": "interim-framework-retrofit-cost.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 6722
+                  },
+                  {
+                    "name": "interim-mcp-registry-boundary.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 4001
+                  },
+                  {
+                    "name": "interim-memory-tier-taxonomy.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 6525
+                  },
+                  {
+                    "name": "interim-multi-agent-orchestration.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 7288
+                  },
+                  {
+                    "name": "interim-permission-enforcement.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 9184
+                  },
+                  {
+                    "name": "interim-six-senses-collapse.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 5076
+                  },
+                  {
+                    "name": "jxnl-cognition-no-multiagent.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1898
+                  },
+                  {
+                    "name": "klavisai-mcp-connections.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1818
+                  },
+                  {
+                    "name": "konghq-mcp-registry.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1636
+                  },
+                  {
+                    "name": "konvu-yagni-framework.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1484
+                  },
+                  {
+                    "name": "langchain-multiagent.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1929
+                  },
+                  {
+                    "name": "lethal-trifecta-guardrails.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2384
+                  },
+                  {
+                    "name": "litellm-github.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1730
+                  },
+                  {
+                    "name": "make-agentic-operating-system.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2139
+                  },
+                  {
+                    "name": "mcp-dpt-defense-taxonomy.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2949
+                  },
+                  {
+                    "name": "memo-d-foundation-e2b.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1776
+                  },
+                  {
+                    "name": "mindstudio-agentic-operating-system.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2547
+                  },
+                  {
+                    "name": "mindstudio-memory-vector-search.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1801
+                  },
+                  {
+                    "name": "mlmastery-agent-memory-design.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1745
+                  },
+                  {
+                    "name": "mnemoverse-what-is-an-agent-os.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2227
+                  },
+                  {
+                    "name": "northflank-daytona-vs-e2b.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2207
+                  },
+                  {
+                    "name": "openobserve-otel-for-llms.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2043
+                  },
+                  {
+                    "name": "opentelemetry-llm-observability.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1765
+                  },
+                  {
+                    "name": "orchestrai-agent-os-architecture.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1127
+                  },
+                  {
+                    "name": "osworld-benchmark.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1810
+                  },
+                  {
+                    "name": "ro14nd-agents-md.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1582
+                  },
+                  {
+                    "name": "securing-mcp-risks-controls-governance.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3335
+                  },
+                  {
+                    "name": "simorconsulting-mcp-production.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2327
+                  },
+                  {
+                    "name": "sophos-blast-radius-reduction.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2087
+                  },
+                  {
+                    "name": "subagent-verification-practices.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2057
+                  },
+                  {
+                    "name": "tianpan-event-driven-vs-scheduled.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1668
+                  },
+                  {
+                    "name": "truefoundry-mcp-registries-comparison.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1745
+                  },
+                  {
+                    "name": "zup-codegen-case-study.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2060
+                  }
+                ]
+              },
+              {
+                "name": "ai-productivity-tools-096ea7",
+                "type": "directory",
+                "purpose_description": "",
+                "children": [
+                  {
+                    "name": "1password-developer-tools.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 5083
+                  },
+                  {
+                    "name": "ai-code-generation-security-study.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 80708
+                  },
+                  {
+                    "name": "ai-coding-agent-for-building-ambitious-software-cursor.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 11048
+                  },
+                  {
+                    "name": "ai-workflow-automation-platform-n8n.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 15238
+                  },
+                  {
+                    "name": "aider-ai-pair-programming.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 4966
+                  },
+                  {
+                    "name": "amazon-q-developer.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 13432
+                  },
+                  {
+                    "name": "arc-from-the-browser-company.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1692
+                  },
+                  {
+                    "name": "architecture-overview-model-context-protocol.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 31681
+                  },
+                  {
+                    "name": "augment-code-ai-assistant.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 24230
+                  },
+                  {
+                    "name": "build-an-mcp-server-model-context-protocol.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 80554
+                  },
+                  {
+                    "name": "calcom-scheduling-platform.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 13619
+                  },
+                  {
+                    "name": "claude-code-documentation.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 15760
+                  },
+                  {
+                    "name": "clipboard-api-web-apis-mdn.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 12539
+                  },
+                  {
+                    "name": "close-this-consent-banner-2.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 4704
+                  },
+                  {
+                    "name": "close-this-consent-banner.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 4711
+                  },
+                  {
+                    "name": "contents.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1758
+                  },
+                  {
+                    "name": "continuedev-ai-code-assistant.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 950
+                  },
+                  {
+                    "name": "copyq.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 6778
+                  },
+                  {
+                    "name": "cursor-ai-code-editor-features.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 11505
+                  },
+                  {
+                    "name": "cursor-pricing.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3730
+                  },
+                  {
+                    "name": "developer-api-obsidian-help.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 950
+                  },
+                  {
+                    "name": "devin-ai-autonomous-developer.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3582
+                  },
+                  {
+                    "name": "evernote-developers.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 689
+                  },
+                  {
+                    "name": "extending-joplin-joplin.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2690
+                  },
+                  {
+                    "name": "extension-api-visual-studio-code-extension-api.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 7777
+                  },
+                  {
+                    "name": "gemini-code-assist.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 20014
+                  },
+                  {
+                    "name": "getting-started-mcpjam-inspector.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 5762
+                  },
+                  {
+                    "name": "getting-started-with-self-hosting.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 5097
+                  },
+                  {
+                    "name": "github-clipyclipy-clipboard-extension-app-for-macos-github.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 8879
+                  },
+                  {
+                    "name": "github-copilot-features-and-pricing.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 70618
+                  },
+                  {
+                    "name": "github-copilot-features-documentation.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 7862
+                  },
+                  {
+                    "name": "github-copilot-github.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1522
+                  },
+                  {
+                    "name": "github-copilot-plans-pricing-github.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 77832
+                  },
+                  {
+                    "name": "google-calendar-google-for-developers.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3352
+                  },
+                  {
+                    "name": "help-support-and-documentation-for-notion.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2325
+                  },
+                  {
+                    "name": "html.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3909
+                  },
+                  {
+                    "name": "interim-authentication-and-privacy-model.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 4109
+                  },
+                  {
+                    "name": "interim-automation-platforms-as-bridges.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 6930
+                  },
+                  {
+                    "name": "interim-browser-and-clipboard-tools.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 5811
+                  },
+                  {
+                    "name": "interim-mcp-server-maturity-and-interoperability.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3784
+                  },
+                  {
+                    "name": "interim-pricing-and-licensing.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 9535
+                  },
+                  {
+                    "name": "interim-task-board-integration.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3064
+                  },
+                  {
+                    "name": "jira-features-and-capabilities.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 7690
+                  },
+                  {
+                    "name": "linear-developer-api.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1718
+                  },
+                  {
+                    "name": "linear-developers.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1729
+                  },
+                  {
+                    "name": "linear-project-management.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 11052
+                  },
+                  {
+                    "name": "litellm-documentation-2.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 11854
+                  },
+                  {
+                    "name": "logseq-knowledge-base.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 4269
+                  },
+                  {
+                    "name": "maccy-macos-clipboard-manager.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3148
+                  },
+                  {
+                    "name": "make-automation-platform.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 8470
+                  },
+                  {
+                    "name": "mcp-servers-reference-implementations.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 18315
+                  },
+                  {
+                    "name": "model-context-protocol-introduction.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3463
+                  },
+                  {
+                    "name": "notion-api-documentation.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 9418
+                  },
+                  {
+                    "name": "notion-platform-overview.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1779
+                  },
+                  {
+                    "name": "obsidian-note-taking.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 7240
+                  },
+                  {
+                    "name": "onenote-resource-type-microsoft-graph-v10-microsoft-learn.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 6380
+                  },
+                  {
+                    "name": "openrouter-documentation.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 9988
+                  },
+                  {
+                    "name": "plane-developer-documentation-api-reference-self-hosting-guides-plane.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2741
+                  },
+                  {
+                    "name": "portkey-ai-gateway.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 11987
+                  },
+                  {
+                    "name": "projects-github-docs.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 4780
+                  },
+                  {
+                    "name": "raycast-launcher.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 14825
+                  },
+                  {
+                    "name": "raycast-pricing-free-and-pro-plans-with-ai.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 12118
+                  },
+                  {
+                    "name": "raycast-pro-pricing.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 12876
+                  },
+                  {
+                    "name": "reference-obsidian-help.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 952
+                  },
+                  {
+                    "name": "replit-ai-agent.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3670
+                  },
+                  {
+                    "name": "slack-developer-documentation.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 5263
+                  },
+                  {
+                    "name": "sourcegraph-cody-ai-code-assistant.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 5443
+                  },
+                  {
+                    "name": "tailscale-developer-networking.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 9110
+                  },
+                  {
+                    "name": "the-trello-rest-api.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 29258
+                  },
+                  {
+                    "name": "todoist-task-management.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 9492
+                  },
+                  {
+                    "name": "what-is-the-model-context-protocol-mcp-model-context-protocol.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3508
+                  },
+                  {
+                    "name": "windsurf-ide.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 12931
+                  },
+                  {
+                    "name": "zapier-automate-ai-workflows-agents-and-apps.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 21341
+                  },
+                  {
+                    "name": "zen-browser.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1621
+                  }
+                ]
+              },
+              {
+                "name": "batches",
+                "type": "directory",
+                "purpose_description": "",
+                "children": []
+              },
+              {
+                "name": "github",
+                "type": "directory",
+                "purpose_description": "",
+                "children": [
+                  {
+                    "name": "about-code-owners-github-docs.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 10737
+                  },
+                  {
+                    "name": "ai-models-for-github-copilot-github-docs.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 910
+                  },
+                  {
+                    "name": "final_report_github-workflow-platform-map-193a00.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 20204
+                  },
+                  {
+                    "name": "github-discussions-documentation-github-docs.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3212
+                  },
+                  {
+                    "name": "github-feature-atlas.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 8783
+                  },
+                  {
+                    "name": "github-issues-documentation-github-docs.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2304
+                  },
+                  {
+                    "name": "managing-files-github-docs.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1499
+                  },
+                  {
+                    "name": "planning-and-tracking-with-projects-github-docs.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3102
+                  },
+                  {
+                    "name": "pull-requests-documentation-github-docs.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2617
+                  },
+                  {
+                    "name": "security-and-code-quality-documentation-github-docs.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2546
+                  },
+                  {
+                    "name": "webhooks-documentation-github-docs.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2421
+                  },
+                  {
+                    "name": "writing-workflows-github-docs.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1081
+                  }
+                ]
+              },
+              {
+                "name": "grilling",
+                "type": "directory",
+                "purpose_description": "",
+                "children": [
+                  {
+                    "name": "the-grilling-skill.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 13327
+                  }
+                ]
+              },
+              {
+                "name": "litellm-cost-perf-ops-506ad8",
+                "type": "directory",
+                "purpose_description": "",
+                "children": [
+                  {
+                    "name": "alerting-webhooks-litellm.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 23482
+                  },
+                  {
+                    "name": "auto-inject-prompt-caching-checkpoints-litellm.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 20495
+                  },
+                  {
+                    "name": "benchmarks-litellm.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 21862
+                  },
+                  {
+                    "name": "berriai-blog.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 200
+                  },
+                  {
+                    "name": "beta-guardrail-policies-litellm.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 14490
+                  },
+                  {
+                    "name": "budgets-rate-limits-litellm.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 54628
+                  },
+                  {
+                    "name": "bug-after-sending-a-streaming-request-to-a-custom-endpoint-the-entire-litellm-pr.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 11453
+                  },
+                  {
+                    "name": "bug-cascading-fallback-failure-both-primary-and-fallback-deployments-unhealthy-i.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 8614
+                  },
+                  {
+                    "name": "bug-in-v3-rate-limiting-requests-fail-when-redis-is-down-issue-14820-berriailite.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 9310
+                  },
+                  {
+                    "name": "bug-litellm-proxy-availability-concerns-cascading-failures-during-high-load-to-p.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 11505
+                  },
+                  {
+                    "name": "bug-using-litellm-proxy-at-scale-with-db-and-dynamodb-callback-issue-12067-berri.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 8943
+                  },
+                  {
+                    "name": "build-a-self-hosted-ai-gateway-with-litellm-proxy.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 8077
+                  },
+                  {
+                    "name": "caching-in-memory-redis-s3-gcs-redis-semantic-cache-disk-litellm.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 23563
+                  },
+                  {
+                    "name": "caching-litellm.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 8256
+                  },
+                  {
+                    "name": "config_settings-litellm.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 209796
+                  },
+                  {
+                    "name": "duckduckgo-search-for-obsidian-security-cve-2026-47101.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 5154
+                  },
+                  {
+                    "name": "dynamic-tpmrpm-allocation-litellm.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 16878
+                  },
+                  {
+                    "name": "failureatlas-a-taxonomy-of-failure-modes-in-multi-provider-llm-serving-infrastru.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 57371
+                  },
+                  {
+                    "name": "fallbacks-provider-failover-litellm.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 32337
+                  },
+                  {
+                    "name": "github-advisory-for-cve-2026-40217.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2424
+                  },
+                  {
+                    "name": "github-advisory-for-cve-2026-47101.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2305
+                  },
+                  {
+                    "name": "github-advisory-for-cve-2026-47102.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2268
+                  },
+                  {
+                    "name": "gptcache-an-open-source-semantic-cache-for-llm-applications-enabling-faster-answ.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 30074
+                  },
+                  {
+                    "name": "grafana-cloud-litellm.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 6191
+                  },
+                  {
+                    "name": "guardrail-providers-litellm.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 12281
+                  },
+                  {
+                    "name": "health-check-driven-routing-litellm.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 13913
+                  },
+                  {
+                    "name": "health-checks-litellm.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 10530
+                  },
+                  {
+                    "name": "how-to-add-guardrails-to-litellm-and-secure-it-for-enterprise-neuraltrust.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 28266
+                  },
+                  {
+                    "name": "interim-concurrency-and-timeout-tuning-under-thin-third-party-validation.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 4986
+                  },
+                  {
+                    "name": "interim-grounding-best-practices-to-multi-harness-self-hosted-gateway-host.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 4750
+                  },
+                  {
+                    "name": "interim-guardrailgovernance-sufficiency.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 4775
+                  },
+                  {
+                    "name": "interim-production-reliability-under-load.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 4618
+                  },
+                  {
+                    "name": "interim-redis-as-reliability-single-point-of-failure.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 4347
+                  },
+                  {
+                    "name": "interim-semantic-caching-costcorrectness-tradeoff.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 4216
+                  },
+                  {
+                    "name": "litellm-benchmarks-show-gateway-self-reported-health-vs-client-observed-metrics.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 708
+                  },
+                  {
+                    "name": "litellm-cost-tracking-multi-model-expense-management.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 17465
+                  },
+                  {
+                    "name": "litellm-documentation.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 204049
+                  },
+                  {
+                    "name": "litellm-fixes-max_parallel_requests-enforcement-bug-and-validates-concurrency-li.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1058
+                  },
+                  {
+                    "name": "litellm-gets-you-routing-it-doesnt-get-you-a-security-story-dev-community.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 7950
+                  },
+                  {
+                    "name": "litellm-github-repository.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 728848
+                  },
+                  {
+                    "name": "litellm-proxy-1-api-for-100-llms-15-min-setup-techsy.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 27144
+                  },
+                  {
+                    "name": "litellm-proxy-cli-litellm.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 18006
+                  },
+                  {
+                    "name": "making-the-ai-gateway-resilient-to-redis-failures-litellm.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 10611
+                  },
+                  {
+                    "name": "obsidian-security-blog-post-litellm-privilege-escalation-and-rce-cve-2026-47101.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 25802
+                  },
+                  {
+                    "name": "production-best-practices-litellm.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 38565
+                  },
+                  {
+                    "name": "prometheus-metrics-litellm.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 56298
+                  },
+                  {
+                    "name": "prompt-caching-vs-semantic-caching-real-world-tradeoffs-in-production-llm-system.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 12831
+                  },
+                  {
+                    "name": "prompt-caching-works-with-auto-router-litellm.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 7650
+                  },
+                  {
+                    "name": "redis-and-valkey-cache-litellm.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 15026
+                  },
+                  {
+                    "name": "reliability-retries-fallbacks-litellm.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 9558
+                  },
+                  {
+                    "name": "risk-constrained-freshness-aware-semantic-caching-for-open-web-retrieval-augment.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 72893
+                  },
+                  {
+                    "name": "role-based-access-controls-rbac-litellm.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 29125
+                  },
+                  {
+                    "name": "router-load-balancing-litellm.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 71574
+                  },
+                  {
+                    "name": "routing-load-balancing-litellm.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 4206
+                  },
+                  {
+                    "name": "scale-your-llm-gateway.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 5485
+                  },
+                  {
+                    "name": "semantic-adversarial-examples-2018.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 26584
+                  },
+                  {
+                    "name": "semantic-caching-litellm.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 14477
+                  },
+                  {
+                    "name": "semantic-caching-thresholds-and-why-they-matter.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 16343
+                  },
+                  {
+                    "name": "setting-team-budgets-litellm.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 5847
+                  },
+                  {
+                    "name": "smartcache-context-aware-semantic-cache-for-efficient-multi-turn-llm-inference-2.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2148
+                  },
+                  {
+                    "name": "tamarin-hsq-reversible-hierarchical-kv-cache-compression-for-llm-inference-2026.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 45315
+                  },
+                  {
+                    "name": "timeouts-litellm.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 11276
+                  },
+                  {
+                    "name": "virtual-keys-litellm.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 38969
+                  },
+                  {
+                    "name": "when-cache-poisoning-meets-llm-systems-semantic-cache-poisoning-and-its-counterm.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 104037
+                  }
+                ]
+              },
+              {
+                "name": "test.txt",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 4
+              }
+            ]
+          },
+          {
+            "name": "raw",
+            "type": "directory",
+            "purpose_description": "",
+            "children": [
+              {
+                "name": "ai-code-generation-security-study.pdf",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 3264113
+              },
+              {
+                "name": "failureatlas-a-taxonomy-of-failure-modes-in-multi-provider-llm-serving-infrastru.pdf",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 387898
+              },
+              {
+                "name": "gptcache-an-open-source-semantic-cache-for-llm-applications-enabling-faster-answ.pdf",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 185290
+              },
+              {
+                "name": "semantic-adversarial-examples-2018.pdf",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 390458
+              },
+              {
+                "name": "tamarin-hsq-reversible-hierarchical-kv-cache-compression-for-llm-inference-2026.pdf",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 220954
+              },
+              {
+                "name": "when-cache-poisoning-meets-llm-systems-semantic-cache-poisoning-and-its-counterm.pdf",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 1911866
+              }
+            ]
+          },
+          {
+            "name": "reports",
+            "type": "directory",
+            "purpose_description": "",
+            "children": [
+              {
+                "name": "agent-os-layers-capabilities-fe30a0",
+                "type": "directory",
+                "purpose_description": "",
+                "children": [
+                  {
+                    "name": "final_report_agent-os-layers-capabilities-fe30a0.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 39441
+                  }
+                ]
+              },
+              {
+                "name": "ai-productivity-tools-096ea7",
+                "type": "directory",
+                "purpose_description": "",
+                "children": [
+                  {
+                    "name": "final_report_ai-productivity-tools-096ea7.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 57248
+                  }
+                ]
+              },
+              {
+                "name": "litellm-cost-perf-ops-506ad8",
+                "type": "directory",
+                "purpose_description": "",
+                "children": [
+                  {
+                    "name": "final_report_litellm-cost-perf-ops-506ad8.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 45659
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "runs",
+            "type": "directory",
+            "purpose_description": "",
+            "children": [
+              {
+                "name": "agent-os-layers-capabilities-fe30a0",
+                "type": "directory",
+                "purpose_description": "",
+                "children": [
+                  {
+                    "name": "audit_findings.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 211
+                  },
+                  {
+                    "name": "cite-check-findings-a.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3014
+                  },
+                  {
+                    "name": "cite-check-findings-b.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1090
+                  },
+                  {
+                    "name": "cite-check-findings.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 781
+                  },
+                  {
+                    "name": "cite-check-pairs.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 35158
+                  },
+                  {
+                    "name": "cite-check-patch-log.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 731
+                  },
+                  {
+                    "name": "comparisons.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 8309
+                  },
+                  {
+                    "name": "corpus-critic-gaps.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1554
+                  },
+                  {
+                    "name": "critic-findings-depth.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 7462
+                  },
+                  {
+                    "name": "critic-findings-dialectic.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 7971
+                  },
+                  {
+                    "name": "critic-findings-instruction.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2568
+                  },
+                  {
+                    "name": "critic-findings-width.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2685
+                  },
+                  {
+                    "name": "events.jsonl",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 4149
+                  },
+                  {
+                    "name": "loci-a.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 10175
+                  },
+                  {
+                    "name": "loci-b.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 9705
+                  },
+                  {
+                    "name": "loci.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 9451
+                  },
+                  {
+                    "name": "patch-log.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 4226
+                  },
+                  {
+                    "name": "polish-log.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 516
+                  },
+                  {
+                    "name": "prompt-decomposition.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 10760
+                  },
+                  {
+                    "name": "query.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2003
+                  },
+                  {
+                    "name": "readability-decisions.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 255
+                  },
+                  {
+                    "name": "readability-recommendations.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 15849
+                  },
+                  {
+                    "name": "run.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 4317
+                  },
+                  {
+                    "name": "scaffold.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 5535
+                  },
+                  {
+                    "name": "shims",
+                    "type": "directory",
+                    "purpose_description": ""
+                  },
+                  {
+                    "name": "temp",
+                    "type": "directory",
+                    "purpose_description": ""
+                  }
+                ]
+              },
+              {
+                "name": "ai-productivity-tools-096ea7",
+                "type": "directory",
+                "purpose_description": "",
+                "children": [
+                  {
+                    "name": "cite-check-findings.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 42130
+                  },
+                  {
+                    "name": "cite-check-pairs.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 34719
+                  },
+                  {
+                    "name": "cite-check-patch-log.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 196
+                  },
+                  {
+                    "name": "comparisons.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 6296
+                  },
+                  {
+                    "name": "corpus-critic-gaps.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2784
+                  },
+                  {
+                    "name": "critic-findings-depth.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3221
+                  },
+                  {
+                    "name": "critic-findings-dialectic.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 437
+                  },
+                  {
+                    "name": "critic-findings-instruction.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 493
+                  },
+                  {
+                    "name": "critic-findings-width.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1124
+                  },
+                  {
+                    "name": "events.jsonl",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2265
+                  },
+                  {
+                    "name": "loci-a.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3181
+                  },
+                  {
+                    "name": "loci-b.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3932
+                  },
+                  {
+                    "name": "loci-c.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2243
+                  },
+                  {
+                    "name": "loci.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 7430
+                  },
+                  {
+                    "name": "patch-log.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1043
+                  },
+                  {
+                    "name": "polish-log.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 280
+                  },
+                  {
+                    "name": "prompt-decomposition.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3400
+                  },
+                  {
+                    "name": "query.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 867
+                  },
+                  {
+                    "name": "readability-decisions.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 120
+                  },
+                  {
+                    "name": "readability-recommendations.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3
+                  },
+                  {
+                    "name": "run.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2641
+                  },
+                  {
+                    "name": "scaffold.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 415
+                  },
+                  {
+                    "name": "shims",
+                    "type": "directory",
+                    "purpose_description": ""
+                  },
+                  {
+                    "name": "temp",
+                    "type": "directory",
+                    "purpose_description": ""
+                  }
+                ]
+              },
+              {
+                "name": "litellm-cost-perf-ops-506ad8",
+                "type": "directory",
+                "purpose_description": "",
+                "children": [
+                  {
+                    "name": "audit_findings.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 232
+                  },
+                  {
+                    "name": "cite-check-findings.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3
+                  },
+                  {
+                    "name": "cite-check-pairs.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 7373
+                  },
+                  {
+                    "name": "cite-check-patch-log.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 360
+                  },
+                  {
+                    "name": "comparisons.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 12755
+                  },
+                  {
+                    "name": "corpus-critic-gaps.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 5118
+                  },
+                  {
+                    "name": "critic-findings-depth-v2.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3792
+                  },
+                  {
+                    "name": "critic-findings-depth.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3792
+                  },
+                  {
+                    "name": "critic-findings-dialectic-v2.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 7175
+                  },
+                  {
+                    "name": "critic-findings-dialectic.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 7175
+                  },
+                  {
+                    "name": "critic-findings-instruction-v2.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 16
+                  },
+                  {
+                    "name": "critic-findings-instruction.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 16
+                  },
+                  {
+                    "name": "critic-findings-width-v2.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 6434
+                  },
+                  {
+                    "name": "critic-findings-width.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 6434
+                  },
+                  {
+                    "name": "events.jsonl",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 4012
+                  },
+                  {
+                    "name": "loci.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 7462
+                  },
+                  {
+                    "name": "patch-log.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1771
+                  },
+                  {
+                    "name": "polish-log.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 35
+                  },
+                  {
+                    "name": "prompt-decomposition.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 6032
+                  },
+                  {
+                    "name": "query.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 433
+                  },
+                  {
+                    "name": "readability-decisions.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 964
+                  },
+                  {
+                    "name": "readability-recommendations.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 8682
+                  },
+                  {
+                    "name": "run.json",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3265
+                  },
+                  {
+                    "name": "scaffold.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2605
+                  },
+                  {
+                    "name": "shims",
+                    "type": "directory",
+                    "purpose_description": ""
+                  },
+                  {
+                    "name": "temp",
+                    "type": "directory",
+                    "purpose_description": ""
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "pyproject.toml",
+        "type": "file",
+        "purpose_description": "",
+        "size_bytes": 3297
+      },
+      {
+        "name": "README.md",
+        "type": "file",
+        "purpose_description": "",
+        "size_bytes": 11743
+      },
+      {
+        "name": "scripts",
+        "type": "directory",
+        "purpose_description": "",
+        "children": [
+          {
+            "name": "capture-model-usage.sh",
+            "type": "file",
+            "purpose_description": "",
+            "size_bytes": 3474
+          }
+        ]
+      },
+      {
+        "name": "src",
+        "type": "directory",
+        "purpose_description": "",
+        "children": [
+          {
+            "name": "hyperresearch",
+            "type": "directory",
+            "purpose_description": "",
+            "children": [
+              {
+                "name": "__init__.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 86
+              },
+              {
+                "name": "__main__.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 132
+              },
+              {
+                "name": "cli",
+                "type": "directory",
+                "purpose_description": "",
+                "children": [
+                  {
+                    "name": "__init__.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 6688
+                  },
+                  {
+                    "name": "_output.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 4148
+                  },
+                  {
+                    "name": "archive.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 6211
+                  },
+                  {
+                    "name": "assets.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3782
+                  },
+                  {
+                    "name": "batch.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 13064
+                  },
+                  {
+                    "name": "citecheck_cmd.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2991
+                  },
+                  {
+                    "name": "claims_cmd.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 6941
+                  },
+                  {
+                    "name": "config_cmd.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 4509
+                  },
+                  {
+                    "name": "dedup.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 4916
+                  },
+                  {
+                    "name": "embed_cmd.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2608
+                  },
+                  {
+                    "name": "escalation_cmd.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 11180
+                  },
+                  {
+                    "name": "export.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 4392
+                  },
+                  {
+                    "name": "fetch.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 36669
+                  },
+                  {
+                    "name": "fetch_batch.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 14452
+                  },
+                  {
+                    "name": "git_cmd.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 5724
+                  },
+                  {
+                    "name": "graph.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 11371
+                  },
+                  {
+                    "name": "import_cmd.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3221
+                  },
+                  {
+                    "name": "index.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2428
+                  },
+                  {
+                    "name": "install.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 10844
+                  },
+                  {
+                    "name": "levers_cmd.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3794
+                  },
+                  {
+                    "name": "link.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2904
+                  },
+                  {
+                    "name": "lint.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 95250
+                  },
+                  {
+                    "name": "main.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 6014
+                  },
+                  {
+                    "name": "mcp_cmd.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 498
+                  },
+                  {
+                    "name": "note.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 29045
+                  },
+                  {
+                    "name": "profile_cmd.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 8605
+                  },
+                  {
+                    "name": "repair.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 10963
+                  },
+                  {
+                    "name": "research.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 12041
+                  },
+                  {
+                    "name": "run_cmd.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 21449
+                  },
+                  {
+                    "name": "scholar_cmd.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 8449
+                  },
+                  {
+                    "name": "search.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 10146
+                  },
+                  {
+                    "name": "serve.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 746
+                  },
+                  {
+                    "name": "setup.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 12791
+                  },
+                  {
+                    "name": "sources.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 9529
+                  },
+                  {
+                    "name": "tag.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 4720
+                  },
+                  {
+                    "name": "template.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1622
+                  },
+                  {
+                    "name": "topic.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 5755
+                  },
+                  {
+                    "name": "vault_tag.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 5523
+                  },
+                  {
+                    "name": "watch.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 4178
+                  }
+                ]
+              },
+              {
+                "name": "core",
+                "type": "directory",
+                "purpose_description": "",
+                "children": [
+                  {
+                    "name": "__init__.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 29
+                  },
+                  {
+                    "name": "agent_docs.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 4522
+                  },
+                  {
+                    "name": "citecheck.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 8374
+                  },
+                  {
+                    "name": "claims.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 15687
+                  },
+                  {
+                    "name": "config.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 18716
+                  },
+                  {
+                    "name": "contracts.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3582
+                  },
+                  {
+                    "name": "db.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 9138
+                  },
+                  {
+                    "name": "embed.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 6609
+                  },
+                  {
+                    "name": "enrich.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3694
+                  },
+                  {
+                    "name": "escalation.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 6268
+                  },
+                  {
+                    "name": "fetcher.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 8957
+                  },
+                  {
+                    "name": "frontmatter.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 1603
+                  },
+                  {
+                    "name": "graphrank.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3671
+                  },
+                  {
+                    "name": "hooks.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 21042
+                  },
+                  {
+                    "name": "independence.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 5876
+                  },
+                  {
+                    "name": "levers.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 13872
+                  },
+                  {
+                    "name": "linker.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 4586
+                  },
+                  {
+                    "name": "migrations.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 14428
+                  },
+                  {
+                    "name": "note.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 5949
+                  },
+                  {
+                    "name": "oa.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 33202
+                  },
+                  {
+                    "name": "patterns.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 5580
+                  },
+                  {
+                    "name": "profiles.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 17568
+                  },
+                  {
+                    "name": "quality.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2646
+                  },
+                  {
+                    "name": "render.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3479
+                  },
+                  {
+                    "name": "runs.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 30303
+                  },
+                  {
+                    "name": "scholar.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 17158
+                  },
+                  {
+                    "name": "similarity.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2455
+                  },
+                  {
+                    "name": "sync.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 16473
+                  },
+                  {
+                    "name": "templates.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3083
+                  },
+                  {
+                    "name": "untrusted.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 2810
+                  },
+                  {
+                    "name": "vault.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 7560
+                  }
+                ]
+              },
+              {
+                "name": "export",
+                "type": "directory",
+                "purpose_description": "",
+                "children": [
+                  {
+                    "name": "__init__.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 25
+                  }
+                ]
+              },
+              {
+                "name": "graph",
+                "type": "directory",
+                "purpose_description": "",
+                "children": [
+                  {
+                    "name": "__init__.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 34
+                  }
+                ]
+              },
+              {
+                "name": "indexgen",
+                "type": "directory",
+                "purpose_description": "",
+                "children": [
+                  {
+                    "name": "__init__.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 41
+                  },
+                  {
+                    "name": "generator.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 11348
+                  }
+                ]
+              },
+              {
+                "name": "mcp",
+                "type": "directory",
+                "purpose_description": "",
+                "children": [
+                  {
+                    "name": "__init__.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 96
+                  },
+                  {
+                    "name": "server.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 18967
+                  }
+                ]
+              },
+              {
+                "name": "models",
+                "type": "directory",
+                "purpose_description": "",
+                "children": [
+                  {
+                    "name": "__init__.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 57
+                  },
+                  {
+                    "name": "graph.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 388
+                  },
+                  {
+                    "name": "note.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 5808
+                  },
+                  {
+                    "name": "output.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 831
+                  },
+                  {
+                    "name": "search.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 401
+                  }
+                ]
+              },
+              {
+                "name": "py.typed",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 0
+              },
+              {
+                "name": "scholar",
+                "type": "directory",
+                "purpose_description": "",
+                "children": [
+                  {
+                    "name": "__init__.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 295
+                  },
+                  {
+                    "name": "base.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 12246
+                  },
+                  {
+                    "name": "dedup.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 7277
+                  },
+                  {
+                    "name": "providers",
+                    "type": "directory",
+                    "purpose_description": ""
+                  },
+                  {
+                    "name": "registry.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3262
+                  }
+                ]
+              },
+              {
+                "name": "search",
+                "type": "directory",
+                "purpose_description": "",
+                "children": [
+                  {
+                    "name": "__init__.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 40
+                  },
+                  {
+                    "name": "filters.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3517
+                  },
+                  {
+                    "name": "fts.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 7089
+                  }
+                ]
+              },
+              {
+                "name": "serve",
+                "type": "directory",
+                "purpose_description": "",
+                "children": [
+                  {
+                    "name": "__init__.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 60
+                  },
+                  {
+                    "name": "renderer.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 5808
+                  },
+                  {
+                    "name": "server.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 27725
+                  }
+                ]
+              },
+              {
+                "name": "skills",
+                "type": "directory",
+                "purpose_description": "",
+                "children": [
+                  {
+                    "name": "__init__.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 40
+                  },
+                  {
+                    "name": "hyperresearch-1-5-chapter-partition.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 6376
+                  },
+                  {
+                    "name": "hyperresearch-1-decompose.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 15744
+                  },
+                  {
+                    "name": "hyperresearch-10-triple-draft.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 15047
+                  },
+                  {
+                    "name": "hyperresearch-11-synthesize.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 13228
+                  },
+                  {
+                    "name": "hyperresearch-12-critics.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3718
+                  },
+                  {
+                    "name": "hyperresearch-13-gap-fetch.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 4414
+                  },
+                  {
+                    "name": "hyperresearch-14-5-cite-check.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 4817
+                  },
+                  {
+                    "name": "hyperresearch-14-patcher.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 8672
+                  },
+                  {
+                    "name": "hyperresearch-15-polish.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 7657
+                  },
+                  {
+                    "name": "hyperresearch-16-readability-audit.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 7736
+                  },
+                  {
+                    "name": "hyperresearch-2-width-sweep.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 20804
+                  },
+                  {
+                    "name": "hyperresearch-3-contradiction-graph.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3598
+                  },
+                  {
+                    "name": "hyperresearch-4-loci-analysis.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 7564
+                  },
+                  {
+                    "name": "hyperresearch-5-depth-investigation.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 4632
+                  },
+                  {
+                    "name": "hyperresearch-6-cross-locus-reconcile.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 4870
+                  },
+                  {
+                    "name": "hyperresearch-7-source-tensions.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 5570
+                  },
+                  {
+                    "name": "hyperresearch-8-corpus-critic.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 7936
+                  },
+                  {
+                    "name": "hyperresearch-9-evidence-digest.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3939
+                  },
+                  {
+                    "name": "hyperresearch.md",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 25411
+                  },
+                  {
+                    "name": "roles",
+                    "type": "directory",
+                    "purpose_description": ""
+                  }
+                ]
+              },
+              {
+                "name": "web",
+                "type": "directory",
+                "purpose_description": "",
+                "children": [
+                  {
+                    "name": "__init__.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 85
+                  },
+                  {
+                    "name": "base.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 9537
+                  },
+                  {
+                    "name": "builtin.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 5423
+                  },
+                  {
+                    "name": "crawl4ai_provider.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 20768
+                  },
+                  {
+                    "name": "exa_provider.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 4503
+                  },
+                  {
+                    "name": "parallel_provider.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 8104
+                  },
+                  {
+                    "name": "pdf.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 10734
+                  },
+                  {
+                    "name": "safe_http.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 10375
+                  },
+                  {
+                    "name": "serply_provider.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3884
+                  },
+                  {
+                    "name": "tavily_provider.py",
+                    "type": "file",
+                    "purpose_description": "",
+                    "size_bytes": 3367
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "tests",
+        "type": "directory",
+        "purpose_description": "",
+        "children": [
+          {
+            "name": "__init__.py",
+            "type": "file",
+            "purpose_description": "",
+            "size_bytes": 0
+          },
+          {
+            "name": "conftest.py",
+            "type": "file",
+            "purpose_description": "",
+            "size_bytes": 2899
+          },
+          {
+            "name": "fixtures",
+            "type": "directory",
+            "purpose_description": "",
+            "children": [
+              {
+                "name": "golden_prompts",
+                "type": "directory",
+                "purpose_description": "",
+                "children": [
+                  {
+                    "name": "agents",
+                    "type": "directory",
+                    "purpose_description": ""
+                  },
+                  {
+                    "name": "skills",
+                    "type": "directory",
+                    "purpose_description": ""
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "test_cli",
+            "type": "directory",
+            "purpose_description": "",
+            "children": [
+              {
+                "name": "__init__.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 0
+              },
+              {
+                "name": "test_archive.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 6558
+              },
+              {
+                "name": "test_commands.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 9285
+              },
+              {
+                "name": "test_fetch_batch.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 1927
+              },
+              {
+                "name": "test_install_browser.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 2545
+              },
+              {
+                "name": "test_install_profile.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 6497
+              },
+              {
+                "name": "test_lint.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 59706
+              },
+              {
+                "name": "test_note_ops.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 5991
+              },
+              {
+                "name": "test_oa_fetch.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 11405
+              },
+              {
+                "name": "test_orphan_dedup_call_sites.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 7101
+              },
+              {
+                "name": "test_vault_tag.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 4407
+              }
+            ]
+          },
+          {
+            "name": "test_core",
+            "type": "directory",
+            "purpose_description": "",
+            "children": [
+              {
+                "name": "__init__.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 0
+              },
+              {
+                "name": "test_claims_and_embed.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 15649
+              },
+              {
+                "name": "test_config_sections.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 11202
+              },
+              {
+                "name": "test_contracts.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 3962
+              },
+              {
+                "name": "test_dissertation_profile.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 5232
+              },
+              {
+                "name": "test_escalation.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 11053
+              },
+              {
+                "name": "test_fetcher_orphan_dedup.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 2030
+              },
+              {
+                "name": "test_frontmatter.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 2320
+              },
+              {
+                "name": "test_hooks.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 9133
+              },
+              {
+                "name": "test_levers.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 8964
+              },
+              {
+                "name": "test_note.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 9163
+              },
+              {
+                "name": "test_oa_core_resolver.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 27699
+              },
+              {
+                "name": "test_oa_recovery.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 30540
+              },
+              {
+                "name": "test_packaging.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 1066
+              },
+              {
+                "name": "test_patterns.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 9715
+              },
+              {
+                "name": "test_profiles.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 16777
+              },
+              {
+                "name": "test_prompt_golden.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 18247
+              },
+              {
+                "name": "test_render.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 2732
+              },
+              {
+                "name": "test_run_tag_validation.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 3457
+              },
+              {
+                "name": "test_runs.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 20736
+              },
+              {
+                "name": "test_scholar_enrichment.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 21885
+              },
+              {
+                "name": "test_source_ranking.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 11040
+              },
+              {
+                "name": "test_sync.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 13319
+              },
+              {
+                "name": "test_untrusted.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 5721
+              },
+              {
+                "name": "test_vault.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 2699
+              },
+              {
+                "name": "test_verification.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 47168
+              }
+            ]
+          },
+          {
+            "name": "test_graph",
+            "type": "directory",
+            "purpose_description": "",
+            "children": [
+              {
+                "name": "__init__.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 0
+              },
+              {
+                "name": "test_links.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 2758
+              }
+            ]
+          },
+          {
+            "name": "test_mcp",
+            "type": "directory",
+            "purpose_description": "",
+            "children": [
+              {
+                "name": "__init__.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 0
+              },
+              {
+                "name": "test_update_note.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 2004
+              }
+            ]
+          },
+          {
+            "name": "test_scholar",
+            "type": "directory",
+            "purpose_description": "",
+            "children": [
+              {
+                "name": "__init__.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 0
+              },
+              {
+                "name": "test_cli.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 13867
+              },
+              {
+                "name": "test_clinicaltrials.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 8314
+              },
+              {
+                "name": "test_core_provider.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 12571
+              },
+              {
+                "name": "test_crossref.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 14487
+              },
+              {
+                "name": "test_dedup.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 9008
+              },
+              {
+                "name": "test_doab.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 17480
+              },
+              {
+                "name": "test_edgar.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 10160
+              },
+              {
+                "name": "test_fred.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 8973
+              },
+              {
+                "name": "test_openalex.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 13665
+              },
+              {
+                "name": "test_repec.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 3746
+              }
+            ]
+          },
+          {
+            "name": "test_search",
+            "type": "directory",
+            "purpose_description": "",
+            "children": [
+              {
+                "name": "__init__.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 0
+              },
+              {
+                "name": "test_fts.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 3755
+              }
+            ]
+          },
+          {
+            "name": "test_serve",
+            "type": "directory",
+            "purpose_description": "",
+            "children": [
+              {
+                "name": "__init__.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 0
+              },
+              {
+                "name": "test_server.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 6381
+              },
+              {
+                "name": "test_xss.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 3841
+              }
+            ]
+          },
+          {
+            "name": "test_web",
+            "type": "directory",
+            "purpose_description": "",
+            "children": [
+              {
+                "name": "__init__.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 0
+              },
+              {
+                "name": "test_builtin_pdf_lane.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 5718
+              },
+              {
+                "name": "test_crawl4ai_running_loop.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 3631
+              },
+              {
+                "name": "test_crawl4ai_stealth.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 2285
+              },
+              {
+                "name": "test_exa_provider.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 7399
+              },
+              {
+                "name": "test_fetch_many_fallback.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 3745
+              },
+              {
+                "name": "test_fetch_many_gate.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 2708
+              },
+              {
+                "name": "test_fetch_settings.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 4868
+              },
+              {
+                "name": "test_final_url_recheck.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 6688
+              },
+              {
+                "name": "test_junk_detection.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 5144
+              },
+              {
+                "name": "test_parallel_provider.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 11052
+              },
+              {
+                "name": "test_pdf_diagnostics.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 10924
+              },
+              {
+                "name": "test_safe_http.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 15244
+              },
+              {
+                "name": "test_serply_provider.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 4243
+              },
+              {
+                "name": "test_tavily_provider.py",
+                "type": "file",
+                "purpose_description": "",
+                "size_bytes": 4636
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "uv.lock",
+        "type": "file",
+        "purpose_description": "",
+        "size_bytes": 570987
+      }
+    ]
+  }
+}
