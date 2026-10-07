@@ -14,15 +14,15 @@
             "name": "agents",
             "type": "file",
             "purpose_description": "",
-            "size_bytes": 4096,
-            "target": "/home/monster/agentspace/.claude/agents"
+            "size_bytes": 39,
+            "symlink_target": "/home/monster/agentspace/.claude/agents"
           },
           {
             "name": "rules",
             "type": "file",
             "purpose_description": "",
-            "size_bytes": 4096,
-            "target": "/home/monster/agentspace/.claude/rules"
+            "size_bytes": 38,
+            "symlink_target": "/home/monster/agentspace/.claude/rules"
           },
           {
             "name": "skills",
@@ -41,22 +41,22 @@
             "name": "agents",
             "type": "file",
             "purpose_description": "",
-            "size_bytes": 4096,
-            "target": "/home/monster/agentspace/.claude/agents"
+            "size_bytes": 39,
+            "symlink_target": "/home/monster/agentspace/.claude/agents"
           },
           {
             "name": "rules",
             "type": "file",
             "purpose_description": "",
-            "size_bytes": 4096,
-            "target": "/home/monster/agentspace/.claude/rules"
+            "size_bytes": 38,
+            "symlink_target": "/home/monster/agentspace/.claude/rules"
           },
           {
             "name": "settings.json",
             "type": "file",
             "purpose_description": "",
-            "size_bytes": 18030,
-            "target": "/home/monster/agentspace/.claude/settings.json"
+            "size_bytes": 46,
+            "symlink_target": "/home/monster/agentspace/.claude/settings.json"
           },
           {
             "name": "settings.local.json",
@@ -81,8 +81,8 @@
             "name": "rules_md",
             "type": "file",
             "purpose_description": "",
-            "size_bytes": 4096,
-            "target": "/home/monster/agentspace/.claude/rules"
+            "size_bytes": 38,
+            "symlink_target": "/home/monster/agentspace/.claude/rules"
           }
         ]
       },
@@ -187,8 +187,8 @@
                 "name": "note.md",
                 "type": "file",
                 "purpose_description": "",
-                "size_bytes": 394,
-                "target": "../../../manage_environment/manage_templates/active/hyperresearch/note.template.md"
+                "size_bytes": 82,
+                "symlink_target": "../../../manage_environment/manage_templates/active/hyperresearch/note.template.md"
               }
             ]
           }
@@ -198,8 +198,8 @@
         "name": ".mcp.json",
         "type": "file",
         "purpose_description": "",
-        "size_bytes": 1172,
-        "target": "/home/monster/agentspace/.mcp.json"
+        "size_bytes": 34,
+        "symlink_target": "/home/monster/agentspace/.mcp.json"
       },
       {
         "name": "assets",
