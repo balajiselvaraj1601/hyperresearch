@@ -232,7 +232,7 @@ def test_install_writes_rendered_prompts_with_header(tmp_vault):
     if skills_dir.exists():
         for child in skills_dir.iterdir():
             if child.is_dir() and child.name.startswith("hyperresearch-") and child.name != "hyperresearch":
-                assert False, f"Unexpected step skill directory: {child}"
+                raise AssertionError(f"Unexpected step skill directory: {child}")
 
     # Entry skill retired too — no router SKILL.md is written
     assert not (tmp_vault.root / ".claude" / "skills" / "hyperresearch" / "SKILL.md").exists()

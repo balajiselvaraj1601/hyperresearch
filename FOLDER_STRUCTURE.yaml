@@ -2218,7 +2218,7 @@
         "name": "pyproject.toml",
         "type": "file",
         "purpose_description": "Configuration for `hyperresearch/`: Upper-bounded on purpose: mcp 2.0 removed `mcp.server.fastmcp`, which",
-        "size_bytes": 3304
+        "size_bytes": 3905
       },
       {
         "name": "README.md",
@@ -2378,7 +2378,7 @@
                     "name": "install.py",
                     "type": "file",
                     "purpose_description": "Install command — one-step setup: vault init + agent hooks + docs injection",
-                    "size_bytes": 10844
+                    "size_bytes": 10919
                   },
                   {
                     "name": "levers_cmd.py",
@@ -2462,7 +2462,7 @@
                     "name": "setup.py",
                     "type": "file",
                     "purpose_description": "Python module used by `cli/`",
-                    "size_bytes": 12791
+                    "size_bytes": 12742
                   },
                   {
                     "name": "sources.py",
@@ -2535,7 +2535,7 @@
                     "name": "config.py",
                     "type": "file",
                     "purpose_description": "Vault configuration management (.hyperresearch/config.toml)",
-                    "size_bytes": 18716
+                    "size_bytes": 18715
                   },
                   {
                     "name": "contracts.py",
@@ -2637,7 +2637,7 @@
                     "name": "profiles.py",
                     "type": "file",
                     "purpose_description": "Pipeline profiles — the tunable scale parameters of the research pipeline",
-                    "size_bytes": 17568
+                    "size_bytes": 17567
                   },
                   {
                     "name": "quality.py",
@@ -2655,7 +2655,7 @@
                     "name": "runs.py",
                     "type": "file",
                     "purpose_description": "Python module used by `core/`",
-                    "size_bytes": 30303
+                    "size_bytes": 30304
                   },
                   {
                     "name": "scholar.py",
@@ -3177,7 +3177,7 @@
                 "name": "test_lint.py",
                 "type": "file",
                 "purpose_description": "Python module used by `test_cli/`",
-                "size_bytes": 59706
+                "size_bytes": 61684
               },
               {
                 "name": "test_note_ops.py",
@@ -3220,7 +3220,7 @@
                 "name": "test_claims_and_embed.py",
                 "type": "file",
                 "purpose_description": "Python module used by `test_core/`",
-                "size_bytes": 15649
+                "size_bytes": 16009
               },
               {
                 "name": "test_config_sections.py",
@@ -3310,7 +3310,7 @@
                 "name": "test_prompt_golden.py",
                 "type": "file",
                 "purpose_description": "Python module used by `test_core/`",
-                "size_bytes": 18247
+                "size_bytes": 18255
               },
               {
                 "name": "test_render.py",

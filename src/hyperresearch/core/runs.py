@@ -166,7 +166,7 @@ def record_event(vault, vault_tag: str, event: dict) -> None:
     if not (run_dir / MANIFEST_NAME).exists():
         raise RunError(f"no run '{vault_tag}'")
     event = {"at": _now(), **event}
-    with open(run_dir / EVENTS_NAME, "a", encoding="utf-8") as f:
+    with (run_dir / EVENTS_NAME).open("a", encoding="utf-8") as f:
         f.write(json.dumps(event) + "\n")
     manifest = load_manifest(vault, vault_tag)
     if event.get("type") == CHAPTER_PLAN_EVENT:

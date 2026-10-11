@@ -97,6 +97,15 @@ ignore = [
 "tests/test_core/test_render.py" = ["RUF001", "RUF002"]
 "tests/test_core/test_prompt_golden.py" = ["RUF001", "RUF002"]
 "tests/test_cli/test_install_profile.py" = ["RUF001", "RUF002"]
+# CHINESE/JAPANESE hold real prose precisely because it contains fullwidth
+# punctuation. Rewriting those commas to ASCII would delete the thing the
+# junk filter is being tested against.
+"tests/test_web/test_junk_detection.py" = ["RUF001", "RUF002"]
+# sqlite3.Row.__contains__ is broken -- it returns False even for keys the row
+# actually has -- so `"k" in row.keys()` is the only correct membership test
+# here. "in row" would silently report every optional column as absent.
+"src/hyperresearch/cli/note.py" = ["SIM118", "SIM401"]
+"src/hyperresearch/search/fts.py" = ["SIM118", "SIM401", "RUF019"]
 
 [tool.mypy]
 python_version = "3.11"

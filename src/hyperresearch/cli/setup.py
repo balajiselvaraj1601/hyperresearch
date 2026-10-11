@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import sys
 from pathlib import Path
 
@@ -279,12 +280,7 @@ asyncio.run(main())
 
 
 def _check_crawl4ai() -> bool:
-    try:
-        import crawl4ai  # type: ignore[import-untyped]
-
-        return True
-    except ImportError:
-        return False
+    return importlib.util.find_spec("crawl4ai") is not None
 
 
 def _ensure_browser() -> None:

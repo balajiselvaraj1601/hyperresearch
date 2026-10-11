@@ -41,9 +41,7 @@ def claims_vault(seeded_vault):
             "evidence_type": "opinion",
         },
     ]
-    (temp / "claims-python-async-patterns.json").write_text(
-        json.dumps(claims), encoding="utf-8"
-    )
+    (temp / "claims-python-async-patterns.json").write_text(json.dumps(claims), encoding="utf-8")
     return seeded_vault
 
 
@@ -78,7 +76,9 @@ class TestClaimsIngest:
 
     def test_wrapper_format_accepted(self, claims_vault, tmp_path):
         p = claims_vault.root / "output" / "temp" / "claims-rust-ownership.json"
-        p.write_text(json.dumps({"claims": [{"claim": "Ownership prevents data races"}]}), encoding="utf-8")
+        p.write_text(
+            json.dumps({"claims": [{"claim": "Ownership prevents data races"}]}), encoding="utf-8"
+        )
         r = ingest_claims_file(claims_vault.db, p)
         claims_vault.db.commit()
         assert r["ingested"] == 1
@@ -114,7 +114,9 @@ def run_scoped_vault(seeded_vault):
     them: output/runs/<vault_tag>/temp/ — two runs, nothing in the
     legacy flat output/temp/."""
     runs = seeded_vault.root / "output" / "runs"
-    _write_claims(runs / "run-a" / "temp", "python-async-patterns", "A1 async claim", "A2 async claim")
+    _write_claims(
+        runs / "run-a" / "temp", "python-async-patterns", "A1 async claim", "A2 async claim"
+    )
     _write_claims(runs / "run-b" / "temp", "rust-ownership", "B1 ownership claim")
     return seeded_vault
 
@@ -143,7 +145,9 @@ class TestClaimsIngestRunWorkspace:
         summary = ingest_claims_dir(run_scoped_vault, vault_tag="run-a")
         assert summary["files"] == 1
         assert summary["ingested"] == 2
-        assert summary["scanned"] == [str(run_scoped_vault.root / "output" / "runs" / "run-a" / "temp")]
+        assert summary["scanned"] == [
+            str(run_scoped_vault.root / "output" / "runs" / "run-a" / "temp")
+        ]
         rows = list_claims(run_scoped_vault.db)
         assert {r["note_id"] for r in rows} == {"python-async-patterns"}
         assert {r["vault_tag"] for r in rows} == {"run-a"}
@@ -293,7 +297,6 @@ class TestClaimsIngestHostileInput:
         assert "ABS OUTSIDE claim" not in self._texts(vault)
 
     def test_symlinked_claims_file_outside_vault_is_skipped(self, run_scoped_vault, tmp_path):
-        import os
 
         from hyperresearch.core.claims import discover_claims_files
 
@@ -301,9 +304,11 @@ class TestClaimsIngestHostileInput:
         target = tmp_path / "elsewhere" / "claims-python-async-patterns.json"
         target.parent.mkdir()
         target.write_text(json.dumps([{"claim": "LINKED claim"}]), encoding="utf-8")
-        link = vault.root / "output" / "runs" / "run-b" / "temp" / "claims-python-async-patterns.json"
+        link = (
+            vault.root / "output" / "runs" / "run-b" / "temp" / "claims-python-async-patterns.json"
+        )
         try:
-            os.symlink(target, link)
+            link.symlink_to(target)
         except (OSError, NotImplementedError):
             pytest.skip("symlinks unavailable on this host")
         assert link.resolve() not in {f.resolve() for f in discover_claims_files(vault)}
@@ -315,7 +320,9 @@ class TestClaimsIngestHostileInput:
 
         vault = run_scoped_vault
         monkeypatch.setattr(claims_mod, "MAX_CLAIMS_FILE_BYTES", 64)
-        big = vault.root / "output" / "runs" / "run-a" / "temp" / "claims-python-async-patterns.json"
+        big = (
+            vault.root / "output" / "runs" / "run-a" / "temp" / "claims-python-async-patterns.json"
+        )
         big.write_text(json.dumps([{"claim": "x" * 500}]), encoding="utf-8")
         summary = ingest_claims_dir(vault)
         assert any("limit 64" in e for e in summary["errors"])
@@ -324,24 +331,31 @@ class TestClaimsIngestHostileInput:
 
     def test_malformed_claim_fields_do_not_abort_ingest(self, run_scoped_vault):
         vault = run_scoped_vault
-        path = vault.root / "output" / "runs" / "run-a" / "temp" / "claims-python-async-patterns.json"
-        path.write_text(json.dumps([
-            {"claim": {"nested": "object"}},  # dict where prose belongs
-            {"claim": 12345},  # number where prose belongs
-            {"claim": ["a", "list"]},
-            {"claim": True},
-            {
-                "claim": "survives",
-                "confidence": [1, 2],  # unbindable
-                "quoted_support": {"x": 1},  # unbindable
-                "stance": 5,
-                "evidence_type": None,
-                "numbers": {"deep": [[[1]]]},
-            },
-            {"claim": "also survives", "confidence": 0.9, "quoted_support": "q"},
-            "not even a dict",
-            None,
-        ]), encoding="utf-8")
+        path = (
+            vault.root / "output" / "runs" / "run-a" / "temp" / "claims-python-async-patterns.json"
+        )
+        path.write_text(
+            json.dumps(
+                [
+                    {"claim": {"nested": "object"}},  # dict where prose belongs
+                    {"claim": 12345},  # number where prose belongs
+                    {"claim": ["a", "list"]},
+                    {"claim": True},
+                    {
+                        "claim": "survives",
+                        "confidence": [1, 2],  # unbindable
+                        "quoted_support": {"x": 1},  # unbindable
+                        "stance": 5,
+                        "evidence_type": None,
+                        "numbers": {"deep": [[[1]]]},
+                    },
+                    {"claim": "also survives", "confidence": 0.9, "quoted_support": "q"},
+                    "not even a dict",
+                    None,
+                ]
+            ),
+            encoding="utf-8",
+        )
         summary = ingest_claims_dir(vault)
         assert summary["ingested"] == 3  # two here + run-b's one
         assert {"survives", "also survives"} <= self._texts(vault)
@@ -351,14 +365,20 @@ class TestClaimsIngestHostileInput:
         from hyperresearch.core.claims import MAX_CLAIM_FIELD_CHARS
 
         vault = run_scoped_vault
-        path = vault.root / "output" / "runs" / "run-a" / "temp" / "claims-python-async-patterns.json"
-        path.write_text(json.dumps([{"claim": "y" * (MAX_CLAIM_FIELD_CHARS + 5000)}]), encoding="utf-8")
+        path = (
+            vault.root / "output" / "runs" / "run-a" / "temp" / "claims-python-async-patterns.json"
+        )
+        path.write_text(
+            json.dumps([{"claim": "y" * (MAX_CLAIM_FIELD_CHARS + 5000)}]), encoding="utf-8"
+        )
         ingest_claims_dir(vault)
         assert max(len(t) for t in self._texts(vault)) == MAX_CLAIM_FIELD_CHARS
 
     def test_deeply_nested_json_is_an_error_not_a_crash(self, run_scoped_vault):
         vault = run_scoped_vault
-        path = vault.root / "output" / "runs" / "run-a" / "temp" / "claims-python-async-patterns.json"
+        path = (
+            vault.root / "output" / "runs" / "run-a" / "temp" / "claims-python-async-patterns.json"
+        )
         path.write_text("[" * 200_000 + "]" * 200_000, encoding="utf-8")
         summary = ingest_claims_dir(vault)
         assert any("unreadable JSON" in e for e in summary["errors"])

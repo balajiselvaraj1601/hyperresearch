@@ -433,7 +433,7 @@ def _load_user_overlays(config_path: Path | None) -> dict[str, dict]:
     """Read `[profile.<name>]` tables from a config.toml. Missing file → {}."""
     if config_path is None or not config_path.exists():
         return {}
-    with open(config_path, "rb") as f:
+    with config_path.open("rb") as f:
         data = tomllib.load(f)
     profiles = data.get("profile", {})
     if not isinstance(profiles, dict):

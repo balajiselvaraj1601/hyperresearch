@@ -281,7 +281,7 @@ class VaultConfig:
     def load(cls, config_path: Path) -> VaultConfig:
         if not config_path.exists():
             return cls()
-        with open(config_path, "rb") as f:
+        with config_path.open("rb") as f:
             data = tomllib.load(f)
 
         vault = data.get("vault", {})

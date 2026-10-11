@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 from pathlib import Path
 
 import typer
@@ -224,9 +225,9 @@ def _setup_crawl4ai(vault) -> str:
     Returns: 'configured' (already ready), 'browser_installed' (just set up),
              'not_installed' (crawl4ai not available).
     """
-    try:
-        import crawl4ai  # type: ignore[import-untyped]
-    except ImportError:
+    # find_spec, not an import: this only asks whether crawl4ai is installed,
+    # and importing it is expensive.
+    if importlib.util.find_spec("crawl4ai") is None:
         return "not_installed"
 
     # Set crawl4ai as the default provider if still on builtin
@@ -257,7 +258,6 @@ def _setup_crawl4ai(vault) -> str:
     # does not provide it, and the provider then dies at launch with a
     # missing-executable error. Install patchright's browser when patchright
     # is present; plain playwright is the fallback for non-stealth setups.
-    import importlib.util
     import subprocess
     import sys
 
