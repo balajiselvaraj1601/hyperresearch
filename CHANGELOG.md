@@ -154,7 +154,7 @@ A paywalled paper used to enter the vault as an abstract. `extract_doi` stamped 
 ### Two safety fixes in the viewer and the installer
 
 - **Stored XSS in `hpr serve` (#72, reported by @letospace).** `_serve_search` escaped every interpolated value except the FTS snippet, and the snippet is note body text — remote page content, for a fetched note. `strip_markdown` was not a defense: its tag regex needs a closing `>`, so an unterminated `<img src=x onerror=...` passed into `body_plain` intact, and the `>` of the `</mark>` the search page injects finished the tag. The snippet is escaped before the markers are substituted now, so the `<mark>` tags are the only markup that survives. Bounded by the server binding `127.0.0.1` and being read-only, but the script ran same-origin with the wiki and could read every note the viewer could reach. Link and image URLs in the renderer also got a scheme allowlist, so a note body can no longer render a `javascript:` or `data:` link.
-- **`install --global` deleted `~/.claude/skills/research/` on a name match alone (#73, reported by @letospace).** `research` is an ordinary word and an obvious name for a hand-written personal skill, and `--global` puts the prune in a user-level directory shared across every project, so anyone with one lost it silently on their first upgrade. A marker file cannot fix this — the directories being pruned predate any marker we could have written — so the check is on the content we shipped into them: every `SKILL.md` this project has ever installed names the project. Anything else is left alone and reported in the install output, which previously listed what it installed but never what it deleted.
+- **`install --global` deleted `${AGENT_HOME}/.claude/skills/research/` on a name match alone (#73, reported by @letospace).** `research` is an ordinary word and an obvious name for a hand-written personal skill, and `--global` puts the prune in a user-level directory shared across every project, so anyone with one lost it silently on their first upgrade. A marker file cannot fix this — the directories being pruned predate any marker we could have written — so the check is on the content we shipped into them: every `SKILL.md` this project has ever installed names the project. Anything else is left alone and reported in the install output, which previously listed what it installed but never what it deleted.
 
 ### Contributed fixes
 
@@ -358,12 +358,12 @@ Two related changes that fix the "I lost my last report" foot-gun and make the v
 
 ### Quieter global install — step skills lazy-load per-project
 
-Global install (`hyperresearch install --global`) used to write all 16 step skills to `~/.claude/skills/`, advertising them in the available-skills system reminder of every Claude Code session — ~3K tokens of noise on sessions where `/hyperresearch` is never used.
+Global install (`hyperresearch install --global`) used to write all 16 step skills to `${AGENT_HOME}/.claude/skills/`, advertising them in the available-skills system reminder of every Claude Code session — ~3K tokens of noise on sessions where `/hyperresearch` is never used.
 
-- **Global install now writes only the entry skill + agents to `~/.claude/`.** The 16 step skills (`hyperresearch-1-decompose` … `hyperresearch-16-readability-audit`) install per-project, lazily.
+- **Global install now writes only the entry skill + agents to `${AGENT_HOME}/.claude/`.** The 16 step skills (`hyperresearch-1-decompose` … `hyperresearch-16-readability-audit`) install per-project, lazily.
 - **Entry skill bootstrap step 0** now also runs `hyperresearch install --steps-only .` if step skills aren't found in the project's `.claude/skills/`. First `/hyperresearch` invocation in a fresh project materializes the step skills there. Subsequent invocations no-op.
 - **New `hyperresearch install --steps-only [PATH]`** flag — installs only the 16 step skills to `<path>/.claude/skills/`. Used by the bootstrap, also available manually.
-- **Upgrade prune** — `hyperresearch install --global` removes any `hyperresearch-N-*` step-skill dirs left in `~/.claude/skills/` by 0.8.2-and-earlier global installs.
+- **Upgrade prune** — `hyperresearch install --global` removes any `hyperresearch-N-*` step-skill dirs left in `${AGENT_HOME}/.claude/skills/` by 0.8.2-and-earlier global installs.
 
 Net effect: sessions in projects that never use hyperresearch see only the entry skill + agent descriptions in their available-skills/agents lists. Step-skill noise is scoped to projects that actually use the tool.
 
@@ -371,8 +371,8 @@ Net effect: sessions in projects that never use hyperresearch see only the entry
 
 ### Global install
 
-- **`hyperresearch install --global`** writes the Claude Code skills + agents to `~/.claude/` so `/hyperresearch` is available in every Claude Code session anywhere on the machine, with no per-project setup. Skips vault init and CLAUDE.md injection (those happen automatically per-project on first `/hyperresearch` invocation).
-- New `install_global_hooks()` in `core/hooks.py` that targets `~/.claude/` and skips the PreToolUse hook script (would otherwise fire on every Claude Code session).
+- **`hyperresearch install --global`** writes the Claude Code skills + agents to `${AGENT_HOME}/.claude/` so `/hyperresearch` is available in every Claude Code session anywhere on the machine, with no per-project setup. Skips vault init and CLAUDE.md injection (those happen automatically per-project on first `/hyperresearch` invocation).
+- New `install_global_hooks()` in `core/hooks.py` that targets `${AGENT_HOME}/.claude/` and skips the PreToolUse hook script (would otherwise fire on every Claude Code session).
 - Entry skill bootstrap now auto-runs `hyperresearch init .` if no vault exists in cwd, so the global-install workflow is fully seamless: pip install + `hyperresearch install --global` once, then `/hyperresearch` works everywhere and materializes the vault + `research/` folder + `CLAUDE.md` in whatever project root you're in on first use.
 
 ## [0.8.1] - 2026-04-29

@@ -68,7 +68,7 @@ synthesis may still add refs.
 
 ## Live-config cross-check 2026-09-21 (same day)
 
-Checked `~/.config/litellm/config.yaml` (28911 bytes) against the items above.
+Checked `${XDG_CONFIG_HOME}/litellm/config.yaml` (28911 bytes) against the items above.
 The gateway has moved past several report assumptions:
 
 - **Superseded: item 1 (mimo prompt-cache passthrough).** No mimo/nemotron

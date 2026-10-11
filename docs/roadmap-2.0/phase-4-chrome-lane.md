@@ -11,7 +11,7 @@ Sources that headless crawling cannot reach — login-gated, bot-walled, interac
 ## Current state (audit anchors, v0.8.7)
 
 - Detection already exists, recovery doesn't: `looks_like_login_wall` / `looks_like_junk` (`web/base.py:60-143`) correctly identify blocked fetches — and then the URL is **discarded**. At dissertation scale that's dozens of silently lost sources per run.
-- The visible-browser fallback (`crawl4ai_provider.py` `_fetch_visible`) and crawl4ai profiles (`~/.crawl4ai/profiles/<name>`) exist, but they are a *separate* browser identity the user must log into via `hyperresearch setup` — not their daily sessions, and prone to session kills on aggressive sites.
+- The visible-browser fallback (`crawl4ai_provider.py` `_fetch_visible`) and crawl4ai profiles (`${AGENT_HOME}/.crawl4ai/profiles/<name>`) exist, but they are a *separate* browser identity the user must log into via `hyperresearch setup` — not their daily sessions, and prone to session kills on aggressive sites.
 - Crawl4ai saves screenshots (`screenshot=True` in run config) but **nothing reads them** — no vision extraction path exists.
 - Google Scholar (no API, aggressive headless blocking) is unreachable by the current stack — the single best citation-chaining surface there is.
 - Provider seam is clean: `WebProvider` protocol + `WebResult` dataclass (`web/base.py:36`) — a new lane slots in without touching consumers.
@@ -78,7 +78,7 @@ Queue item schema:
 
 **Design.** After an interactive login succeeds in Chrome, subsequent fetches from that domain shouldn't need the Chrome lane. `hpr session handoff <domain>`:
 
-- Export cookies for the domain from the Chrome profile into the crawl4ai profile's storage state (`~/.crawl4ai/profiles/<name>` is a Playwright `user_data_dir`; write a `storage_state.json` the provider loads, or inject cookies via Playwright's `add_cookies` on context creation — implementation detail: crawl4ai supports `storage_state` in browser config).
+- Export cookies for the domain from the Chrome profile into the crawl4ai profile's storage state (`${AGENT_HOME}/.crawl4ai/profiles/<name>` is a Playwright `user_data_dir`; write a `storage_state.json` the provider loads, or inject cookies via Playwright's `add_cookies` on context creation — implementation detail: crawl4ai supports `storage_state` in browser config).
 - Cookie *reading* from Chrome: via the Claude-in-Chrome `javascript_tool` (`document.cookie` covers non-HttpOnly only) is insufficient — instead have the browser-fetcher trigger the handoff by exporting through Chrome's DevTools-adjacent surface if available, or fall back to instructing the user to run `hyperresearch setup` for that site once (the existing flow) now that they know it's worth it. **Design honestly around the constraint: HttpOnly cookies are not scriptable from page JS.** The realistic v1: session handoff works where the site's session survives in the crawl4ai profile after one guided login there; the Chrome lane covers the rest directly.
 - Track handoff domains in config so the fetch engine prefers headless-with-profile for them and only re-escalates on a fresh login wall.
 

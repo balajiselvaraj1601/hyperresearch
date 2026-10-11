@@ -3,8 +3,8 @@
 Scope: the two tmux/cca lanes on mimo (`hpr-lane-a` → `litellm-cost-perf-ops-506ad8`,
 `hpr-lane-b` → `ai-productivity-tools-096ea7`), the earlier subagent attempt, and the
 orchestrating session. Evidence: lane transcripts
-(`~/.claude/projects/-home-monster-agentspace-hyperresearch/{1dde0084,35daa070}*.jsonl`),
-`orchestrator/logs/*`, both run vaults, `/tmp/agentspace/hyperresearch-parallel-tracker.csv`,
+(`${AGENT_HOME}/.claude/projects/-home-monster-agentspace-hyperresearch/{1dde0084,35daa070}*.jsonl`),
+`orchestrator/logs/*`, both run vaults, `${TMPDIR}/hyperresearch-parallel-tracker.csv`,
 and `git show 0c9db9a`.
 
 ## Findings and fixes
