@@ -153,7 +153,7 @@
         "name": ".gitignore",
         "type": "file",
         "purpose_description": ".gitignore is a data file used within `hyperresearch/`",
-        "size_bytes": 1205
+        "size_bytes": 743
       },
       {
         "name": ".hyperresearch",
@@ -248,7 +248,7 @@
         "name": "CHANGELOG.md",
         "type": "file",
         "purpose_description": "installer retirement nothing rendered the Jinja step contracts; both 2026-09-18 runs executed raw templates (`<< p.x >>` counts unresolved, `$HPR` literal, relative paths that landed seven artifacts outside the run dir)",
-        "size_bytes": 97037
+        "size_bytes": 97109
       },
       {
         "name": "CONTRIBUTING.md",
@@ -294,7 +294,7 @@
                 "name": "phase-4-chrome-lane.md",
                 "type": "file",
                 "purpose_description": "Sources that headless crawling cannot reach — login-gated, bot-walled, interactive, viewer-rendered — stop being silently lost",
-                "size_bytes": 12802
+                "size_bytes": 12826
               },
               {
                 "name": "phase-5-verification.md",
@@ -340,13 +340,13 @@
             "name": "ASSESSMENT_2026-09-19.md",
             "type": "file",
             "purpose_description": "Scope: the two tmux/cca lanes on mimo (`hpr-lane-a` → `litellm-cost-perf-ops-506ad8`, `hpr-lane-b` → `ai-productivity-tools-096ea7`), the earlier subagent attempt, and the orchestrating session",
-            "size_bytes": 7299
+            "size_bytes": 7305
           },
           {
             "name": "ECOSYSTEM_RECOMMENDATIONS_2026-09-21.md",
             "type": "file",
             "purpose_description": "Source: audit of `hyperresearch/output/` (2 full-profile runs, 2 final reports, ~138 notes, 6 raw PDFs) cross-checked against `manage_environment/manage_litellm` (272-setting checklist, verification suites) and `orchestrator/ASSESSMENT_2026-09-19.md`",
-            "size_bytes": 8859
+            "size_bytes": 8868
           },
           {
             "name": "launch_lane.sh",
@@ -2218,7 +2218,7 @@
         "name": "pyproject.toml",
         "type": "file",
         "purpose_description": "Configuration for `hyperresearch/`: Upper-bounded on purpose: mcp 2.0 removed `mcp.server.fastmcp`, which",
-        "size_bytes": 3297
+        "size_bytes": 3304
       },
       {
         "name": "README.md",
