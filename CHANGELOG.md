@@ -543,7 +543,7 @@ Initial release. Forked from [llm-kasten](https://github.com/jordan-gibbs/llm-ka
 
 ### New
 
-- **`hyperresearch install`** — One-step setup: init vault + inject agent docs + install PreToolUse hooks for Claude Code, Codex, Cursor, Gemini CLI
+- **`hyperresearch install`** — One-step setup: init vault + inject agent docs + install PreToolUse hooks for Claude Code, Codex, and Cursor
 - **`hyperresearch fetch <url>`** — Fetch a URL, extract content, save as a research note with source tracking
 - **`hyperresearch research <topic>`** — Deep research: web search, fetch results, follow links, save as linked notes, generate synthesis MOC
 - **`hyperresearch sources list/check`** — List and query fetched web sources
