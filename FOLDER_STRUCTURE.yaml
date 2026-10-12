@@ -248,7 +248,7 @@
         "name": "CHANGELOG.md",
         "type": "file",
         "purpose_description": "installer retirement nothing rendered the Jinja step contracts; both 2026-09-18 runs executed raw templates (`<< p.x >>` counts unresolved, `$HPR` literal, relative paths that landed seven artifacts outside the run dir)",
-        "size_bytes": 97109
+        "size_bytes": 97101
       },
       {
         "name": "CONTRIBUTING.md",
@@ -855,7 +855,7 @@
                   {
                     "name": "gemini-code-assist.md",
                     "type": "file",
-                    "purpose_description": "[**Unpaid tier (Gemini Code Assist for individuals) and Google One users only** : Gemini CLI and Gemini Code Assist IDE extensions were replaced by Antigravity CLI and Antigravity on June 18th 2026",
+                    "purpose_description": "Google release notes describe the transition to Antigravity CLI and Antigravity on June 18th 2026",
                     "size_bytes": 20014
                   },
                   {
