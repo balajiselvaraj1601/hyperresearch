@@ -38,3 +38,6 @@ orchestrator/logs/
 .cursor/
 .mcp.json
 SOUL.md
+
+# Graphify code-graph output (regenerate: graphify extract --code-only --no-viz)
+graphify-out/
