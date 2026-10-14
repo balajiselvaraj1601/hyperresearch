@@ -40,6 +40,16 @@ Verbatim prompt as gospel; locus coverage; patch-only modification after synthes
 
 Each run keeps `output/reports/<vault_tag>/final_report_*.md`, `output/notes/<vault_tag>/<note-id>.md`, and `output/runs/<vault_tag>/` (scaffold, critics, patch logs). `hyperresearch fetch --tag <vault_tag>` writes notes into that run's notes dir; sync skips `output/reports/`.
 
+## Filing
+
+The workspace file-organization rule
+(`manage_environment/manage_rules/active/file-organization.md`) governs kept
+files: this repo's layout (this README, `src/`, `scripts/`, `orchestrator/`)
+is never restructured to match a workspace framework; run outputs stay where
+Output layout puts them; loose kept files with no home go to the
+`PATH_FINDER.md` default inbox. `AGENTS.md` / `CLAUDE.md` / `.claude/` are
+install-generated per `.gitignore` — never hand-author or commit them.
+
 ## Install
 
 `pip install hyperresearch && hyperresearch install`, then `/hyperresearch <anything>` in Claude Code. Python 3.11–3.13, [Claude Code](https://claude.com/claude-code), and a LiteLLM proxy serving the `mimo` / `pool_mimo` aliases. License: [MIT](LICENSE).
