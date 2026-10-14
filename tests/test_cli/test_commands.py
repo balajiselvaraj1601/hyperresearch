@@ -214,7 +214,6 @@ def test_note_show_batch_json_wraps_each_fetched_body(vault_dir: Path):
 
 def test_graph_broken(vault_dir: Path):
     os.chdir(vault_dir)
-    # Create a note with a broken link
     (vault_dir / "research" / "notes" / "linker.md").write_text(
         "---\ntitle: Linker\nid: linker\nstatus: draft\ntype: note\n---\n\nSee [[nowhere]]\n",
         encoding="utf-8",

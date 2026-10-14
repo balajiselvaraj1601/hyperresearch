@@ -42,28 +42,20 @@ def _image(url: str, alt: str) -> str:
     return f'<img src="{url}" alt="{alt}">'
 
 
-# Simple markdown patterns
 MD_PATTERNS = [
-    # Headers
     (re.compile(r"^######\s+(.+)$", re.MULTILINE), r"<h6>\1</h6>"),
     (re.compile(r"^#####\s+(.+)$", re.MULTILINE), r"<h5>\1</h5>"),
     (re.compile(r"^####\s+(.+)$", re.MULTILINE), r"<h4>\1</h4>"),
     (re.compile(r"^###\s+(.+)$", re.MULTILINE), r"<h3>\1</h3>"),
     (re.compile(r"^##\s+(.+)$", re.MULTILINE), r"<h2>\1</h2>"),
     (re.compile(r"^#\s+(.+)$", re.MULTILINE), r"<h1>\1</h1>"),
-    # Bold/italic
     (re.compile(r"\*\*\*(.+?)\*\*\*"), r"<strong><em>\1</em></strong>"),
     (re.compile(r"\*\*(.+?)\*\*"), r"<strong>\1</strong>"),
     (re.compile(r"\*(.+?)\*"), r"<em>\1</em>"),
-    # Code
     (re.compile(r"`([^`]+)`"), r"<code>\1</code>"),
-    # Links
     (re.compile(r"\[([^\]]+)\]\(([^)]+)\)"), lambda m: _link(m.group(2), m.group(1))),
-    # Images
     (re.compile(r"!\[([^\]]*)\]\(([^)]+)\)"), lambda m: _image(m.group(2), m.group(1))),
-    # Horizontal rule
     (re.compile(r"^---+$", re.MULTILINE), r"<hr>"),
-    # Blockquotes
     (re.compile(r"^>\s*(.+)$", re.MULTILINE), r"<blockquote>\1</blockquote>"),
 ]
 
@@ -82,7 +74,6 @@ def render_markdown(body: str) -> str:
 
     text = re.sub(r"```(\w*)\n(.*?)```", save_code_block, text, flags=re.DOTALL)
 
-    # Apply markdown patterns
     for pattern, replacement in MD_PATTERNS:
         text = pattern.sub(replacement, text)  # type: ignore[call-overload]
 
@@ -90,7 +81,7 @@ def render_markdown(body: str) -> str:
     def replace_wiki_link(m):
         full = m.group(0)
         # Unescape the brackets that html.escape would have converted
-        inner = full[2:-2]  # strip [[ and ]]
+        inner = full[2:-2]
         if "|" in inner:
             target, display = inner.split("|", 1)
         else:
@@ -101,11 +92,9 @@ def render_markdown(body: str) -> str:
 
     text = re.sub(r"\[\[([^\]]+)\]\]", replace_wiki_link, text)
 
-    # Lists (simple)
     text = re.sub(r"^- (.+)$", r"<li>\1</li>", text, flags=re.MULTILINE)
     text = re.sub(r"(<li>.*</li>\n?)+", lambda m: f"<ul>{m.group(0)}</ul>", text)
 
-    # Tables
     lines = text.split("\n")
     in_table = False
     table_lines: list[str] = []
@@ -126,7 +115,6 @@ def render_markdown(body: str) -> str:
         result_lines.append(_render_table(table_lines))
     text = "\n".join(result_lines)
 
-    # Restore code blocks
     for i, block in enumerate(code_blocks):
         html.escape(block)
         lang_match = re.match(r"```(\w+)\n", block)

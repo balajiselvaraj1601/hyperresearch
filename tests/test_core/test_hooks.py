@@ -20,9 +20,7 @@ from hyperresearch.core.hooks import (
     install_hooks,
 )
 
-# ---------------------------------------------------------------------------
 # Entry skill — installs at /hyperresearch only (v0.8.1+)
-# ---------------------------------------------------------------------------
 
 
 def test_install_hyperresearch_skill_creates_nothing(tmp_vault):
@@ -37,9 +35,7 @@ def test_install_hyperresearch_skill_creates_nothing(tmp_vault):
     assert not (tmp_vault.root / ".claude" / "skills" / "research" / "SKILL.md").exists()
 
 
-# ---------------------------------------------------------------------------
 # Retired-roster pruning
-# ---------------------------------------------------------------------------
 
 
 def test_prune_retired_agents_removes_old_files(tmp_vault):
@@ -113,9 +109,7 @@ def test_prune_retired_agents_spares_a_dir_with_no_skill_file(tmp_vault):
     assert (mine / "scratch.txt").exists()
 
 
-# ---------------------------------------------------------------------------
 # PreToolUse hook — the reminder must reach the model (#94)
-# ---------------------------------------------------------------------------
 
 
 def test_installed_hook_delivers_reminder_through_the_injection_channel(tmp_vault):
@@ -152,9 +146,7 @@ def test_installed_hook_emits_parseable_injection_json(tmp_vault):
     assert "hyperresearch fetch" in output["additionalContext"]
 
 
-# ---------------------------------------------------------------------------
 # install_hooks — end-to-end integration
-# ---------------------------------------------------------------------------
 
 
 def test_install_hooks_registers_full_hyperresearch_roster(tmp_vault):
@@ -193,9 +185,7 @@ def test_install_hooks_second_run_is_noop(tmp_vault):
     assert not second or all("pruned" not in a.lower() for a in second)
 
 
-# ---------------------------------------------------------------------------
 # The registered command must survive the shell that runs it
-# ---------------------------------------------------------------------------
 
 
 def test_installed_hook_command_keeps_the_script_path_in_one_argument(tmp_path):

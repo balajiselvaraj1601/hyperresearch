@@ -265,10 +265,8 @@ def test_install_with_profile_overlay(tmp_vault):
     assert "200" in rendered, "profile overlay source_min=200 must reach the rendered contract"
 
 
-# ---------------------------------------------------------------------------
 # ModelMap wiring — the profile's per-agent model assignments must actually
 # reach the installed agent frontmatter (they were decorative before 2.0).
-# ---------------------------------------------------------------------------
 
 
 
@@ -285,11 +283,9 @@ def test_no_hardcoded_model_lines_in_agent_templates():
     assert not bad, f"hardcoded model lines in hooks.py: {bad}"
 
 
-# ---------------------------------------------------------------------------
 # No-contradiction sweep — rendered prompts must not carry dollar-cost ranges
 # (not a bill on subscription billing) or hardcoded model-name claims that a
 # ModelMap override would falsify.
-# ---------------------------------------------------------------------------
 
 _DOLLAR_RANGE = re.compile(r"\$\d+\s*[-–—]\s*\d+")
 _MODEL_CLAIM = re.compile(r"[Rr]uns on (Sonnet|Opus|Haiku)")
@@ -313,10 +309,8 @@ def test_rendered_skills_have_no_cost_or_model_claims(skill_file, ctx):
 
 
 
-# ---------------------------------------------------------------------------
 # Lever shims: every spawning skill pastes its role's shim file; the
 # cite-checker gets none (verification is register-independent).
-# ---------------------------------------------------------------------------
 
 _SKILL_SHIM_ROLES = {
     "hyperresearch-2-width-sweep": "research",
@@ -348,10 +342,8 @@ def test_cite_check_skill_gets_no_shim(ctx):
     assert "shims/" not in rendered
 
 
-# ---------------------------------------------------------------------------
 # Coverage before elegance: the synthesizer and the depth/instruction critics
 # must carry the anti-compression guards so a rerun can't silently regress into
 # trading substance for prose (see the 2026-07-22 deviation-log entry).
-# ---------------------------------------------------------------------------
 
 

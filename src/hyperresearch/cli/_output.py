@@ -39,7 +39,6 @@ def _output_json(data: Any) -> None:
 
 
 def _output_rich(data: Any, **kwargs: Any) -> None:
-    """Output in rich terminal format."""
     if isinstance(data, Envelope):
         if not data.ok:
             err_console.print(f"[red bold]Error:[/] {data.error}")
@@ -58,7 +57,6 @@ def _output_rich(data: Any, **kwargs: Any) -> None:
 
 
 def _print_dict(data: dict, **kwargs: Any) -> None:
-    """Pretty-print a dict."""
     for key, value in data.items():
         if isinstance(value, dict):
             console.print(f"[bold]{key}:[/]")
@@ -90,7 +88,6 @@ def _print_list(data: list, **kwargs: Any) -> None:
 
 
 def print_note_summary(notes: list[dict], title: str = "Notes") -> None:
-    """Print a table of notes."""
     table = Table(title=title, show_header=True, header_style="bold")
     table.add_column("ID", style="cyan", no_wrap=True)
     table.add_column("Title", style="white")
@@ -110,7 +107,6 @@ def print_note_summary(notes: list[dict], title: str = "Notes") -> None:
 
 
 def print_vault_status(data: dict) -> None:
-    """Print vault status in a nice tree format."""
     tree = Tree(f"[bold]{data.get('vault_name', 'Vault')}[/]")
     notes = tree.add("[bold]Notes[/]")
     nd = data.get("notes", {})

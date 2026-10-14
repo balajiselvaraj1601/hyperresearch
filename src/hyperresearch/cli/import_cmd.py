@@ -40,7 +40,6 @@ def import_vault(
             console.print(f"[red]{msg}[/]")
         raise typer.Exit(1)
 
-    # Find all .md files in source
     md_files = sorted(source_path.rglob("*.md"))
     # Skip .hyperresearch/, templates/ etc. from source
     skip_dirs = {".hyperresearch", ".git", ".venv", "node_modules", "templates"}

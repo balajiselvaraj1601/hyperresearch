@@ -41,7 +41,6 @@ def read_note(file_path: Path, vault_root: Path) -> Note:
 
     rel_path = file_path.relative_to(vault_root).as_posix()
 
-    # Derive ID from filename if not set in frontmatter
     if not meta.id:
         meta.id = slugify(file_path.stem)
 
@@ -51,7 +50,6 @@ def read_note(file_path: Path, vault_root: Path) -> Note:
     raw_links = (m.group(1).strip().rstrip("\\") for m in WIKI_LINK_RE.finditer(cleaned))
     outgoing = list(dict.fromkeys(ref for ref in raw_links if is_valid_wiki_link_target(ref)))
 
-    # Word count (simple split)
     word_count = len(body.split())
 
     return Note(

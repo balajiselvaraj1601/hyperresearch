@@ -208,10 +208,8 @@ class TestApiCache:
         assert json.loads(row["body"]) == {"a": 1}
 
 
-# ---------------------------------------------------------------------------
 # 429 handling (#70) — patches httpx.get underneath _http_get_json, and
 # time.sleep so the backoff ladder never actually waits.
-# ---------------------------------------------------------------------------
 
 
 class _Resp:

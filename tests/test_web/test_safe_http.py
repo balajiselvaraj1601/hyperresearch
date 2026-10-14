@@ -15,9 +15,7 @@ from hyperresearch.web.safe_http import (
     safe_get,
 )
 
-# ---------------------------------------------------------------------------
 # check_url — scheme and address validation
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -101,11 +99,9 @@ def test_check_url_dns_failure_raises():
             check_url("http://nonexistent.invalid/x")
 
 
-# ---------------------------------------------------------------------------
 # check_url — encoded-loopback bypass vectors. These are the forms an attacker
 # reaches for once the plain "http://127.0.0.1/" literal is blocked. Grouped by
 # whether they resolve purely from the string (parse-only) or need the resolver.
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -163,9 +159,7 @@ def test_check_url_uppercase_disallowed_scheme_still_rejected():
         check_url("FILE:///etc/passwd")
 
 
-# ---------------------------------------------------------------------------
 # safe_get — refuses bad URLs without even attempting a connection
-# ---------------------------------------------------------------------------
 
 
 def test_safe_get_refuses_private_ip_without_network():
@@ -185,11 +179,9 @@ def test_safe_get_requires_positive_max_bytes():
         safe_get("http://example.com/", max_bytes=0)
 
 
-# ---------------------------------------------------------------------------
 # Redirect revalidation and size caps — exercised offline via the transport
 # seam (httpx.MockTransport), so no socket is ever opened. All URLs use
 # public IP literals so check_url never needs DNS.
-# ---------------------------------------------------------------------------
 
 
 def _transport(routes: dict[str, httpx.Response]) -> httpx.MockTransport:
@@ -267,10 +259,8 @@ def test_body_at_cap_passes():
     assert resp.content == b"x" * 1024
 
 
-# ---------------------------------------------------------------------------
 # CGNAT (RFC 6598) — 100.64.0.0/10 is not covered by any ipaddress is_*
 # property, so only the explicit network check refuses it
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("url", ["http://100.64.0.1/", "http://100.127.255.254/"])
@@ -287,10 +277,8 @@ def test_check_url_allows_cgnat_neighbors(url):
     check_url(url)
 
 
-# ---------------------------------------------------------------------------
 # 6to4 (RFC 3056) — 2002:AABB:CCDD::/48 embeds the IPv4 address A.B.C.D, so
 # the check must decode it; ipaddress does not flag the prefix on its own
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -315,9 +303,7 @@ def test_check_url_allows_6to4_wrapping_public_ipv4():
     check_url("http://[2002:808:808::]/")
 
 
-# ---------------------------------------------------------------------------
 # allow_private_hosts — the [fetch] escape hatch for intranet mirrors
-# ---------------------------------------------------------------------------
 
 
 def test_allowlist_cidr_admits_private_address():

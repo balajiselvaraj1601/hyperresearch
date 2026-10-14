@@ -38,7 +38,6 @@ def is_pdf_url(url: str) -> bool:
 
     parsed = urlparse(url.lower())
     path = parsed.path
-    # Direct .pdf links
     if path.endswith(".pdf"):
         return True
     # Common academic PDF patterns

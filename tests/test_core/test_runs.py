@@ -221,8 +221,6 @@ class TestRunCli:
         from hyperresearch.core.profiles import BUILTIN_PROFILES, resolve_profile
 
         skills_src = Path(skills_pkg.__file__).parent
-        # _install_hyperresearch_step_skills is now a no-op (step skills retired)
-        # _install_hyperresearch_step_skills(tmp_vault.root)
         installed_root = tmp_vault.root / ".claude" / "skills"
 
         wanted: set[str] = {"1.5", "14.5"}

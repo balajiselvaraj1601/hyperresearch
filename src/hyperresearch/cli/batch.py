@@ -31,7 +31,6 @@ app = typer.Typer()
 
 
 def _get_matching_notes(vault, status=None, tag=None, parent=None, note_type=None) -> list[dict]:
-    """Find notes matching the given filters."""
     clauses = ["n.type NOT IN ('index')"]
     params: list = []
 

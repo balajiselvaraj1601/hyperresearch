@@ -38,7 +38,6 @@ def test_serialize_roundtrip():
     assert "title: Test Note" in serialized
     assert "---" in serialized
 
-    # Parse it back
     parsed, _ = parse_frontmatter(serialized + "\nBody text")
     assert parsed.title == "Test Note"
     assert parsed.id == "test-note"

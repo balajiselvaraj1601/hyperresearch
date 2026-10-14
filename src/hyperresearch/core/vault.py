@@ -154,27 +154,22 @@ class Vault:
         if hyperresearch_dir.exists():
             raise VaultError(f"Vault already initialized at {root}")
 
-        # Create .hyperresearch/ structure (hidden)
         hyperresearch_dir.mkdir(parents=True)
         (hyperresearch_dir / "templates").mkdir()
         (hyperresearch_dir / "exports").mkdir()
 
-        # Create the one visible directory
         kb_dir = root / research_dir
         (kb_dir / "notes").mkdir(parents=True, exist_ok=True)
         (kb_dir / "reports").mkdir(parents=True, exist_ok=True)
         (kb_dir / "index").mkdir(exist_ok=True)
         (kb_dir / "temp").mkdir(exist_ok=True)
 
-        # Write config
         config = VaultConfig(name=name, research_dir=research_dir)
         config.save(hyperresearch_dir / CONFIG_FILE)
 
-        # Initialize database
         vault = Vault(root)
         init_schema(vault.db)
 
-        # Write default note template
         template_path = hyperresearch_dir / "templates" / "note.md"
         template_path.write_text(
             "---\n"
@@ -188,7 +183,6 @@ class Vault:
             "# {{ title }}\n\n"
         )
 
-        # Inject CLAUDE.md at vault root
         from hyperresearch.core.agent_docs import inject_agent_docs
 
         inject_agent_docs(root)

@@ -20,10 +20,8 @@ def _split_alphanum(word: str) -> list[str]:
     """Split words where letters meet digits: 'mamba3' -> ['mamba', '3'],
     'gpt4o' -> ['gpt', '4', 'o'], 'llama3.1' -> ['llama', '3', '1'].
     """
-    # Insert space at letter/digit boundaries
     split = re.sub(r"([a-zA-Z])(\d)", r"\1 \2", word)
     split = re.sub(r"(\d)([a-zA-Z])", r"\1 \2", split)
-    # Also split on dots/hyphens between digits (3.1 -> 3 1)
     split = re.sub(r"(\d)[.\-](\d)", r"\1 \2", split)
     return split.split()
 
@@ -55,7 +53,6 @@ def preprocess_query(raw: str) -> str:
                     clean = re.sub(r'[*^():{}"]', "", word)
                     if not clean:
                         continue
-                    # Split glued alphanumeric (mamba3 -> mamba + 3)
                     subwords = _split_alphanum(clean)
                     for sw in subwords:
                         if sw:

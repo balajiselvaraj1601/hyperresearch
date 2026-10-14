@@ -56,7 +56,6 @@ def git_log(
             console.print("[red]Not a git repository.[/]")
         raise typer.Exit(1)
 
-    # Parse git log output
     commits: list[dict[str, str | list[str]]] = []
     current_commit: dict[str, str | list[str]] | None = None
     for line in out.strip().split("\n"):

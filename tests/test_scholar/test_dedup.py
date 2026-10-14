@@ -16,9 +16,7 @@ def paper(source: str, title: str = "Attention Is All You Need", **kwargs: objec
     return Paper(title=title, source=source, **kwargs)  # type: ignore[arg-type]
 
 
-# ---------------------------------------------------------------------------
 # Matching
-# ---------------------------------------------------------------------------
 
 
 def test_matches_on_normalized_doi_despite_different_titles() -> None:
@@ -90,9 +88,7 @@ def test_empty_input() -> None:
     assert merge_papers([], PRECEDENCE) == []
 
 
-# ---------------------------------------------------------------------------
 # Field-level merging
-# ---------------------------------------------------------------------------
 
 
 def test_precedence_decides_scalar_conflicts() -> None:
@@ -211,9 +207,7 @@ def test_source_paper_is_not_mutated() -> None:
     assert original.extra == {"publisher": "ACM"}
 
 
-# ---------------------------------------------------------------------------
 # Ordering
-# ---------------------------------------------------------------------------
 
 
 def test_output_is_ordered_by_precedence_then_first_seen() -> None:

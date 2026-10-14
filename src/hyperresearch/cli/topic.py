@@ -27,7 +27,6 @@ def topic_tree(
         "GROUP BY parent ORDER BY parent"
     ).fetchall()
 
-    # Collect all unique topic paths and their counts
     topics = {}
     for row in rows:
         path = row["parent"]
@@ -131,7 +130,6 @@ def topic_show(
     vault = Vault.discover()
     vault.auto_sync()
 
-    # Match exact and subtopics
     rows = vault.db.execute(
         """SELECT n.id, n.title, n.parent, n.status, n.word_count, n.summary,
            (SELECT GROUP_CONCAT(t.tag, ',') FROM tags t WHERE t.note_id = n.id) as tag_list

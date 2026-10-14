@@ -39,7 +39,6 @@ def repair(
 
     report: dict = {}
 
-    # Step 1: Force sync — rebuild DB from all files
     if not json_output:
         console.print("[bold]1/6 Syncing...[/]")
     from hyperresearch.core.sync import compute_sync_plan, execute_sync
@@ -57,7 +56,6 @@ def repair(
             f"  +{result.added} ~{result.updated} -{result.deleted} ({result.duration_ms:.0f}ms)"
         )
 
-    # Step 2: Stub broken links
     stubs_created = 0
     if stub_broken:
         if not json_output:
@@ -93,7 +91,6 @@ def repair(
         if not json_output:
             console.print("[dim]2/6 Skipping stubs[/]")
 
-    # Step 3: Enrich — auto-tag and auto-summarize
     enriched_count = 0
     if enrich:
         if not json_output:
@@ -104,7 +101,6 @@ def repair(
         from hyperresearch.core.frontmatter import parse_frontmatter as _parse_fm
         from hyperresearch.core.frontmatter import serialize_frontmatter as _ser_fm
 
-        # Get existing tag vocabulary
         tag_vocab = [
             {"tag": r["tag"], "count": r["c"]}
             for r in vault.db.execute(
@@ -128,7 +124,6 @@ def repair(
                 meta, body = _parse_fm(fp.read_text(encoding="utf-8-sig"))
                 changed = False
 
-                # Auto-tag if no tags
                 if not meta.tags:
                     from hyperresearch.core.note import strip_markdown
 
@@ -138,7 +133,6 @@ def repair(
                         meta.tags = suggested
                         changed = True
 
-                # Auto-summary if no summary
                 if not meta.summary or not meta.summary.strip():
                     summary_suggested = auto_summary(body)
                     if summary_suggested:
@@ -162,7 +156,6 @@ def repair(
         if not json_output:
             console.print("[dim]3/6 Skipping enrichment[/]")
 
-    # Step 4: Promote notes
     promoted_count = 0
     if promote_notes:
         if not json_output:
@@ -171,7 +164,6 @@ def repair(
 
         from hyperresearch.core.frontmatter import parse_frontmatter, serialize_frontmatter
 
-        # Draft -> Review
         drafts = vault.db.execute("""
             SELECT n.id, n.path FROM notes n
             WHERE n.status = 'draft' AND n.type NOT IN ('index')
@@ -190,7 +182,6 @@ def repair(
             except Exception:
                 pass
 
-        # Review -> Evergreen
         reviews = vault.db.execute("""
             SELECT n.id, n.path FROM notes n
             WHERE n.status = 'review' AND n.type NOT IN ('index')
@@ -219,7 +210,6 @@ def repair(
         if not json_output:
             console.print("[dim]4/6 Skipping promotion[/]")
 
-    # Step 4: Rebuild indexes
     if rebuild_index:
         if not json_output:
             console.print("[bold]5/6 Rebuilding indexes...[/]")
@@ -249,7 +239,6 @@ def repair(
     if not json_output and ranked:
         console.print(f"  centrality + quality recomputed for {ranked} notes")
 
-    # Step 5: Update agent docs
     if update_docs:
         if not json_output:
             console.print("[bold]6/6 Updating agent docs...[/]")

@@ -180,7 +180,6 @@ def execute_sync(vault, plan: SyncPlan) -> SyncResult:
         return note.meta.id
 
     try:
-        # Process deletes
         for rel_path in plan.to_delete:
             try:
                 row = conn.execute("SELECT id FROM notes WHERE path = ?", (rel_path,)).fetchone()
@@ -191,7 +190,6 @@ def execute_sync(vault, plan: SyncPlan) -> SyncResult:
             except Exception as e:
                 result.errors.append({"path": rel_path, "error": str(e)})
 
-        # Process adds
         for file_path in plan.to_add:
             try:
                 if _upsert_with_collision_check(file_path) is not None:
@@ -199,7 +197,6 @@ def execute_sync(vault, plan: SyncPlan) -> SyncResult:
             except Exception as e:
                 result.errors.append({"path": str(file_path), "error": str(e)})
 
-        # Process updates
         for file_path in plan.to_update:
             try:
                 if _upsert_with_collision_check(file_path) is not None:
@@ -210,7 +207,6 @@ def execute_sync(vault, plan: SyncPlan) -> SyncResult:
         # Resolve links — only for changed notes' outgoing + incoming
         _resolve_links_incremental(conn, changed_ids)
 
-        # Record sync timestamp
         conn.execute(
             "INSERT OR REPLACE INTO _meta (key, value) VALUES ('last_sync', ?)",
             (now_iso,),
@@ -316,12 +312,10 @@ def _upsert_note_to_db(conn, note, synced_at: str, file_mtime: float = 0) -> Non
         resolved = alias_map.get(tag.lower(), tag.lower())
         conn.execute("INSERT OR IGNORE INTO tags (note_id, tag) VALUES (?, ?)", (meta.id, resolved))
 
-    # Update aliases
     conn.execute("DELETE FROM aliases WHERE note_id = ?", (meta.id,))
     for alias in meta.aliases:
         conn.execute("INSERT INTO aliases (note_id, alias) VALUES (?, ?)", (meta.id, alias))
 
-    # Update content (UPSERT)
     body_plain = strip_markdown(note.body)
     conn.execute(
         """

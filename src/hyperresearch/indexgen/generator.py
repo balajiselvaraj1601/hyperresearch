@@ -13,7 +13,6 @@ class IndexGenerator:
 
     def build_all(self) -> list[str]:
         """Build all index pages. Cleans up stale pages first."""
-        # Delete all existing index pages before regenerating
         if self.index_dir.exists():
             for old_file in self.index_dir.glob("*.md"):
                 old_file.unlink()
@@ -56,7 +55,6 @@ class IndexGenerator:
 
         lines = ["# Master Index\n", f"**{len(rows)}** notes in vault.\n"]
 
-        # Group by parent
         groups: dict[str, list] = {}
         for r in rows:
             parent = r["parent"] or "Uncategorized"

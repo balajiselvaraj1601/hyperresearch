@@ -41,7 +41,6 @@ def dedup(
     if threshold is None:
         threshold = cfg.default_threshold
 
-    # Load all note content
     rows = vault.db.execute(
         "SELECT n.id, n.title, n.word_count, nc.body_plain "
         "FROM notes n JOIN note_content nc ON n.id = nc.note_id "
@@ -58,7 +57,6 @@ def dedup(
             console.print("[dim]Not enough notes to compare.[/]")
         return
 
-    # Build shingle sets
     notes = {}
     for row in rows:
         shingles = shingle(row["body_plain"], n=cfg.shingle_size)
@@ -69,7 +67,6 @@ def dedup(
             "shingles": shingles,
         }
 
-    # Choose algorithm based on vault size
     if len(notes) >= cfg.lsh_switchover:
         pairs = _dedup_lsh(notes, threshold, num_perm=cfg.minhash_perm, bands=cfg.lsh_bands)
         method = "minhash+lsh"
@@ -126,12 +123,10 @@ def _dedup_brute(notes: dict, threshold: float) -> list[dict]:
 
 def _dedup_lsh(notes: dict, threshold: float, num_perm: int = 128, bands: int = 16) -> list[dict]:
     """MinHash+LSH for large vaults — approximate but O(n)."""
-    # Compute signatures
     signatures = {}
     for nid, note in notes.items():
         signatures[nid] = minhash_signature(note["shingles"], num_perm=num_perm)
 
-    # Find candidate pairs via LSH
     candidates = lsh_candidates(signatures, bands=bands)
 
     # Verify candidates with exact Jaccard

@@ -29,7 +29,6 @@ def test_sync_detects_updates(tmp_vault):
     plan = compute_sync_plan(tmp_vault)
     execute_sync(tmp_vault, plan)
 
-    # Modify the file
     import time
     time.sleep(0.1)
     path.write_text(path.read_text().replace("Original", "Updated"), encoding="utf-8")
@@ -45,7 +44,6 @@ def test_sync_detects_deletes(tmp_vault):
     plan = compute_sync_plan(tmp_vault)
     execute_sync(tmp_vault, plan)
 
-    # Delete the file
     path.unlink()
 
     plan2 = compute_sync_plan(tmp_vault)

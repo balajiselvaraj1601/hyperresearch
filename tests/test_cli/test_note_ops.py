@@ -74,7 +74,6 @@ def test_note_rm_cleans_raw_file_and_assets(vault_with_notes):
 
     runner.invoke(app, ["sync"])
 
-    # Delete it
     result = runner.invoke(app, ["note", "rm", "pdf-source", "--force", "--json"])
     assert result.exit_code == 0, result.output
     data = json.loads(result.output)

@@ -55,7 +55,6 @@ class _TextExtractor(HTMLParser):
 
     def get_text(self) -> str:
         raw = "".join(self._pieces)
-        # Collapse whitespace
         lines = [line.strip() for line in raw.splitlines()]
         return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()
 
@@ -143,7 +142,6 @@ class BuiltinProvider:
                 tag.decompose()
             title = soup.title.string.strip() if soup.title and soup.title.string else ""
             text = soup.get_text(separator="\n", strip=True)
-            # Collapse blank lines
             text = re.sub(r"\n{3,}", "\n\n", text)
             return title, text
         except ImportError:

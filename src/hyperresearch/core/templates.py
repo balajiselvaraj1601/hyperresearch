@@ -181,7 +181,6 @@ def get_template(name: str, templates_dir=None) -> str | None:
 
 
 def list_templates(templates_dir=None) -> list[dict]:
-    """List available templates."""
     templates = []
     for name in BUILTIN_TEMPLATES:
         templates.append({"name": name, "source": "builtin"})

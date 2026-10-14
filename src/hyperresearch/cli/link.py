@@ -38,7 +38,6 @@ def link(
 
     vault.auto_sync()
 
-    # Determine which notes to process
     ids_to_process = list(note_ids) if note_ids else None
 
     if tag and not ids_to_process:

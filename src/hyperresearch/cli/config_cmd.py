@@ -53,7 +53,6 @@ def config_set(
     vault = Vault.discover()
     config = vault.config
 
-    # Map dot-notation keys to config attributes
     key_map = {
         "vault.name": "name",
         "vault.research_dir": "research_dir",

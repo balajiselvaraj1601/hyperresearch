@@ -20,9 +20,7 @@ from hyperresearch.scholar.base import Paper, ProviderError, SearchProvider
 runner = CliRunner()
 
 
-# ---------------------------------------------------------------------------
 # Fakes
-# ---------------------------------------------------------------------------
 
 
 def make_provider(
@@ -125,9 +123,7 @@ BETA_OTHER = Paper(
 )
 
 
-# ---------------------------------------------------------------------------
 # scholar sources
-# ---------------------------------------------------------------------------
 
 
 def test_sources_runs_with_zero_providers_installed(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -171,9 +167,7 @@ def test_sources_rejects_an_unknown_scope(monkeypatch: pytest.MonkeyPatch) -> No
     assert json.loads(result.output)["error_code"] == "BAD_SCOPE"
 
 
-# ---------------------------------------------------------------------------
 # scholar search
-# ---------------------------------------------------------------------------
 
 
 def test_search_json_shape_and_cross_provider_merge(monkeypatch: pytest.MonkeyPatch) -> None:

@@ -56,7 +56,6 @@ def status(
     vault.auto_sync()
     conn = vault.db
 
-    # Gather stats
     total = conn.execute("SELECT COUNT(*) as c FROM notes").fetchone()["c"]
     by_status = {}
     for row in conn.execute("SELECT status, COUNT(*) as c FROM notes GROUP BY status"):

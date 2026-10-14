@@ -280,7 +280,6 @@ class Crawl4AIProvider:
         # its own, so where it LANDED needs the same gate as where it started.
         _check_final_url(url, final_url, self._settings)
 
-        # Convert HTML to markdown using crawl4ai's markdown generator
         # Prefer fit_markdown (main content, no nav/footer chrome) over raw_markdown.
         md_result = self._md_generator.generate_markdown(html, base_url=final_url)
         content = ""
@@ -338,7 +337,6 @@ class Crawl4AIProvider:
                 for link in links_raw.get("external", []):
                     links.append({**link, "type": "external"})
 
-            # Decode screenshot from base64 if present
             screenshot_bytes = None
             if result.screenshot:
                 import base64
@@ -413,7 +411,6 @@ class Crawl4AIProvider:
 
         browser_urls = html_urls + failed_pdf_urls
 
-        # Fetch HTML pages with browser
         if browser_urls:
             async with self._make_crawler() as crawler:
                 results = await crawler.arun_many(urls=browser_urls, config=self._run_config)

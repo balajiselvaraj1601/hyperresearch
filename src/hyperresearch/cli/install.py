@@ -138,7 +138,6 @@ def install(
         setup(path=path, json_output=False)
         return
 
-    # Step 1: Init vault (skip if already exists)
     try:
         vault = Vault.discover(root)
         vault_action = "existing"
@@ -153,26 +152,20 @@ def install(
                 console.print(f"[red]Error:[/] {e}")
             raise typer.Exit(1)
 
-    # Step 2: Resolve the hyperresearch executable path
     from hyperresearch.core.agent_docs import _resolve_executable, inject_agent_docs
 
     hpr_path = _resolve_executable()
 
-    # Step 3: Always re-inject CLAUDE.md (updates blurb + path)
     doc_actions = inject_agent_docs(root)
 
-    # Step 4: Install Claude Code hook + skills + subagents (rendered from the
-    # gear profile — explicit --profile, else the gear persisted in config)
     project_config = root / ".hyperresearch" / "config.toml"
     project_config_path = project_config if project_config.exists() else None
     project_profile = _default_profile(project_config_path)
     _check_profile(project_profile, project_config_path)
     hook_actions = install_hooks(root, hpr_path=hpr_path, profile=project_profile)
 
-    # Step 3: Auto-configure crawl4ai if installed
     crawl4ai_status = _setup_crawl4ai(vault)
 
-    # Step 5: Report
     data = {
         "vault_path": str(vault.root),
         "vault": vault_action,
@@ -230,7 +223,6 @@ def _setup_crawl4ai(vault) -> str:
     if importlib.util.find_spec("crawl4ai") is None:
         return "not_installed"
 
-    # Set crawl4ai as the default provider if still on builtin
     if vault.config.web_provider == "builtin":
         vault.config.web_provider = "crawl4ai"
         vault.config.save(vault.config_path)

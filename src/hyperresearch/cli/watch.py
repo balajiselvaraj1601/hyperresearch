@@ -38,7 +38,6 @@ def watch(
         def on_any_event(self, event: FileSystemEvent):
             if not event.src_path.endswith(".md"):  # type: ignore[arg-type]
                 return
-            # Skip .hyperresearch directory
             if ".hyperresearch" in str(event.src_path):
                 return
             self._pending = True

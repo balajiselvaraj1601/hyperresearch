@@ -58,7 +58,6 @@ def main(
     pass
 
 
-# Root-level commands
 from hyperresearch.cli.archive import archive_run as _archive_run
 from hyperresearch.cli.dedup import dedup as _dedup
 from hyperresearch.cli.fetch import fetch as _fetch
@@ -103,7 +102,6 @@ app.command("watch")(_watch)
 app.command("serve")(_serve)
 app.command("mcp")(_mcp)
 
-# Sub-apps
 from hyperresearch.cli.batch import app as batch_app
 from hyperresearch.cli.config_cmd import app as config_app
 from hyperresearch.cli.export import app as export_app

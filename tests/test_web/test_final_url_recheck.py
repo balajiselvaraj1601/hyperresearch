@@ -98,9 +98,7 @@ def _bare_provider(
     return inst
 
 
-# ---------------------------------------------------------------------------
 # _check_final_url — the shared helper all three lanes wire in
-# ---------------------------------------------------------------------------
 
 
 def test_same_host_final_url_skips_re_resolution():
@@ -131,9 +129,7 @@ def test_final_url_recheck_honors_the_allowlist():
     )
 
 
-# ---------------------------------------------------------------------------
 # Lane wiring — single fetch and batch
-# ---------------------------------------------------------------------------
 
 
 def test_single_fetch_refuses_result_that_landed_private(monkeypatch):
@@ -160,9 +156,7 @@ def test_batch_drops_only_the_result_that_landed_private(monkeypatch):
     assert [r.url for r in results] == ["http://8.8.8.8/good"]
 
 
-# ---------------------------------------------------------------------------
 # Cert refusals never reach the TLS-ignoring browser lane
-# ---------------------------------------------------------------------------
 
 
 def _raise_cert(url, settings=None):

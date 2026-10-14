@@ -6,9 +6,7 @@ import pytest
 
 from hyperresearch.core.untrusted import is_untrusted, wrap_body
 
-# ---------------------------------------------------------------------------
 # is_untrusted — only http(s) fetched non-summary notes are untrusted
-# ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -43,9 +41,7 @@ def test_is_untrusted_handles_uppercase_scheme():
     assert is_untrusted("Http://example.com/x", "note") is True
 
 
-# ---------------------------------------------------------------------------
 # wrap_body — delimiters present, attacker can't forge a close tag
-# ---------------------------------------------------------------------------
 
 
 def test_wrap_body_includes_open_and_close_tags():

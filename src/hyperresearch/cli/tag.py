@@ -82,7 +82,6 @@ def tag_suggest(
     ).fetchall()
     tags = [(r["tag"], r["count"]) for r in rows]
 
-    # Find similar tag pairs
     suggestions = []
     popular = [t for t in tags if t[1] >= 3]
     singletons = [t for t in tags if t[1] == 1]
