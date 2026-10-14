@@ -301,12 +301,6 @@
                 "type": "file",
                 "purpose_description": "Verification density no human researcher sustains: every citation checked against its source, every quote mechanically verified verbatim, every number traced to extracted evidence, every cited DOI swept for retractions, consensus counted only across",
                 "size_bytes": 11486
-              },
-              {
-                "name": "README.md",
-                "type": "file",
-                "purpose_description": "This directory holds the engineering specs for the 2.0 program: six phases that take hyperresearch from a ~80-source, ~10K-word single-report harness to a dissertation-scale research system with persistent source ranking, mechanical verification, and a",
-                "size_bytes": 5768
               }
             ]
           }
@@ -2224,7 +2218,7 @@
         "name": "README.md",
         "type": "file",
         "purpose_description": "One prompt in, adversarially-audited report out",
-        "size_bytes": 11743
+        "size_bytes": 4122
       },
       {
         "name": "scripts",
