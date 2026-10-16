@@ -251,6 +251,12 @@
         "size_bytes": 97101
       },
       {
+        "name": "CONTINUITY.md",
+        "type": "file",
+        "purpose_description": "",
+        "size_bytes": 59
+      },
+      {
         "name": "CONTRIBUTING.md",
         "type": "file",
         "purpose_description": "Thank you for your interest in contributing",
@@ -2218,7 +2224,7 @@
         "name": "README.md",
         "type": "file",
         "purpose_description": "One prompt in, adversarially-audited report out",
-        "size_bytes": 4122
+        "size_bytes": 4615
       },
       {
         "name": "scripts",
@@ -2264,13 +2270,13 @@
                     "name": "__init__.py",
                     "type": "file",
                     "purpose_description": "Python module used by `cli/`",
-                    "size_bytes": 6688
+                    "size_bytes": 6655
                   },
                   {
                     "name": "_output.py",
                     "type": "file",
                     "purpose_description": "Python module used by `cli/`",
-                    "size_bytes": 4148
+                    "size_bytes": 3989
                   },
                   {
                     "name": "archive.py",
@@ -2288,7 +2294,7 @@
                     "name": "batch.py",
                     "type": "file",
                     "purpose_description": "Batch operations — modify multiple notes at once",
-                    "size_bytes": 13064
+                    "size_bytes": 13015
                   },
                   {
                     "name": "citecheck_cmd.py",
@@ -2306,13 +2312,13 @@
                     "name": "config_cmd.py",
                     "type": "file",
                     "purpose_description": "Python module used by `cli/`",
-                    "size_bytes": 4509
+                    "size_bytes": 4460
                   },
                   {
                     "name": "dedup.py",
                     "type": "file",
                     "purpose_description": "Python module used by `cli/`",
-                    "size_bytes": 4916
+                    "size_bytes": 4760
                   },
                   {
                     "name": "embed_cmd.py",
@@ -2348,7 +2354,7 @@
                     "name": "git_cmd.py",
                     "type": "file",
                     "purpose_description": "Python module used by `cli/`",
-                    "size_bytes": 5724
+                    "size_bytes": 5697
                   },
                   {
                     "name": "graph.py",
@@ -2360,7 +2366,7 @@
                     "name": "import_cmd.py",
                     "type": "file",
                     "purpose_description": "Import notes from another vault or directory",
-                    "size_bytes": 3221
+                    "size_bytes": 3186
                   },
                   {
                     "name": "index.py",
@@ -2372,7 +2378,7 @@
                     "name": "install.py",
                     "type": "file",
                     "purpose_description": "Install command — one-step setup: vault init + agent hooks + docs injection",
-                    "size_bytes": 10919
+                    "size_bytes": 10457
                   },
                   {
                     "name": "levers_cmd.py",
@@ -2384,7 +2390,7 @@
                     "name": "link.py",
                     "type": "file",
                     "purpose_description": "Link command — auto-discover and insert wiki-links between related notes",
-                    "size_bytes": 2904
+                    "size_bytes": 2865
                   },
                   {
                     "name": "lint.py",
@@ -2396,7 +2402,7 @@
                     "name": "main.py",
                     "type": "file",
                     "purpose_description": "Python module used by `cli/`",
-                    "size_bytes": 6014
+                    "size_bytes": 5995
                   },
                   {
                     "name": "mcp_cmd.py",
@@ -2420,7 +2426,7 @@
                     "name": "repair.py",
                     "type": "file",
                     "purpose_description": "Python module used by `cli/`",
-                    "size_bytes": 10963
+                    "size_bytes": 10556
                   },
                   {
                     "name": "research.py",
@@ -2468,7 +2474,7 @@
                     "name": "tag.py",
                     "type": "file",
                     "purpose_description": "Python module used by `cli/`",
-                    "size_bytes": 4720
+                    "size_bytes": 4691
                   },
                   {
                     "name": "template.py",
@@ -2480,7 +2486,7 @@
                     "name": "topic.py",
                     "type": "file",
                     "purpose_description": "Python module used by `cli/`",
-                    "size_bytes": 5755
+                    "size_bytes": 5669
                   },
                   {
                     "name": "vault_tag.py",
@@ -2492,7 +2498,7 @@
                     "name": "watch.py",
                     "type": "file",
                     "purpose_description": "Python module used by `cli/`",
-                    "size_bytes": 4178
+                    "size_bytes": 4134
                   }
                 ]
               },
@@ -2613,7 +2619,7 @@
                     "name": "note.py",
                     "type": "file",
                     "purpose_description": "Python module used by `core/`",
-                    "size_bytes": 5949
+                    "size_bytes": 5861
                   },
                   {
                     "name": "oa.py",
@@ -2667,13 +2673,13 @@
                     "name": "sync.py",
                     "type": "file",
                     "purpose_description": "Python module used by `core/`",
-                    "size_bytes": 16473
+                    "size_bytes": 16315
                   },
                   {
                     "name": "templates.py",
                     "type": "file",
                     "purpose_description": "Built-in note templates",
-                    "size_bytes": 3083
+                    "size_bytes": 3047
                   },
                   {
                     "name": "untrusted.py",
@@ -2685,7 +2691,7 @@
                     "name": "vault.py",
                     "type": "file",
                     "purpose_description": "Python module used by `core/`",
-                    "size_bytes": 7560
+                    "size_bytes": 7333
                   }
                 ]
               },
@@ -2730,7 +2736,7 @@
                     "name": "generator.py",
                     "type": "file",
                     "purpose_description": "Python module used by `indexgen/`",
-                    "size_bytes": 11348
+                    "size_bytes": 11260
                   }
                 ]
               },
@@ -2853,7 +2859,7 @@
                     "name": "fts.py",
                     "type": "file",
                     "purpose_description": "Python module used by `search/`",
-                    "size_bytes": 7089
+                    "size_bytes": 6913
                   }
                 ]
               },
@@ -2872,7 +2878,7 @@
                     "name": "renderer.py",
                     "type": "file",
                     "purpose_description": "Python module used by `serve/`",
-                    "size_bytes": 5808
+                    "size_bytes": 5564
                   },
                   {
                     "name": "server.py",
@@ -3035,13 +3041,13 @@
                     "name": "builtin.py",
                     "type": "file",
                     "purpose_description": "Python module used by `web/`",
-                    "size_bytes": 5423
+                    "size_bytes": 5358
                   },
                   {
                     "name": "crawl4ai_provider.py",
                     "type": "file",
                     "purpose_description": "Python module used by `web/`",
-                    "size_bytes": 20768
+                    "size_bytes": 20602
                   },
                   {
                     "name": "exa_provider.py",
@@ -3059,7 +3065,7 @@
                     "name": "pdf.py",
                     "type": "file",
                     "purpose_description": "Python module used by `web/`",
-                    "size_bytes": 10734
+                    "size_bytes": 10710
                   },
                   {
                     "name": "safe_http.py",
@@ -3147,7 +3153,7 @@
                 "name": "test_commands.py",
                 "type": "file",
                 "purpose_description": "Python module used by `test_cli/`",
-                "size_bytes": 9285
+                "size_bytes": 9246
               },
               {
                 "name": "test_fetch_batch.py",
@@ -3177,7 +3183,7 @@
                 "name": "test_note_ops.py",
                 "type": "file",
                 "purpose_description": "Python module used by `test_cli/`",
-                "size_bytes": 5991
+                "size_bytes": 5975
               },
               {
                 "name": "test_oa_fetch.py",
@@ -3250,13 +3256,13 @@
                 "name": "test_frontmatter.py",
                 "type": "file",
                 "purpose_description": "Tests for frontmatter parsing and serialization",
-                "size_bytes": 2320
+                "size_bytes": 2300
               },
               {
                 "name": "test_hooks.py",
                 "type": "file",
                 "purpose_description": "Tests for hook installer and skill file provisioning (hyperresearch roster)",
-                "size_bytes": 9133
+                "size_bytes": 8353
               },
               {
                 "name": "test_levers.py",
@@ -3304,7 +3310,7 @@
                 "name": "test_prompt_golden.py",
                 "type": "file",
                 "purpose_description": "Python module used by `test_core/`",
-                "size_bytes": 18255
+                "size_bytes": 17631
               },
               {
                 "name": "test_render.py",
@@ -3322,13 +3328,13 @@
                 "name": "test_runs.py",
                 "type": "file",
                 "purpose_description": "Python module used by `test_core/`",
-                "size_bytes": 20736
+                "size_bytes": 20593
               },
               {
                 "name": "test_scholar_enrichment.py",
                 "type": "file",
                 "purpose_description": "Python module used by `test_core/`",
-                "size_bytes": 21885
+                "size_bytes": 21729
               },
               {
                 "name": "test_source_ranking.py",
@@ -3340,13 +3346,13 @@
                 "name": "test_sync.py",
                 "type": "file",
                 "purpose_description": "Python module used by `test_core/`",
-                "size_bytes": 13319
+                "size_bytes": 13275
               },
               {
                 "name": "test_untrusted.py",
                 "type": "file",
                 "purpose_description": "Tests for hyperresearch.core.untrusted — fetched-content wrapping",
-                "size_bytes": 5721
+                "size_bytes": 5409
               },
               {
                 "name": "test_vault.py",
@@ -3415,7 +3421,7 @@
                 "name": "test_cli.py",
                 "type": "file",
                 "purpose_description": "Python module used by `test_scholar/`",
-                "size_bytes": 13867
+                "size_bytes": 13399
               },
               {
                 "name": "test_clinicaltrials.py",
@@ -3439,7 +3445,7 @@
                 "name": "test_dedup.py",
                 "type": "file",
                 "purpose_description": "Cross-provider merge rules. Every assertion here is about a duplicate that naive concatenation would have left in the corpus, or a field that the wrong provider would have won",
-                "size_bytes": 9008
+                "size_bytes": 8540
               },
               {
                 "name": "test_doab.py",
@@ -3574,7 +3580,7 @@
                 "name": "test_final_url_recheck.py",
                 "type": "file",
                 "purpose_description": "Final-URL recheck + cert-refusal routing in the crawl4ai lanes",
-                "size_bytes": 6688
+                "size_bytes": 6220
               },
               {
                 "name": "test_junk_detection.py",
@@ -3598,7 +3604,7 @@
                 "name": "test_safe_http.py",
                 "type": "file",
                 "purpose_description": "Python module used by `test_web/`",
-                "size_bytes": 15244
+                "size_bytes": 14152
               },
               {
                 "name": "test_serply_provider.py",
