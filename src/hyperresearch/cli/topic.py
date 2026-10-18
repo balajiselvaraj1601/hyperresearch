@@ -10,6 +10,36 @@ from hyperresearch.models.output import success
 app = typer.Typer()
 
 
+def _collect_topics(vault) -> dict:
+    rows = vault.db.execute(
+        "SELECT parent, COUNT(*) as count FROM notes "
+        "WHERE parent IS NOT NULL AND type NOT IN ('index') "
+        "GROUP BY parent ORDER BY parent"
+    ).fetchall()
+    topics = {}
+    for row in rows:
+        path = row["parent"]
+        topics[path] = row["count"]
+        # Add ancestor paths with 0 count if missing
+        parts = path.split("/")
+        for i in range(1, len(parts)):
+            ancestor = "/".join(parts[:i])
+            if ancestor not in topics:
+                topics[ancestor] = 0
+    return topics
+
+
+def _print_topic_tree(topics: dict, depth: int) -> None:
+    if not topics:
+        console.print("[dim]No topics found. Set 'parent' in note frontmatter.[/]")
+        return
+    from rich.tree import Tree
+
+    root = Tree("[bold]Topics[/]")
+    _build_rich_tree(root, topics, depth)
+    console.print(root)
+
+
 @app.command("tree")
 def topic_tree(
     depth: int = typer.Option(0, "--depth", "-d", help="Max depth (0=unlimited)"),
@@ -21,46 +51,16 @@ def topic_tree(
     vault = Vault.discover()
     vault.auto_sync()
 
-    rows = vault.db.execute(
-        "SELECT parent, COUNT(*) as count FROM notes "
-        "WHERE parent IS NOT NULL AND type NOT IN ('index') "
-        "GROUP BY parent ORDER BY parent"
-    ).fetchall()
-
-    topics = {}
-    for row in rows:
-        path = row["parent"]
-        topics[path] = row["count"]
-        # Add ancestor paths with 0 count if missing
-        parts = path.split("/")
-        for i in range(1, len(parts)):
-            ancestor = "/".join(parts[:i])
-            if ancestor not in topics:
-                topics[ancestor] = 0
-
+    topics = _collect_topics(vault)
     if json_output:
         data = [{"topic": k, "direct_notes": v} for k, v in sorted(topics.items())]
         output(success(data, count=len(data), vault=str(vault.root)), json_mode=True)
     else:
-        if not topics:
-            console.print("[dim]No topics found. Set 'parent' in note frontmatter.[/]")
-            return
-
-        from rich.tree import Tree
-
-        root = Tree("[bold]Topics[/]")
-        _build_rich_tree(root, topics, depth)
-        console.print(root)
+        _print_topic_tree(topics, depth)
 
 
-def _build_rich_tree(
-    parent_node, topics: dict, max_depth: int, prefix: str = "", current_depth: int = 0
-):
-    """Recursively build a Rich tree from topic paths."""
-    if max_depth > 0 and current_depth >= max_depth:
-        return
-
-    # Find direct children at this level
+def _child_map(topics: dict, prefix: str) -> dict:
+    """Direct children at this level."""
     children: dict[str, int] = {}
     for path, count in sorted(topics.items()):
         if prefix:
@@ -72,19 +72,32 @@ def _build_rich_tree(
 
         if "/" not in remainder:
             children[remainder] = count
+    return children
 
-    for child_name, count in sorted(children.items()):
+
+def _tree_label(child_name: str, count: int, topics: dict, full_path: str) -> str:
+    # Count all notes under this subtree
+    subtree_count = sum(
+        v for k, v in topics.items() if k == full_path or k.startswith(full_path + "/")
+    )
+    label = f"[cyan]{child_name}[/]"
+    if count > 0:
+        label += f" ({count} notes)"
+    if subtree_count > count:
+        label += f" [dim]({subtree_count} total)[/]"
+    return label
+
+
+def _build_rich_tree(
+    parent_node, topics: dict, max_depth: int, prefix: str = "", current_depth: int = 0
+):
+    """Recursively build a Rich tree from topic paths."""
+    if max_depth > 0 and current_depth >= max_depth:
+        return
+
+    for child_name, count in sorted(_child_map(topics, prefix).items()):
         full_path = f"{prefix}/{child_name}" if prefix else child_name
-        # Count all notes under this subtree
-        subtree_count = sum(
-            v for k, v in topics.items() if k == full_path or k.startswith(full_path + "/")
-        )
-        label = f"[cyan]{child_name}[/]"
-        if count > 0:
-            label += f" ({count} notes)"
-        if subtree_count > count:
-            label += f" [dim]({subtree_count} total)[/]"
-        child_node = parent_node.add(label)
+        child_node = parent_node.add(_tree_label(child_name, count, topics, full_path))
         _build_rich_tree(child_node, topics, max_depth, full_path, current_depth + 1)
 
 

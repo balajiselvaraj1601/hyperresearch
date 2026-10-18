@@ -14,6 +14,87 @@ from hyperresearch.core.similarity import (
 from hyperresearch.models.output import success
 
 
+def _open_dedup_vault(json_output: bool):
+    from hyperresearch.core.vault import Vault, VaultError
+
+    try:
+        return Vault.discover()
+    except VaultError as e:
+        if json_output:
+            output({"ok": False, "error": str(e)}, json_mode=True)
+        else:
+            console.print(f"[red]Error:[/] {e}")
+        raise typer.Exit(1)
+
+
+def _report_too_few(vault, json_output: bool) -> None:
+    if json_output:
+        output(success({"pairs": [], "total_compared": 0}, vault=str(vault.root)), json_mode=True)
+    else:
+        console.print("[dim]Not enough notes to compare.[/]")
+
+
+def _build_note_shingles(rows, shingle_size: int) -> dict:
+    notes = {}
+    for row in rows:
+        notes[row["id"]] = {
+            "id": row["id"],
+            "title": row["title"],
+            "word_count": row["word_count"],
+            "shingles": shingle(row["body_plain"], n=shingle_size),
+        }
+    return notes
+
+
+def _find_dup_pairs(notes: dict, threshold: float, cfg) -> tuple:
+    if len(notes) >= cfg.lsh_switchover:
+        pairs = _dedup_lsh(notes, threshold, num_perm=cfg.minhash_perm, bands=cfg.lsh_bands)
+        return pairs, "minhash+lsh"
+    return _dedup_brute(notes, threshold), "brute-force"
+
+
+def _print_dup_pairs(pairs: list, threshold: float, method: str, note_count: int) -> None:
+    if not pairs:
+        console.print(f"[green]No duplicates found (threshold {threshold:.0%}, {method}).[/]")
+        return
+    console.print(f"[bold]Similar notes (>{threshold:.0%}, {method}):[/]\n")
+    for p in pairs:
+        a, b = p["note_a"], p["note_b"]
+        console.print(
+            f"  [bold]{p['similarity']:.0%}[/] | "
+            f"[cyan]{a['id']}[/] ({a['words']}w) "
+            f"<-> [cyan]{b['id']}[/] ({b['words']}w)"
+        )
+    console.print(f"\n[dim]{note_count} notes, {method}.[/]")
+
+
+def _report_dup_pairs(
+    vault,
+    pairs: list,
+    threshold: float,
+    method: str,
+    total: int,
+    note_count: int,
+    json_output: bool,
+) -> None:
+    if json_output:
+        output(
+            success(
+                {
+                    "pairs": pairs,
+                    "total_compared": total,
+                    "threshold": threshold,
+                    "method": method,
+                },
+                count=len(pairs),
+                vault=str(vault.root),
+            ),
+            json_mode=True,
+        )
+    else:
+        _print_dup_pairs(pairs, threshold, method, note_count)
+
+
 def dedup(
     threshold: float | None = typer.Option(
         None,
@@ -25,17 +106,7 @@ def dedup(
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
 ) -> None:
     """Find near-duplicate notes by content similarity."""
-    from hyperresearch.core.vault import Vault, VaultError
-
-    try:
-        vault = Vault.discover()
-    except VaultError as e:
-        if json_output:
-            output({"ok": False, "error": str(e)}, json_mode=True)
-        else:
-            console.print(f"[red]Error:[/] {e}")
-        raise typer.Exit(1)
-
+    vault = _open_dedup_vault(json_output)
     vault.auto_sync()
     cfg = vault.config.dedup
     if threshold is None:
@@ -49,64 +120,16 @@ def dedup(
     ).fetchall()
 
     if len(rows) < 2:
-        if json_output:
-            output(
-                success({"pairs": [], "total_compared": 0}, vault=str(vault.root)), json_mode=True
-            )
-        else:
-            console.print("[dim]Not enough notes to compare.[/]")
+        _report_too_few(vault, json_output)
         return
 
-    notes = {}
-    for row in rows:
-        shingles = shingle(row["body_plain"], n=cfg.shingle_size)
-        notes[row["id"]] = {
-            "id": row["id"],
-            "title": row["title"],
-            "word_count": row["word_count"],
-            "shingles": shingles,
-        }
-
-    if len(notes) >= cfg.lsh_switchover:
-        pairs = _dedup_lsh(notes, threshold, num_perm=cfg.minhash_perm, bands=cfg.lsh_bands)
-        method = "minhash+lsh"
-    else:
-        pairs = _dedup_brute(notes, threshold)
-        method = "brute-force"
-
+    notes = _build_note_shingles(rows, cfg.shingle_size)
+    pairs, method = _find_dup_pairs(notes, threshold, cfg)
     pairs.sort(key=lambda p: p["similarity"], reverse=True)
     pairs = pairs[:limit]
 
     total_compared = len(notes) * (len(notes) - 1) // 2
-
-    if json_output:
-        output(
-            success(
-                {
-                    "pairs": pairs,
-                    "total_compared": total_compared,
-                    "threshold": threshold,
-                    "method": method,
-                },
-                count=len(pairs),
-                vault=str(vault.root),
-            ),
-            json_mode=True,
-        )
-    else:
-        if not pairs:
-            console.print(f"[green]No duplicates found (threshold {threshold:.0%}, {method}).[/]")
-            return
-
-        console.print(f"[bold]Similar notes (>{threshold:.0%}, {method}):[/]\n")
-        for p in pairs:
-            a, b = p["note_a"], p["note_b"]
-            console.print(
-                f"  [bold]{p['similarity']:.0%}[/] | "
-                f"[cyan]{a['id']}[/] ({a['words']}w) "
-                f"<-> [cyan]{b['id']}[/] ({b['words']}w)"
-            )
-        console.print(f"\n[dim]{len(notes)} notes, {method}.[/]")
+    _report_dup_pairs(vault, pairs, threshold, method, total_compared, len(notes), json_output)
 
 
 def _dedup_brute(notes: dict, threshold: float) -> list[dict]:

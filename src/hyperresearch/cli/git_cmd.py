@@ -24,17 +24,11 @@ def _run_git(vault_root: Path, args: list[str]) -> tuple[int, str]:
     return result.returncode, result.stdout
 
 
-@app.command("log")
-def git_log(
-    limit: int = typer.Option(20, "--limit", "-l", help="Max commits"),
-    since: str | None = typer.Option(None, "--since", help="Since date (YYYY-MM-DD)"),
-    json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
-) -> None:
-    """Show notes changed in recent commits."""
+def _open_git_vault(json_output: bool):
     from hyperresearch.core.vault import Vault, VaultError
 
     try:
-        vault = Vault.discover()
+        return Vault.discover()
     except VaultError as e:
         if json_output:
             output(error(str(e), "NO_VAULT"), json_mode=True)
@@ -42,20 +36,13 @@ def git_log(
             console.print(f"[red]Error:[/] {e}")
         raise typer.Exit(1)
 
-    # Use \x00 as delimiter to avoid pipe characters in commit messages
-    args = ["log", f"--max-count={limit}", "--name-only", "--pretty=format:%H%x00%s%x00%ai"]
-    if since:
-        args.append(f"--since={since}")
-    args.append("-- *.md")
 
-    rc, out = _run_git(vault.root, args)
-    if rc != 0:
-        if json_output:
-            output(error("Not a git repository", "NOT_GIT"), json_mode=True)
-        else:
-            console.print("[red]Not a git repository.[/]")
-        raise typer.Exit(1)
+def _append_log_file(current_commit, line: str) -> None:
+    if current_commit and line.endswith(".md") and isinstance(current_commit["files"], list):
+        current_commit["files"].append(line.strip())
 
+
+def _parse_git_log(out: str) -> list:
     commits: list[dict[str, str | list[str]]] = []
     current_commit: dict[str, str | list[str]] | None = None
     for line in out.strip().split("\n"):
@@ -70,20 +57,49 @@ def git_log(
                 "files": [],
             }
             commits.append(current_commit)  # type: ignore[arg-type]
-        elif current_commit and line.endswith(".md"):
-            if isinstance(current_commit["files"], list):
-                current_commit["files"].append(line.strip())
+        else:
+            _append_log_file(current_commit, line)
+    return commits
 
+
+def _print_commits(commits: list) -> None:
+    if not commits:
+        console.print("[dim]No commits found with .md changes.[/]")
+        return
+    for c in commits:
+        console.print(f"[dim]{c['date']}[/] [bold]{c['hash']}[/] {c['message']}")
+        for f in c["files"]:
+            console.print(f"    [cyan]{f}[/]")
+
+
+@app.command("log")
+def git_log(
+    limit: int = typer.Option(20, "--limit", "-l", help="Max commits"),
+    since: str | None = typer.Option(None, "--since", help="Since date (YYYY-MM-DD)"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
+) -> None:
+    """Show notes changed in recent commits."""
+    vault = _open_git_vault(json_output)
+
+    # NUL-delimited log to avoid pipe characters in commit messages
+    args = ["log", f"--max-count={limit}", "--name-only", "--pretty=format:%H%x00%s%x00%ai"]
+    if since:
+        args.append(f"--since={since}")
+    args.append("-- *.md")
+
+    rc, out = _run_git(vault.root, args)
+    if rc != 0:
+        if json_output:
+            output(error("Not a git repository", "NOT_GIT"), json_mode=True)
+        else:
+            console.print("[red]Not a git repository.[/]")
+        raise typer.Exit(1)
+
+    commits = _parse_git_log(out)
     if json_output:
         output(success(commits, count=len(commits), vault=str(vault.root)), json_mode=True)
     else:
-        if not commits:
-            console.print("[dim]No commits found with .md changes.[/]")
-            return
-        for c in commits:
-            console.print(f"[dim]{c['date']}[/] [bold]{c['hash']}[/] {c['message']}")
-            for f in c["files"]:
-                console.print(f"    [cyan]{f}[/]")
+        _print_commits(commits)
 
 
 @app.command("blame")

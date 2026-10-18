@@ -60,6 +60,79 @@ def preprocess_query(raw: str) -> str:
     return " ".join(processed)
 
 
+def _fts_filter_clause(filters: SearchFilters | None) -> tuple:
+    filter_clause = ""
+    filter_params: list = []
+    if filters:
+        where, filter_params = filters.to_sql("n")
+        if where != "1=1":
+            filter_clause = f"AND {where}"
+    return filter_clause, filter_params
+
+
+def _run_fts_query(conn: sqlite3.Connection, sql: str, params: list, query: str):
+    try:
+        return conn.execute(sql, params).fetchall()
+    except sqlite3.OperationalError as exc:
+        msg = str(exc)
+        if "syntax error" in msg or "malformed MATCH" in msg or "unterminated" in msg:
+            raise SearchQueryError(f"Invalid search query {query!r}: {msg}") from exc
+        # Missing table, corrupt index, locked database — surface it. Returning []
+        # here previously made a broken vault indistinguishable from an empty one.
+        raise
+
+
+def _row_to_result(row) -> dict:
+    return {
+        "id": row["id"],
+        "title": row["title"],
+        "path": row["path"],
+        "status": row["status"],
+        "type": row["type"],
+        # sqlite3.Row.__contains__ is broken; row.keys() is reliable.
+        "tier": row["tier"] if "tier" in row.keys() else None,
+        "content_type": row["content_type"] if "content_type" in row.keys() else None,
+        "tags": row["tag_list"].split(",") if row["tag_list"] else [],
+        "created": row["created"],
+        "updated": row["updated"],
+        "word_count": row["word_count"],
+        "summary": row["summary"],
+        "quality_score": row["quality_score"] if "quality_score" in row.keys() else None,
+        "score": abs(row["score"]),
+        "snippet": row["snippet"] or "",
+    }
+
+
+def _apply_status_ranking(results: list, ranking: dict | None) -> None:
+    if not ranking:
+        return
+    boost_evergreen = ranking.get("boost_evergreen", 1.0)
+    penalize_deprecated = ranking.get("penalize_deprecated", 1.0)
+    penalize_stale = ranking.get("penalize_stale", 1.0)
+    for r in results:
+        if r["status"] == "evergreen":
+            r["score"] *= boost_evergreen
+        elif r["status"] == "deprecated":
+            r["score"] *= penalize_deprecated
+        elif r["status"] == "stale":
+            r["score"] *= penalize_stale
+    results.sort(key=lambda x: x["score"], reverse=True)
+
+
+def _apply_quality_ranking(results: list, quality_ranked: bool) -> None:
+    # Quality-weighted re-rank (opt-in): fold the composite source-quality
+    # score into relevance. (0.5 + quality) keeps unscored notes (quality
+    # NULL -> neutral 1.0x via fallback 0.5) competitive while a
+    # ground-truth-tier, high-authority source (~1.0) roughly triples a
+    # retracted one (~0.05).
+    if not quality_ranked:
+        return
+    for r in results:
+        q = r.get("quality_score")
+        r["score"] *= 0.5 + (q if q is not None else 0.5)
+    results.sort(key=lambda x: x["score"], reverse=True)
+
+
 def search_fts(
     conn: sqlite3.Connection,
     query: str,
@@ -87,12 +160,7 @@ def search_fts(
             "Provide at least one word or quoted phrase."
         )
 
-    filter_clause = ""
-    filter_params: list = []
-    if filters:
-        where, filter_params = filters.to_sql("n")
-        if where != "1=1":
-            filter_clause = f"AND {where}"
+    filter_clause, filter_params = _fts_filter_clause(filters)
 
     # Exclude auto-generated index pages by default
     index_clause = "" if include_index else "AND n.type != 'index'"
@@ -121,65 +189,12 @@ def search_fts(
         LIMIT ? OFFSET ?
     """
 
-    params = [fts_query, *filter_params, limit, offset]
+    rows = _run_fts_query(conn, sql, [fts_query, *filter_params, limit, offset], query)
+    results = [_row_to_result(row) for row in rows]
 
-    try:
-        rows = conn.execute(sql, params).fetchall()
-    except sqlite3.OperationalError as exc:
-        msg = str(exc)
-        if "syntax error" in msg or "malformed MATCH" in msg or "unterminated" in msg:
-            raise SearchQueryError(f"Invalid search query {query!r}: {msg}") from exc
-        # Missing table, corrupt index, locked database — surface it. Returning []
-        # here previously made a broken vault indistinguishable from an empty one.
-        raise
-
-    results = []
-    for row in rows:
-        tag_list = row["tag_list"].split(",") if row["tag_list"] else []
-        results.append(
-            {
-                "id": row["id"],
-                "title": row["title"],
-                "path": row["path"],
-                "status": row["status"],
-                "type": row["type"],
-                # sqlite3.Row.__contains__ is broken; row.keys() is reliable.
-                "tier": row["tier"] if "tier" in row.keys() else None,
-                "content_type": row["content_type"] if "content_type" in row.keys() else None,
-                "tags": tag_list,
-                "created": row["created"],
-                "updated": row["updated"],
-                "word_count": row["word_count"],
-                "summary": row["summary"],
-                "quality_score": row["quality_score"] if "quality_score" in row.keys() else None,
-                "score": abs(row["score"]),
-                "snippet": row["snippet"] or "",
-            }
-        )
-
-    # Apply status-based ranking adjustments
-    if ranking:
-        boost_evergreen = ranking.get("boost_evergreen", 1.0)
-        penalize_deprecated = ranking.get("penalize_deprecated", 1.0)
-        penalize_stale = ranking.get("penalize_stale", 1.0)
-        for r in results:
-            if r["status"] == "evergreen":
-                r["score"] *= boost_evergreen
-            elif r["status"] == "deprecated":
-                r["score"] *= penalize_deprecated
-            elif r["status"] == "stale":
-                r["score"] *= penalize_stale
-        results.sort(key=lambda x: x["score"], reverse=True)
-
-    # Quality-weighted re-rank (opt-in): fold the composite source-quality
-    # score into relevance. (0.5 + quality) keeps unscored notes (quality
-    # NULL -> neutral 1.0x via fallback 0.5) competitive while a
-    # ground-truth-tier, high-authority source (~1.0) roughly triples a
-    # retracted one (~0.05).
-    if quality_ranked:
-        for r in results:
-            q = r.get("quality_score")
-            r["score"] *= 0.5 + (q if q is not None else 0.5)
-        results.sort(key=lambda x: x["score"], reverse=True)
+    # Apply status-based ranking adjustments, then the opt-in
+    # quality-weighted re-rank.
+    _apply_status_ranking(results, ranking)
+    _apply_quality_ranking(results, quality_ranked)
 
     return results

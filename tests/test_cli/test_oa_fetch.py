@@ -88,11 +88,15 @@ def vault_dir(tmp_path: Path, monkeypatch) -> Path:
     from hyperresearch.core import oa, scholar
     from hyperresearch.web import pdf as pdf_lane
 
-    monkeypatch.setattr("hyperresearch.web.base.get_provider", lambda *a, **k: _AbstractOnlyProvider())
+    monkeypatch.setattr(
+        "hyperresearch.web.base.get_provider", lambda *a, **k: _AbstractOnlyProvider()
+    )
     monkeypatch.setattr(
         scholar, "_http_get_json", lambda url: UNPAYWALL if "unpaywall" in url else None
     )
-    monkeypatch.setattr(oa.socket, "getaddrinfo", lambda h, p: [(2, 1, 6, "", ("93.184.216.34", 0))])  # type: ignore[reportPrivateImportUsage]
+    monkeypatch.setattr(
+        oa.socket, "getaddrinfo", lambda h, p: [(2, 1, 6, "", ("93.184.216.34", 0))]
+    )  # type: ignore[reportPrivateImportUsage]
     monkeypatch.setattr(
         pdf_lane,
         "fetch_pdf",
@@ -108,20 +112,15 @@ def _read_note(vault_dir: Path, note_id: str):
     return parse_frontmatter(path.read_text(encoding="utf-8-sig"))
 
 
-def test_single_fetch_recovers_and_discloses(vault_dir: Path):
-    os.chdir(vault_dir)
-    result = runner.invoke(app, ["fetch", PAPER_URL, "--json"])
-    assert result.exit_code == 0
-    data = json.loads(result.output)["data"]
-
+def _assert_oa_swap_reported(data) -> None:
     # The swap is reported in the machine-readable output
     assert data["oa"]["url"] == "https://repo.example.org/widgets.pdf"
     assert data["oa"]["resolver"] == "unpaywall"
     assert data["oa"]["version"] == "acceptedVersion"
     assert data["oa"]["replaced_chars"] == len(ABSTRACT)
 
-    meta, body = _read_note(vault_dir, data["note_id"])
 
+def _assert_oa_note_meta(meta) -> None:
     # source still points at what was asked for; the body says where it came from
     assert meta.source == PAPER_URL
     assert meta.doi == "10.1234/abc"
@@ -130,10 +129,25 @@ def test_single_fetch_recovers_and_discloses(vault_dir: Path):
     assert meta.oa_version == "acceptedVersion"
     assert meta.oa_license == "cc-by-nc"
 
+
+def _assert_oa_banner(body: str) -> None:
     assert body.startswith("> [!] **Open-access full text substituted.**")
     assert "accepted manuscript" in body
     assert "Quote this source with care" in body
     assert FULL_TEXT[:60] in body
+
+
+def test_single_fetch_recovers_and_discloses(vault_dir: Path):
+    os.chdir(vault_dir)
+    result = runner.invoke(app, ["fetch", PAPER_URL, "--json"])
+    assert result.exit_code == 0
+    data = json.loads(result.output)["data"]
+
+    _assert_oa_swap_reported(data)
+
+    meta, body = _read_note(vault_dir, data["note_id"])
+    _assert_oa_note_meta(meta)
+    _assert_oa_banner(body)
 
 
 def test_batch_fetch_recovers_and_discloses(vault_dir: Path):
@@ -179,10 +193,26 @@ def test_plain_note_has_no_oa_block(vault_dir: Path, monkeypatch):
     )["data"]
     assert "oa" not in fetched
 
-    shown = json.loads(
-        runner.invoke(app, ["note", "show", fetched["note_id"], "--json"]).output
-    )["data"]
+    shown = json.loads(runner.invoke(app, ["note", "show", fetched["note_id"], "--json"]).output)[
+        "data"
+    ]
     assert "oa" not in shown
+
+
+def _assert_rescue_reported(data) -> None:
+    assert data["oa"]["kind"] == "rescued"
+    assert data["oa"]["nothing_from_source"] is True
+    assert "403" in data["oa"]["blocked_reason"]
+
+
+def _assert_rescued_note(vault_dir: Path, note_id: str) -> None:
+    meta, body = _read_note(vault_dir, note_id)
+    assert meta.source == PAPER_URL  # still what was asked for
+    assert meta.doi == "10.1234/abc"  # taken from the URL, not the body
+    assert meta.oa_recovery_kind == "rescued"
+    assert meta.source_domain == "doi.org"  # not the substitute's host
+    assert body.startswith("> [!] **Recovered from an open-access copy.")
+    assert "NOTHING in this note came from the source URL" in body
 
 
 def test_blocked_fetch_is_rescued(vault_dir: Path, monkeypatch):
@@ -196,21 +226,12 @@ def test_blocked_fetch_is_rescued(vault_dir: Path, monkeypatch):
     assert result.exit_code == 0
     data = json.loads(result.output)["data"]
 
-    assert data["oa"]["kind"] == "rescued"
-    assert data["oa"]["nothing_from_source"] is True
-    assert "403" in data["oa"]["blocked_reason"]
+    _assert_rescue_reported(data)
+    _assert_rescued_note(vault_dir, data["note_id"])
 
-    meta, body = _read_note(vault_dir, data["note_id"])
-    assert meta.source == PAPER_URL          # still what was asked for
-    assert meta.doi == "10.1234/abc"         # taken from the URL, not the body
-    assert meta.oa_recovery_kind == "rescued"
-    assert meta.source_domain == "doi.org"   # not the substitute's host
-    assert body.startswith("> [!] **Recovered from an open-access copy.")
-    assert "NOTHING in this note came from the source URL" in body
-
-    shown = json.loads(
-        runner.invoke(app, ["note", "show", data["note_id"], "--json"]).output
-    )["data"]
+    shown = json.loads(runner.invoke(app, ["note", "show", data["note_id"], "--json"]).output)[
+        "data"
+    ]
     assert shown["oa"]["kind"] == "rescued"
     assert shown["oa"]["nothing_from_source"] is True
 
@@ -246,9 +267,7 @@ def test_blocked_fetch_without_a_copy_still_fails(vault_dir: Path, monkeypatch):
     assert json.loads(result.output)["error_code"] == "FETCH_ERROR"
 
 
-def test_batch_rescues_blocked_urls_and_clears_them_from_failures(
-    vault_dir: Path, monkeypatch
-):
+def test_batch_rescues_blocked_urls_and_clears_them_from_failures(vault_dir: Path, monkeypatch):
     """Batch is where this matters most — the pipeline fetches in waves, so one
     bot-walled publisher drops a whole cluster at once."""
     os.chdir(vault_dir)
@@ -293,8 +312,12 @@ def test_recovery_is_off_without_an_email(tmp_path: Path, monkeypatch):
     from hyperresearch.core import oa, scholar
 
     seen: list[str] = []
-    monkeypatch.setattr("hyperresearch.web.base.get_provider", lambda *a, **k: _AbstractOnlyProvider())
-    monkeypatch.setattr(oa.socket, "getaddrinfo", lambda h, p: [(2, 1, 6, "", ("93.184.216.34", 0))])  # type: ignore[reportPrivateImportUsage]
+    monkeypatch.setattr(
+        "hyperresearch.web.base.get_provider", lambda *a, **k: _AbstractOnlyProvider()
+    )
+    monkeypatch.setattr(
+        oa.socket, "getaddrinfo", lambda h, p: [(2, 1, 6, "", ("93.184.216.34", 0))]
+    )  # type: ignore[reportPrivateImportUsage]
 
     def track(url):
         seen.append(url)

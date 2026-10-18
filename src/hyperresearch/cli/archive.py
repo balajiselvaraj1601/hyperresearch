@@ -91,6 +91,81 @@ def _unique_archive_dir(base: Path) -> Path:
         counter += 1
 
 
+def _open_archive_vault(json_output: bool):
+    from hyperresearch.core.vault import Vault, VaultError
+
+    try:
+        return Vault.discover()
+    except VaultError as e:
+        if json_output:
+            output(error(str(e), "NO_VAULT"), json_mode=True)
+        else:
+            console.print(f"[red]Error:[/] {e}")
+        raise typer.Exit(1)
+
+
+def _report_no_archive(json_output: bool, vault, message: str) -> None:
+    data = {"archived": False, "files_moved": 0, "previous_vault_tag": None}
+    if json_output:
+        output(success(data, vault=str(vault.root)), json_mode=True)
+    else:
+        console.print(f"[dim]{message}[/]")
+
+
+def _collect_root_artifacts(research_dir) -> list:
+    to_move = []
+    for name in _ROOT_ARTIFACTS:
+        p = research_dir / name
+        if p.exists() and p.is_file():
+            to_move.append(p)
+    return to_move
+
+
+def _collect_archive_subdirs(research_dir) -> list:
+    to_move = []
+    for sub in _SUBDIRS:
+        d = research_dir / sub
+        if d.is_dir() and any(d.iterdir()):
+            to_move.append(d)
+    return to_move
+
+
+def _move_to_archive(vault, research_dir, to_move: list, prev_tag) -> dict:
+    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    suffix = f"{prev_tag}-{timestamp}" if prev_tag else timestamp
+    archive_dir = _unique_archive_dir(research_dir / "runs" / f"archive-{suffix}")
+    archive_dir.mkdir(parents=True)
+    moved: list[dict] = []
+    for src in to_move:
+        dest = archive_dir / src.name
+        shutil.move(str(src), str(dest))
+        moved.append(
+            {
+                "from": src.relative_to(vault.root).as_posix(),
+                "to": dest.relative_to(vault.root).as_posix(),
+            }
+        )
+    # Recreate the now-empty output/temp/ so subsequent skill steps don't
+    # need to remember to mkdir it.
+    (research_dir / "temp").mkdir(exist_ok=True)
+    return {
+        "archived": True,
+        "archive_dir": archive_dir.relative_to(vault.root).as_posix(),
+        "files_moved": len(moved),
+        "moved": moved,
+        "previous_vault_tag": prev_tag,
+    }
+
+
+def _report_archived(vault, result: dict, prev_tag, json_output: bool) -> None:
+    if json_output:
+        output(success(result, vault=str(vault.root)), json_mode=True)
+        return
+    console.print(f"[green]Archived[/] {result['files_moved']} items to {result['archive_dir']}")
+    if prev_tag:
+        console.print(f"  previous vault_tag: [cyan]{prev_tag}[/]")
+
+
 def archive_run(
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
 ) -> None:
@@ -105,78 +180,19 @@ def archive_run(
     files (output/query-<tag>.md) are already namespaced by vault_tag and
     are left in place.
     """
-    from hyperresearch.core.vault import Vault, VaultError
-
-    try:
-        vault = Vault.discover()
-    except VaultError as e:
-        if json_output:
-            output(error(str(e), "NO_VAULT"), json_mode=True)
-        else:
-            console.print(f"[red]Error:[/] {e}")
-        raise typer.Exit(1)
+    vault = _open_archive_vault(json_output)
 
     research_dir = vault.research_dir
     if not research_dir.exists():
-        data = {"archived": False, "files_moved": 0, "previous_vault_tag": None}
-        if json_output:
-            output(success(data, vault=str(vault.root)), json_mode=True)
-        else:
-            console.print("[dim]Nothing to archive: output/ does not exist.[/]")
+        _report_no_archive(json_output, vault, "Nothing to archive: output/ does not exist.")
         return
 
-    to_move: list[Path] = []
-    for name in _ROOT_ARTIFACTS:
-        p = research_dir / name
-        if p.exists() and p.is_file():
-            to_move.append(p)
-    for sub in _SUBDIRS:
-        d = research_dir / sub
-        if d.is_dir() and any(d.iterdir()):
-            to_move.append(d)
-
+    to_move: list[Path] = _collect_root_artifacts(research_dir)
+    to_move.extend(_collect_archive_subdirs(research_dir))
     if not to_move:
-        data = {"archived": False, "files_moved": 0, "previous_vault_tag": None}
-        if json_output:
-            output(success(data, vault=str(vault.root)), json_mode=True)
-        else:
-            console.print("[dim]No prior run artifacts found.[/]")
+        _report_no_archive(json_output, vault, "No prior run artifacts found.")
         return
 
     prev_tag = _infer_previous_vault_tag(research_dir)
-    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
-    suffix = f"{prev_tag}-{timestamp}" if prev_tag else timestamp
-    archive_dir = _unique_archive_dir(research_dir / "runs" / f"archive-{suffix}")
-    archive_dir.mkdir(parents=True)
-
-    moved: list[dict] = []
-    for src in to_move:
-        dest = archive_dir / src.name
-        shutil.move(str(src), str(dest))
-        moved.append(
-            {
-                "from": src.relative_to(vault.root).as_posix(),
-                "to": dest.relative_to(vault.root).as_posix(),
-            }
-        )
-
-    # Recreate the now-empty output/temp/ so subsequent skill steps don't
-    # need to remember to mkdir it.
-    (research_dir / "temp").mkdir(exist_ok=True)
-
-    result = {
-        "archived": True,
-        "archive_dir": archive_dir.relative_to(vault.root).as_posix(),
-        "files_moved": len(moved),
-        "moved": moved,
-        "previous_vault_tag": prev_tag,
-    }
-    if json_output:
-        output(success(result, vault=str(vault.root)), json_mode=True)
-    else:
-        console.print(
-            f"[green]Archived[/] {len(moved)} items to "
-            f"{archive_dir.relative_to(vault.root).as_posix()}"
-        )
-        if prev_tag:
-            console.print(f"  previous vault_tag: [cyan]{prev_tag}[/]")
+    result = _move_to_archive(vault, research_dir, to_move, prev_tag)
+    _report_archived(vault, result, prev_tag, json_output)

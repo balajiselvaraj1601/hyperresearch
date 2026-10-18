@@ -142,6 +142,7 @@ GOLDEN_SKILLS = [
     "hyperresearch-16-readability-audit",
 ]
 
+
 @pytest.fixture(scope="module")
 def ctx():
     return build_render_context(None, primary="full")
@@ -160,8 +161,6 @@ def test_skill_render_matches_golden(skill_name, ctx):
     )
 
 
-
-
 @pytest.mark.parametrize("skill_name", GOLDEN_SKILLS)
 def test_no_unrendered_variables_in_skills(skill_name, ctx):
     rendered = render_prompt(_read_skill_source(f"{skill_name}.md"), ctx)  # type: ignore[arg-type]
@@ -177,6 +176,45 @@ def test_profile_override_changes_render(tmp_path):
     assert "| `full` | 200 |" in rendered
 
 
+def _assert_width_sweep_premier(rendered: str) -> None:
+    assert "| `full` | 90 | 100–130 |" in rendered
+    assert "beyond ~130 sources" in rendered
+    # The light tier row is gear-independent
+    assert "| `light` | 10 | 15–25 |" in rendered
+
+
+def _assert_entry_skill_premier(rendered: str) -> None:
+    assert "currently `premier`" in rendered
+    assert "~3–5 hours" in rendered
+    # The step table's counts follow the gear (premier: 3 loci-analysts).
+    assert "| 3 loci-analysts → scored loci.json" in rendered
+
+
+def _assert_loci_analysis_premier(rendered: str) -> None:
+    # premier spawns 3 analysts and clamps to 10 loci; nothing in the
+    # prose may still assume two analysts or six loci (#101).
+    assert "Spawns 3 parallel loci-analyst" in rendered
+    assert "Wait for all 3." in rendered
+    assert "clamp to 10." in rendered
+    assert "exceeds 10," in rendered
+    for stale in (
+        "both Task calls",
+        "Wait for both",
+        "both analysts",
+        "Read both",
+        "loci-a.json",
+        "loci-b.json",
+        "instance A or B",
+        "exceeds 6",
+    ):
+        assert stale not in rendered, stale
+
+
+def _assert_triple_draft_premier(rendered: str) -> None:
+    # premier word targets carry their own CJK char targets (3:1).
+    assert "8000–16000 words / 24000–48000 chars (CJK)" in rendered
+
+
 @pytest.mark.parametrize("skill_name", GOLDEN_SKILLS)
 def test_premier_gear_renders_cleanly(skill_name):
     """Every golden-covered skill must render without holes at premier gear,
@@ -185,32 +223,36 @@ def test_premier_gear_renders_cleanly(skill_name):
     rendered = render_prompt(_read_skill_source(f"{skill_name}.md"), ctx)  # type: ignore[arg-type]
     assert "<<" not in rendered and ">>" not in rendered
     if skill_name == "hyperresearch-2-width-sweep":
-        assert "| `full` | 90 | 100–130 |" in rendered
-        assert "beyond ~130 sources" in rendered
-        # The light tier row is gear-independent
-        assert "| `light` | 10 | 15–25 |" in rendered
+        _assert_width_sweep_premier(rendered)
     if skill_name == "hyperresearch":
-        assert "currently `premier`" in rendered
-        assert "~3–5 hours" in rendered
-        # The step table's counts follow the gear (premier: 3 loci-analysts).
-        assert "| 3 loci-analysts → scored loci.json" in rendered
+        _assert_entry_skill_premier(rendered)
     if skill_name == "hyperresearch-4-loci-analysis":
-        # premier spawns 3 analysts and clamps to 10 loci; nothing in the
-        # prose may still assume two analysts or six loci (#101).
-        assert "Spawns 3 parallel loci-analyst" in rendered
-        assert "Wait for all 3." in rendered
-        assert "clamp to 10." in rendered
-        assert "exceeds 10," in rendered
-        for stale in (
-            "both Task calls", "Wait for both", "both analysts", "Read both",
-            "loci-a.json", "loci-b.json", "instance A or B", "exceeds 6",
-        ):
-            assert stale not in rendered, stale
+        _assert_loci_analysis_premier(rendered)
     if skill_name == "hyperresearch-10-triple-draft":
-        # premier word targets carry their own CJK char targets (3:1).
-        assert "8000–16000 words / 24000–48000 chars (CJK)" in rendered
+        _assert_triple_draft_premier(rendered)
 
 
+def _assert_no_agents_installed(root) -> None:
+    """No agents should be installed (fleet retired)."""
+    agents_dir = root / ".claude" / "agents"
+    if not agents_dir.exists():
+        return
+    actual_agents = {p.name for p in agents_dir.iterdir() if p.is_file()}
+    assert actual_agents == set(), f"Unexpected agent files: {actual_agents}"
+
+
+def _assert_no_step_skills_installed(root) -> None:
+    """Step skills should not be installed."""
+    skills_dir = root / ".claude" / "skills"
+    if not skills_dir.exists():
+        return
+    for child in skills_dir.iterdir():
+        if (
+            child.is_dir()
+            and child.name.startswith("hyperresearch-")
+            and child.name != "hyperresearch"
+        ):
+            raise AssertionError(f"Unexpected step skill directory: {child}")
 
 
 def test_install_writes_rendered_prompts_with_header(tmp_vault):
@@ -221,18 +263,8 @@ def test_install_writes_rendered_prompts_with_header(tmp_vault):
 
     install_hooks(tmp_vault.root, hpr_path="hyperresearch")
 
-    # No agents should be installed (fleet retired)
-    agents_dir = tmp_vault.root / ".claude" / "agents"
-    if agents_dir.exists():
-        actual_agents = {p.name for p in agents_dir.iterdir() if p.is_file()}
-        assert actual_agents == set(), f"Unexpected agent files: {actual_agents}"
-
-    # Step skills should not be installed
-    skills_dir = tmp_vault.root / ".claude" / "skills"
-    if skills_dir.exists():
-        for child in skills_dir.iterdir():
-            if child.is_dir() and child.name.startswith("hyperresearch-") and child.name != "hyperresearch":
-                raise AssertionError(f"Unexpected step skill directory: {child}")
+    _assert_no_agents_installed(tmp_vault.root)
+    _assert_no_step_skills_installed(tmp_vault.root)
 
     # Entry skill retired too — no router SKILL.md is written
     assert not (tmp_vault.root / ".claude" / "skills" / "hyperresearch" / "SKILL.md").exists()
@@ -269,7 +301,6 @@ def test_install_with_profile_overlay(tmp_vault):
 # reach the installed agent frontmatter (they were decorative before 2.0).
 
 
-
 def test_no_hardcoded_model_lines_in_agent_templates():
     """Every `model:` frontmatter line in the hooks.py agent constants must be
     a template ref (`model: << p.models.X >>`), never a literal model name —
@@ -298,15 +329,11 @@ def _all_skill_names() -> list[str]:
     return sorted(p.name for p in skills_dir.glob("*.md"))
 
 
-
-
 @pytest.mark.parametrize("skill_file", _all_skill_names())
 def test_rendered_skills_have_no_cost_or_model_claims(skill_file, ctx):
     rendered = render_prompt(_read_skill_source(skill_file), ctx)  # type: ignore[arg-type]
     assert not _DOLLAR_RANGE.search(rendered), f"dollar-cost range in {skill_file}"
     assert not _MODEL_CLAIM.search(rendered), f"hardcoded model claim in {skill_file}"
-
-
 
 
 # Lever shims: every spawning skill pastes its role's shim file; the
@@ -337,7 +364,8 @@ def test_spawning_skills_carry_their_shim_paste_line(skill_name, role, ctx):
 
 def test_cite_check_skill_gets_no_shim(ctx):
     rendered = render_prompt(
-        _read_skill_source("hyperresearch-14-5-cite-check.md"), ctx  # type: ignore[arg-type]
+        _read_skill_source("hyperresearch-14-5-cite-check.md"),
+        ctx,  # type: ignore[arg-type]
     )
     assert "shims/" not in rendered
 
@@ -345,5 +373,3 @@ def test_cite_check_skill_gets_no_shim(ctx):
 # Coverage before elegance: the synthesizer and the depth/instruction critics
 # must carry the anti-compression guards so a rerun can't silently regress into
 # trading substance for prose (see the 2026-07-22 deviation-log entry).
-
-

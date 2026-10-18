@@ -119,24 +119,32 @@ class TestAbstractInversion:
         assert _invert_abstract(index) == "kept also"
 
 
+def _assert_oa_state_identity(paper) -> None:
+    assert paper.title == "The state of OA: a large-scale analysis"
+    assert paper.source == "openalex"
+    assert paper.doi == "10.7717/peerj.4375"
+    assert paper.year == 2018
+    assert paper.authors == ("Heather Piwowar", "Jason Priem")
+    assert paper.venue == "PeerJ"
+    assert paper.citation_count == 1043
+
+
+def _assert_oa_state_links(paper) -> None:
+    assert paper.work_type == "article"
+    assert paper.identifier == "W2741809807"
+    assert paper.url == "https://peerj.com/articles/4375"
+    assert paper.pdf_url == "https://peerj.com/articles/4375.pdf"
+    assert paper.extra["oa_status"] == "gold"
+
+
 class TestParsing:
     def test_maps_every_contract_field(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _stub(monkeypatch, LIVE_SHAPE)
         papers = OpenAlexProvider().search(None, "open access", 25)
         assert len(papers) == 1
         paper = papers[0]
-        assert paper.title == "The state of OA: a large-scale analysis"
-        assert paper.source == "openalex"
-        assert paper.doi == "10.7717/peerj.4375"
-        assert paper.year == 2018
-        assert paper.authors == ("Heather Piwowar", "Jason Priem")
-        assert paper.venue == "PeerJ"
-        assert paper.citation_count == 1043
-        assert paper.work_type == "article"
-        assert paper.identifier == "W2741809807"
-        assert paper.url == "https://peerj.com/articles/4375"
-        assert paper.pdf_url == "https://peerj.com/articles/4375.pdf"
-        assert paper.extra["oa_status"] == "gold"
+        _assert_oa_state_identity(paper)
+        _assert_oa_state_links(paper)
 
     def test_pdf_prefers_best_oa_over_primary_location(
         self, monkeypatch: pytest.MonkeyPatch
@@ -150,9 +158,7 @@ class TestParsing:
         (paper,) = OpenAlexProvider().search(None, "q", 5)
         assert paper.pdf_url == "https://repo.example/x.pdf"
 
-    def test_bare_record_survives_with_only_a_title(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_bare_record_survives_with_only_a_title(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _stub(monkeypatch, {"results": [{"display_name": "Minimal Work"}]})
         (paper,) = OpenAlexProvider().search(None, "q", 5)
         assert paper.title == "Minimal Work"
@@ -165,9 +171,7 @@ class TestParsing:
         assert paper.work_type == "other"
         assert paper.extra == {}
 
-    def test_untitled_records_are_skipped_not_fatal(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_untitled_records_are_skipped_not_fatal(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _stub(
             monkeypatch,
             {"results": [{"id": "https://openalex.org/W1"}, {"display_name": "Kept"}, None]},
@@ -175,9 +179,7 @@ class TestParsing:
         papers = OpenAlexProvider().search(None, "q", 5)
         assert [p.title for p in papers] == ["Kept"]
 
-    def test_url_falls_back_to_doi_then_openalex_id(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_url_falls_back_to_doi_then_openalex_id(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _stub(monkeypatch, {"results": [{"display_name": "T", "doi": "https://doi.org/10.1/x"}]})
         (paper,) = OpenAlexProvider().search(None, "q", 5)
         assert paper.url == "https://doi.org/10.1/x"
@@ -191,7 +193,11 @@ class TestParsing:
     ) -> None:
         work = {
             "display_name": "T",
-            "authorships": [{"author": {}}, {"raw_author_name": "x"}, {"author": {"display_name": "Real Name"}}],
+            "authorships": [
+                {"author": {}},
+                {"raw_author_name": "x"},
+                {"author": {"display_name": "Real Name"}},
+            ],
         }
         _stub(monkeypatch, {"results": [work]})
         (paper,) = OpenAlexProvider().search(None, "q", 5)
@@ -220,9 +226,7 @@ class TestParsing:
             ("", "other"),
         ],
     )
-    def test_type_mapping(
-        self, monkeypatch: pytest.MonkeyPatch, raw: str, expected: str
-    ) -> None:
+    def test_type_mapping(self, monkeypatch: pytest.MonkeyPatch, raw: str, expected: str) -> None:
         _stub(monkeypatch, {"results": [{"display_name": "T", "type": raw}]})
         (paper,) = OpenAlexProvider().search(None, "q", 5)
         assert paper.work_type == expected
@@ -294,9 +298,7 @@ class TestRequestShape:
         OpenAlexProvider("book").search(None, "the frankfurt school", 5)
         assert "filter=type:book|monograph|reference-book" in calls[0]
 
-    def test_search_work_type_overrides_constructor(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_search_work_type_overrides_constructor(self, monkeypatch: pytest.MonkeyPatch) -> None:
         calls: list[str] = []
         _stub(monkeypatch, LIVE_SHAPE, calls)
         OpenAlexProvider("book").search(None, "q", 5, work_type="thesis")
@@ -307,9 +309,7 @@ class TestRequestShape:
         with pytest.raises(ProviderError):
             OpenAlexProvider().search(None, "q", 5, work_type="filing")
 
-    def test_mailto_appended_only_when_configured(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_mailto_appended_only_when_configured(self, monkeypatch: pytest.MonkeyPatch) -> None:
         calls: list[str] = []
         _stub(monkeypatch, LIVE_SHAPE, calls)
         OpenAlexProvider().search(None, "q", 5)

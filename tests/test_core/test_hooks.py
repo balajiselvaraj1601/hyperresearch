@@ -149,6 +149,27 @@ def test_installed_hook_emits_parseable_injection_json(tmp_vault):
 # install_hooks — end-to-end integration
 
 
+def _assert_roster_agents_absent(root) -> None:
+    """NO agent files should be created (fleet retired)."""
+    agents_dir = root / ".claude" / "agents"
+    if not agents_dir.exists():
+        return
+    actual_agents = {p.name for p in agents_dir.iterdir() if p.is_file()}
+    assert actual_agents == set(), f"Unexpected agent files: {actual_agents}"
+
+
+def _assert_roster_skills_absent(root) -> None:
+    """Entry skill retired too — no router SKILL.md, no /hyperresearch command."""
+    assert not (root / ".claude" / "skills" / "hyperresearch" / "SKILL.md").exists()
+    assert not (root / ".claude" / "skills" / "research" / "SKILL.md").exists()
+
+
+def _assert_roster_pruned(root) -> None:
+    """Prune action should have run (even if no-op on clean vault)."""
+    for name in _RETIRED_AGENT_FILES:
+        assert not (root / ".claude" / "agents" / name).exists()
+
+
 def test_install_hooks_registers_full_hyperresearch_roster(tmp_vault):
     """install_hooks wires the hook, the entry skill, and prunes retired agents.
     The 16-agent fleet and step skills are retired as of v8; pipeline steps run
@@ -156,24 +177,14 @@ def test_install_hooks_registers_full_hyperresearch_roster(tmp_vault):
     actions = install_hooks(tmp_vault.root, "hyperresearch")
     assert actions  # something happened
 
-    # NO agent files should be created (fleet retired)
-    agents_dir = tmp_vault.root / ".claude" / "agents"
-    if agents_dir.exists():
-        actual_agents = {p.name for p in agents_dir.iterdir() if p.is_file()}
-        assert actual_agents == set(), f"Unexpected agent files: {actual_agents}"
-
-    # Entry skill retired too — no router SKILL.md, no /hyperresearch command
-    assert not (tmp_vault.root / ".claude" / "skills" / "hyperresearch" / "SKILL.md").exists()
-    assert not (tmp_vault.root / ".claude" / "skills" / "research" / "SKILL.md").exists()
+    _assert_roster_agents_absent(tmp_vault.root)
+    _assert_roster_skills_absent(tmp_vault.root)
 
     # Hook settings written
     assert (tmp_vault.root / ".claude" / "settings.json").exists()
     assert (tmp_vault.root / ".hyperresearch" / "hook.js").exists()
 
-    # Prune action should have run (even if no-op on clean vault)
-    # Verify no retired agent files remain
-    for name in _RETIRED_AGENT_FILES:
-        assert not (tmp_vault.root / ".claude" / "agents" / name).exists()
+    _assert_roster_pruned(tmp_vault.root)
 
 
 def test_install_hooks_second_run_is_noop(tmp_vault):

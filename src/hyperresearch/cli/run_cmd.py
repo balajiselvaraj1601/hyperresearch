@@ -83,6 +83,48 @@ def run_init(
         console.print(f"  profile: {manifest['profile']}  budget: {manifest.get('budget_usd')}")
 
 
+def _attach_escalations(summary: dict, vault, tag) -> None:
+    # Browser-lane queue depth for this run
+    try:
+        from hyperresearch.core.escalation import queue_stats
+
+        summary["escalations"] = queue_stats(vault.db, vault_tag=tag)
+    except Exception:
+        summary["escalations"] = None
+
+
+def _print_status_summary(summary: dict) -> None:
+    console.print(
+        f"[bold]{summary['vault_tag']}[/]  ({summary['profile']})  status: {summary['status']}"
+    )
+    levers = summary.get("levers")
+    if levers:
+        console.print(
+            f"  levers: register={levers.get('register', 'analyze')} "
+            f"inference_depth={levers.get('inference_depth', 'standard')}"
+        )
+    _print_escalation_line(summary.get("escalations"))
+    if summary.get("possibly_stalled"):
+        console.print("  [yellow]possibly stalled — no manifest update recently[/]")
+    resume = summary["resume"]
+    console.print(f"  done: {', '.join(resume['done_steps']) or '-'}")
+    console.print(f"  next: {resume['next_step'] or '(complete)'}")
+    spend = summary.get("spend", {})
+    console.print(
+        f"  API-equiv spend: ~${spend.get('estimated_usd', 0)} | {spend.get('sources_fetched', 0)} sources "
+        f"| {spend.get('agents_spawned', 0)} agents"
+    )
+    if "budget_remaining_usd" in summary:
+        console.print(f"  budget remaining (API-equiv): ${summary['budget_remaining_usd']}")
+
+
+def _print_escalation_line(esc) -> None:
+    if esc and (esc.get("queued") or esc.get("needs_human")):
+        console.print(
+            f"  [yellow]escalations:[/] {esc['queued']} queued, {esc['needs_human']} need the human"
+        )
+
+
 @app.command("status")
 def run_status(
     vault_tag: str | None = typer.Argument(None, help="Run tag (default: newest run)"),
@@ -102,43 +144,11 @@ def run_status(
             console.print(f"[red]Error:[/] {e}")
         raise typer.Exit(1)
 
-    # Browser-lane queue depth for this run
-    try:
-        from hyperresearch.core.escalation import queue_stats
-
-        summary["escalations"] = queue_stats(vault.db, vault_tag=tag)
-    except Exception:
-        summary["escalations"] = None
-
+    _attach_escalations(summary, vault, tag)
     if json_output:
         output(success(summary, vault=str(vault.root)), json_mode=True)
     else:
-        console.print(
-            f"[bold]{summary['vault_tag']}[/]  ({summary['profile']})  status: {summary['status']}"
-        )
-        levers = summary.get("levers")
-        if levers:
-            console.print(
-                f"  levers: register={levers.get('register', 'analyze')} "
-                f"inference_depth={levers.get('inference_depth', 'standard')}"
-            )
-        esc = summary.get("escalations")
-        if esc and (esc.get("queued") or esc.get("needs_human")):
-            console.print(
-                f"  [yellow]escalations:[/] {esc['queued']} queued, {esc['needs_human']} need the human"
-            )
-        if summary.get("possibly_stalled"):
-            console.print("  [yellow]possibly stalled — no manifest update recently[/]")
-        resume = summary["resume"]
-        console.print(f"  done: {', '.join(resume['done_steps']) or '-'}")
-        console.print(f"  next: {resume['next_step'] or '(complete)'}")
-        spend = summary.get("spend", {})
-        console.print(
-            f"  API-equiv spend: ~${spend.get('estimated_usd', 0)} | {spend.get('sources_fetched', 0)} sources "
-            f"| {spend.get('agents_spawned', 0)} agents"
-        )
-        if "budget_remaining_usd" in summary:
-            console.print(f"  budget remaining (API-equiv): ${summary['budget_remaining_usd']}")
+        _print_status_summary(summary)
 
 
 @app.command("list")
@@ -371,53 +381,72 @@ def run_block(
         console.print(f"[yellow]Blocked:[/] {vault_tag} on {on}")
 
 
-@app.command("report")
-def run_report(
-    vault_tag: str | None = typer.Argument(
-        None, help="Run tag (default: newest run); ignored with --all"
-    ),
-    all_runs: bool = typer.Option(False, "--all", help="Aggregate across every run"),
-    json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
-) -> None:
-    """Post-run telemetry: per-step wall-time, spend, and yield.
+def _collect_run_reports(vault) -> list:
+    from hyperresearch.core.runs import RunError, list_runs, run_report_data
 
-    The feedback loop for profile tuning — replace inherited constants with
-    observed yield curves ("what does wave 2 actually produce?").
-    """
-    from hyperresearch.core.runs import RunError, list_runs, load_manifest, run_report_data
+    reports = []
+    for manifest in list_runs(vault):
+        tag = manifest.get("vault_tag")
+        if not tag or manifest.get("status") == "corrupt-manifest":
+            continue
+        try:
+            reports.append(run_report_data(vault, tag))
+        except (RunError, VaultError):
+            continue
+    return reports
 
-    vault = _vault_or_exit(json_output)
 
-    if all_runs:
-        reports = []
-        for manifest in list_runs(vault):
-            tag = manifest.get("vault_tag")
-            if not tag or manifest.get("status") == "corrupt-manifest":
-                continue
-            try:
-                reports.append(run_report_data(vault, tag))
-            except (RunError, VaultError):
-                continue
-        agg = {
-            "runs": len(reports),
-            "total_estimated_usd": round(sum(r["spend"]["estimated_usd"] for r in reports), 2),
-            "total_sources": sum(r["spend"]["sources_fetched"] for r in reports),
-            "total_agents": sum(r["spend"]["agents_spawned"] for r in reports),
-            "by_run": reports,
-        }
-        if json_output:
-            output(success(agg, count=len(reports), vault=str(vault.root)), json_mode=True)
-        else:
-            console.print(
-                f"[bold]{agg['runs']} runs[/] — ~${agg['total_estimated_usd']} API-equiv, "
-                f"{agg['total_sources']} sources, {agg['total_agents']} agents"
-            )
-            for r in reports:
-                console.print(
-                    f"  [cyan]{r['vault_tag']}[/] {r['status']} ~${r['spend']['estimated_usd']} "
-                    f"{r['spend']['sources_fetched']}src {r['total_wall_minutes']}min"
-                )
-        return
+def _summarize_reports(reports: list) -> dict:
+    return {
+        "runs": len(reports),
+        "total_estimated_usd": round(sum(r["spend"]["estimated_usd"] for r in reports), 2),
+        "total_sources": sum(r["spend"]["sources_fetched"] for r in reports),
+        "total_agents": sum(r["spend"]["agents_spawned"] for r in reports),
+        "by_run": reports,
+    }
+
+
+def _print_agg_report(agg: dict, reports: list) -> None:
+    console.print(
+        f"[bold]{agg['runs']} runs[/] — ~${agg['total_estimated_usd']} API-equiv, "
+        f"{agg['total_sources']} sources, {agg['total_agents']} agents"
+    )
+    for r in reports:
+        console.print(
+            f"  [cyan]{r['vault_tag']}[/] {r['status']} ~${r['spend']['estimated_usd']} "
+            f"{r['spend']['sources_fetched']}src {r['total_wall_minutes']}min"
+        )
+
+
+def _report_all_runs(vault, json_output: bool) -> None:
+
+    reports = _collect_run_reports(vault)
+    agg = _summarize_reports(reports)
+    if json_output:
+        output(success(agg, count=len(reports), vault=str(vault.root)), json_mode=True)
+    else:
+        _print_agg_report(agg, reports)
+
+
+def _print_single_report(report: dict) -> None:
+    console.print(
+        f"[bold]{report['vault_tag']}[/] ({report['profile']}) — {report['status']}, "
+        f"{report['total_wall_minutes']} min total"
+    )
+    for step in report["steps"]:
+        console.print(f"  step {step['step']:>4}: {step['status']:<8} {step['minutes']} min")
+    spend = report["spend"]
+    console.print(
+        f"  API-equiv spend: ~${spend['estimated_usd']} | {spend['sources_fetched']} sources | "
+        f"{spend['agents_spawned']} agents | {spend['notes_written']} notes"
+    )
+    ev = report["events"]
+    if ev:
+        console.print(f"  events: {ev}")
+
+
+def _report_single_run(vault, vault_tag, json_output: bool) -> None:
+    from hyperresearch.core.runs import RunError, load_manifest, run_report_data
 
     tag = _resolve_tag(vault, vault_tag, json_output)
     try:
@@ -433,20 +462,28 @@ def run_report(
     if json_output:
         output(success(report, vault=str(vault.root)), json_mode=True)
     else:
-        console.print(
-            f"[bold]{report['vault_tag']}[/] ({report['profile']}) — {report['status']}, "
-            f"{report['total_wall_minutes']} min total"
-        )
-        for step in report["steps"]:
-            console.print(f"  step {step['step']:>4}: {step['status']:<8} {step['minutes']} min")
-        spend = report["spend"]
-        console.print(
-            f"  API-equiv spend: ~${spend['estimated_usd']} | {spend['sources_fetched']} sources | "
-            f"{spend['agents_spawned']} agents | {spend['notes_written']} notes"
-        )
-        ev = report["events"]
-        if ev:
-            console.print(f"  events: {ev}")
+        _print_single_report(report)
+
+
+@app.command("report")
+def run_report(
+    vault_tag: str | None = typer.Argument(
+        None, help="Run tag (default: newest run); ignored with --all"
+    ),
+    all_runs: bool = typer.Option(False, "--all", help="Aggregate across every run"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
+) -> None:
+    """Post-run telemetry: per-step wall-time, spend, and yield.
+
+    The feedback loop for profile tuning — replace inherited constants with
+    observed yield curves ("what does wave 2 actually produce?").
+    """
+    vault = _vault_or_exit(json_output)
+
+    if all_runs:
+        _report_all_runs(vault, json_output)
+        return
+    _report_single_run(vault, vault_tag, json_output)
 
 
 @app.command("contract")

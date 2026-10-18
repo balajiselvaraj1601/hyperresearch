@@ -95,21 +95,41 @@ def _first(values: list[str | None]) -> str | None:
 
 def _merge_cluster(cluster: _Cluster, precedence: list[str]) -> Paper:
     """Collapse one cluster to a single record, field by field."""
-    ordered = sorted(
-        enumerate(cluster.members),
-        key=lambda pair: (_rank(pair[1].source, precedence), pair[0]),
-    )
-    members = [paper for _, paper in ordered]
+    members = _order_members(cluster, precedence)
     primary = members[0]
     if len(members) == 1:
         return primary
 
-    # extra: earlier-precedence keys win, but a key only one provider carries
-    # survives — the point of merging is to lose nothing recoverable.
+    extra = _merge_extra(members)
+    _merge_sources(members, extra)
+
+    counts = [p.citation_count for p in members if p.citation_count is not None]
+    # max() is not stable the way we need it here: it returns the FIRST
+    # maximum, and `members` is already in precedence order, so a tie goes to
+    # the preferred provider. That is the intended rule.
+    authors = max(members, key=lambda p: len(p.authors)).authors
+    return replace(primary, **_merged_fields(members, counts, authors, extra))
+
+
+def _order_members(cluster: _Cluster, precedence: list[str]) -> list[Paper]:
+    """Cluster members in precedence order (stable by first-seen)."""
+    ordered = sorted(
+        enumerate(cluster.members),
+        key=lambda pair: (_rank(pair[1].source, precedence), pair[0]),
+    )
+    return [paper for _, paper in ordered]
+
+
+def _merge_extra(members: list[Paper]) -> dict[str, str]:
+    """Merged extras: earlier-precedence keys win, unique keys survive."""
     extra: dict[str, str] = {}
     for paper in reversed(members):
         extra.update(paper.extra)
+    return extra
 
+
+def _merge_sources(members: list[Paper], extra: dict) -> None:
+    """Record the also_in provenance when several providers saw the work."""
     sources: list[str] = []
     for paper in members:
         if paper.source and paper.source not in sources:
@@ -117,27 +137,23 @@ def _merge_cluster(cluster: _Cluster, precedence: list[str]) -> Paper:
     if len(sources) > 1:
         extra["also_in"] = ",".join(sources)
 
-    counts = [p.citation_count for p in members if p.citation_count is not None]
-    authors = max(members, key=lambda p: len(p.authors)).authors
-    # max() is not stable the way we need it here: it returns the FIRST
-    # maximum, and `members` is already in precedence order, so a tie goes to
-    # the preferred provider. That is the intended rule.
 
-    return replace(
-        primary,
-        url=_first([p.url for p in members]),
-        doi=_first([p.doi for p in members]),
-        year=next((p.year for p in members if p.year is not None), None),
-        authors=authors,
-        venue=_first([p.venue for p in members]),
+def _merged_fields(members: list[Paper], counts: list, authors: list, extra: dict) -> dict:
+    """Best-available value per field for the merged record."""
+    return {
+        "extra": extra,
+        "url": _first([p.url for p in members]),
+        "doi": _first([p.doi for p in members]),
+        "year": next((p.year for p in members if p.year is not None), None),
+        "authors": authors,
+        "venue": _first([p.venue for p in members]),
         # Coverage differs between providers rather than the truth differing,
         # so the highest count is the least-wrong one.
-        citation_count=max(counts) if counts else None,
-        abstract=_longest([p.abstract for p in members]),
-        pdf_url=_first([p.pdf_url for p in members]),
-        identifier=_first([p.identifier for p in members]),
-        extra=extra,
-    )
+        "citation_count": max(counts) if counts else None,
+        "abstract": _longest([p.abstract for p in members]),
+        "pdf_url": _first([p.pdf_url for p in members]),
+        "identifier": _first([p.identifier for p in members]),
+    }
 
 
 def merge_papers(papers: list[Paper], precedence: list[str]) -> list[Paper]:
@@ -161,25 +177,36 @@ def merge_papers(papers: list[Paper], precedence: list[str]) -> list[Paper]:
         doi = normalize_doi(paper.doi)
         key = title_key(paper.title)
 
-        target: _Cluster | None = None
-        if doi is not None:
-            target = by_doi.get(doi)
-        if target is None and key:
-            for candidate in by_title.get(key, []):
-                if candidate.doi_compatible(doi) and candidate.year_compatible(paper.year):
-                    target = candidate
-                    break
+        target = _find_cluster(by_doi, by_title, doi, key, paper.year)
         if target is None:
             target = _Cluster(first_seen=index)
             clusters.append(target)
 
         had_doi = target.doi
         target.add(paper, doi, key)
-        if target.doi and target.doi != had_doi:
-            by_doi.setdefault(target.doi, target)
-        if key and target not in by_title.setdefault(key, []):
-            by_title[key].append(target)
+        _register_cluster(by_doi, by_title, target, had_doi, doi, key)
 
     merged = [(cluster, _merge_cluster(cluster, precedence)) for cluster in clusters]
     merged.sort(key=lambda pair: (_rank(pair[1].source, precedence), pair[0].first_seen))
     return [paper for _, paper in merged]
+
+
+def _find_cluster(by_doi: dict, by_title: dict, doi, key: str, year) -> _Cluster | None:
+    """The existing cluster for this record, DOI-first then title+year."""
+    if doi is not None:
+        target = by_doi.get(doi)
+        if target is not None:
+            return target
+    if key:
+        for candidate in by_title.get(key, []):
+            if candidate.doi_compatible(doi) and candidate.year_compatible(year):
+                return candidate
+    return None
+
+
+def _register_cluster(by_doi: dict, by_title: dict, target: _Cluster, had_doi, doi, key) -> None:
+    """Index a cluster under its (possibly newly learned) DOI and title key."""
+    if target.doi and target.doi != had_doi:
+        by_doi.setdefault(target.doi, target)
+    if key and target not in by_title.setdefault(key, []):
+        by_title[key].append(target)

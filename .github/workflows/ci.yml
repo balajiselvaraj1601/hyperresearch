@@ -37,3 +37,18 @@ jobs:
       - run: ruff check src/ tests/
       - run: pytest tests/ -v
       - run: python -m build --outdir ${{ runner.temp }}/hyperresearch-dist
+
+  complexity:
+    # Fail-hard complexity gate. Thresholds mirror the workspace source of
+    # truth (agentspace tools/complexity/config/thresholds.toml):
+    # xenon B/B/A == McCabe 6-10, same as ruff C901 max-complexity 10 above.
+    name: complexity
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install xenon lizard
+      - run: xenon --max-absolute B --max-modules B --max-average A src tests
+      - run: lizard src tests

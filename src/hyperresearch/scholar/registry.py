@@ -64,6 +64,19 @@ def all_slugs() -> list[str]:
     return [p.slug for p in all_providers()]
 
 
+def _apply_scope(providers: list[SearchProvider], scope: str) -> list[SearchProvider]:
+    if scope != "papers":
+        return providers
+    return [p for p in providers if p.slug in PAPER_SLUGS]
+
+
+def _apply_slugs(providers: list[SearchProvider], slugs: list[str] | None) -> list[SearchProvider]:
+    if not slugs:
+        return providers
+    wanted = {s.strip().lower() for s in slugs if s.strip()}
+    return [p for p in providers if p.slug in wanted]
+
+
 def get_providers(
     slugs: list[str] | None = None,
     *,
@@ -76,12 +89,8 @@ def get_providers(
     are dropped unless `include_unavailable`, so a user without a CORE key
     still gets results from everything else rather than an error.
     """
-    providers = all_providers()
-    if scope == "papers":
-        providers = [p for p in providers if p.slug in PAPER_SLUGS]
-    if slugs:
-        wanted = {s.strip().lower() for s in slugs if s.strip()}
-        providers = [p for p in providers if p.slug in wanted]
+    providers = _apply_scope(all_providers(), scope)
+    providers = _apply_slugs(providers, slugs)
     if not include_unavailable:
         providers = [p for p in providers if p.available()]
     return providers

@@ -142,6 +142,30 @@ class TestRequest:
         assert core_oa.work_url("84982915") == "https://api.core.ac.uk/v3/works/84982915"
 
 
+def _assert_plos_identity(p) -> None:
+    assert p.title.startswith("Quantifying organismal complexity")
+    assert p.doi == "10.1371/journal.pone.0000217"
+    assert p.year == 2007
+    assert p.identifier == "84982915"
+    assert p.url == "https://core.ac.uk/works/84982915"  # the display link wins
+    # Exact duplicates collapse; different orderings of a name do not.
+    assert p.authors == ("Olivier Tenaillon", "Silander, Olin K.", "Olin K Silander")
+    # journals[0].title is null, so the publisher is the venue.
+    assert p.venue == "Public Library of Science (PLoS)"
+    assert p.abstract.startswith("Organismal complexity")
+
+
+def _assert_plos_links(p) -> None:
+    # downloadUrl is "", so the query-string PDF from the source list is used.
+    assert p.pdf_url == "http://europepmc.org/articles/PMC1790863?pdf=render"
+    assert p.citation_count == 0  # reported as CORE reports it
+    assert p.work_type == "article"
+    assert p.extra["core_id"] == "84982915"
+    assert p.extra["field_of_study"] == "article"
+    assert p.extra["data_provider"] == "DOAJ"
+    assert "document_type" not in p.extra  # it was null
+
+
 class TestMapping:
     @pytest.fixture
     def papers(self, keyed, monkeypatch):
@@ -153,24 +177,8 @@ class TestMapping:
 
     def test_plos_record(self, papers):
         p = papers[0]
-        assert p.title.startswith("Quantifying organismal complexity")
-        assert p.doi == "10.1371/journal.pone.0000217"
-        assert p.year == 2007
-        assert p.identifier == "84982915"
-        assert p.url == "https://core.ac.uk/works/84982915"  # the display link wins
-        # Exact duplicates collapse; different orderings of a name do not.
-        assert p.authors == ("Olivier Tenaillon", "Silander, Olin K.", "Olin K Silander")
-        # journals[0].title is null, so the publisher is the venue.
-        assert p.venue == "Public Library of Science (PLoS)"
-        assert p.abstract.startswith("Organismal complexity")
-        # downloadUrl is "", so the query-string PDF from the source list is used.
-        assert p.pdf_url == "http://europepmc.org/articles/PMC1790863?pdf=render"
-        assert p.citation_count == 0  # reported as CORE reports it
-        assert p.work_type == "article"
-        assert p.extra["core_id"] == "84982915"
-        assert p.extra["field_of_study"] == "article"
-        assert p.extra["data_provider"] == "DOAJ"
-        assert "document_type" not in p.extra  # it was null
+        _assert_plos_identity(p)
+        _assert_plos_links(p)
 
     def test_ieee_record(self, papers):
         p = papers[1]

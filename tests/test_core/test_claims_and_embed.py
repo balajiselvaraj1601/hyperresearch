@@ -130,7 +130,7 @@ class TestClaimsIngestRunWorkspace:
         assert summary["files"] == 2
         assert summary["ingested"] == 3
         assert summary["errors"] == []
-        assert "hint" not in summary
+        assert summary["hint"] == ""
         assert len(list_claims(run_scoped_vault.db)) == 3
 
     def test_default_scan_unions_legacy_flat_and_runs(self, run_scoped_vault):

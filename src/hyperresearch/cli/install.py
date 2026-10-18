@@ -11,6 +11,145 @@ from hyperresearch.cli._output import console, output
 from hyperresearch.models.output import error, success
 
 
+def _resolve_default_profile(explicit: str | None, config_path: Path | None) -> str:
+    # No explicit --profile → use the gear persisted by `hpr profile use`
+    # in the target's config (falling back to "full").
+    if explicit is not None:
+        return explicit
+    if config_path is not None and config_path.exists():
+        from hyperresearch.core.config import VaultConfig
+
+        return VaultConfig.load(config_path).pipeline_profile
+    return "full"
+
+
+def _check_profile(resolved: str, config_path: Path | None, json_output: bool) -> None:
+    # Validate the profile early so a typo fails before any files are written.
+    from hyperresearch.core.profiles import ProfileError, resolve_profile
+
+    try:
+        resolve_profile(resolved, config_path)
+    except ProfileError as e:
+        if json_output:
+            output(error(str(e), "UNKNOWN_PROFILE"), json_mode=True)
+        else:
+            console.print(f"[red]Error:[/] {e}")
+        raise typer.Exit(1)
+
+
+def _report_steps_retired(path: str, json_output: bool) -> None:
+    if json_output:
+        output(
+            success(
+                {
+                    "steps_installed": None,
+                    "target": str(Path(path).resolve()),
+                    "notice": "Step skills retired; pipeline steps run via hyperresearch-runner agent",
+                },
+                vault=None,
+            ),
+            json_mode=True,
+        )
+    else:
+        console.print(
+            "[yellow]Notice:[/] Step skills are retired. Pipeline steps run via the external `hyperresearch-runner` agent."
+        )
+
+
+def _print_global_result(home: Path, hook_actions: list) -> None:
+    console.print(f"[green]Global install:[/] {home}/.claude/")
+    if hook_actions:
+        for action in hook_actions:
+            console.print(f"  {action}")
+    else:
+        console.print("[dim]All skills and agents already installed.[/]")
+    console.print("\n[bold]Ready.[/] /hyperresearch is now available in every Claude Code session.")
+    console.print(
+        "[dim]On first /hyperresearch run in a project, the vault, output/ folder, "
+        "and the 16 step skills are created in that project's .claude/.[/]"
+    )
+
+
+def _install_global(profile: str | None, json_output: bool) -> None:
+    from hyperresearch.core.agent_docs import _resolve_executable
+    from hyperresearch.core.hooks import install_global_hooks
+
+    hpr_path = _resolve_executable()
+    home = Path.home()
+    global_profile = profile if profile is not None else "full"
+    _check_profile(global_profile, None, json_output)
+    hook_actions = install_global_hooks(home, hpr_path=hpr_path, profile=global_profile)
+    if json_output:
+        output(
+            success(
+                {"global": True, "home": str(home), "hooks_installed": hook_actions},
+                vault=None,
+            ),
+            json_mode=True,
+        )
+        return
+    _print_global_result(home, hook_actions)
+
+
+def _init_vault(root: Path, name: str, json_output: bool):
+    from hyperresearch.core.vault import Vault, VaultError
+
+    try:
+        return Vault.init(root, name=name), "created"
+    except VaultError as e:
+        if json_output:
+            output(error(str(e), "INIT_ERROR"), json_mode=True)
+        else:
+            console.print(f"[red]Error:[/] {e}")
+        raise typer.Exit(1)
+
+
+def _open_or_init_vault(root: Path, name: str, json_output: bool):
+    from hyperresearch.core.vault import Vault, VaultError
+
+    try:
+        return Vault.discover(root), "existing"
+    except VaultError:
+        return _init_vault(root, name, json_output)
+
+
+def _print_action_list(header: str, actions: list) -> None:
+    if actions:
+        console.print(header)
+        for action in actions:
+            console.print(f"  {action}")
+
+
+def _print_crawl4ai_status(crawl4ai_status: str) -> None:
+    if crawl4ai_status == "configured":
+        console.print("[green]crawl4ai:[/] detected, set as default provider + browser ready")
+    elif crawl4ai_status == "browser_installed":
+        console.print("[green]crawl4ai:[/] browser installed + set as default provider")
+    elif crawl4ai_status == "not_installed":
+        console.print(
+            "[dim]crawl4ai:[/] not installed. "
+            "For local headless browsing: pip install hyperresearch[crawl4ai]"
+        )
+
+
+def _print_install_result(
+    vault, vault_action: str, doc_actions: list, hook_actions: list, crawl4ai_status: str
+) -> None:
+    if vault_action == "created":
+        console.print(f"[green]Vault created:[/] {vault.root}")
+    else:
+        console.print(f"[dim]Vault exists:[/] {vault.root}")
+    _print_action_list("[green]Agent docs:[/]", doc_actions)
+    _print_action_list("[green]Hooks installed:[/]", hook_actions)
+    if not hook_actions:
+        console.print("[dim]All hooks already installed.[/]")
+    _print_crawl4ai_status(crawl4ai_status)
+    console.print("\n[bold]Ready.[/] Agents will now check the research base before web searches.")
+    console.print(
+        "[dim]Tip: Run 'hyperresearch setup' for interactive configuration (profile, stealth, etc.)[/]"
+    )
+
+
 def install(
     path: str = typer.Argument(".", help="Path to install in"),
     name: str = typer.Option("Research Base", "--name", "-n", help="Vault name"),
@@ -35,57 +174,13 @@ def install(
     """Install hyperresearch: init vault + inject CLAUDE.md + install Claude Code hooks."""
     import sys
 
-    from hyperresearch.core.hooks import (
-        install_global_hooks,
-        install_hooks,
-    )
-    from hyperresearch.core.profiles import ProfileError
-    from hyperresearch.core.vault import Vault, VaultError
-
-    # No explicit --profile → use the gear persisted by `hpr profile use`
-    # in the target's config (falling back to "full").
-    def _default_profile(config_path: Path | None) -> str:
-        if profile is not None:
-            return profile
-        if config_path is not None and config_path.exists():
-            from hyperresearch.core.config import VaultConfig
-
-            return VaultConfig.load(config_path).pipeline_profile
-        return "full"
-
-    # Validate the profile early so a typo fails before any files are written.
-    def _check_profile(resolved: str, config_path: Path | None) -> None:
-        from hyperresearch.core.profiles import resolve_profile
-
-        try:
-            resolve_profile(resolved, config_path)
-        except ProfileError as e:
-            if json_output:
-                output(error(str(e), "UNKNOWN_PROFILE"), json_mode=True)
-            else:
-                console.print(f"[red]Error:[/] {e}")
-            raise typer.Exit(1)
+    from hyperresearch.core.hooks import install_hooks
 
     # Steps-only path: step skills are retired as of v8. Pipeline steps
     # run via the external `hyperresearch-runner` agent. This flag is kept
     # for compatibility but is a no-op.
     if steps_only:
-        if json_output:
-            output(
-                success(
-                    {
-                        "steps_installed": None,
-                        "target": str(Path(path).resolve()),
-                        "notice": "Step skills retired; pipeline steps run via hyperresearch-runner agent",
-                    },
-                    vault=None,
-                ),
-                json_mode=True,
-            )
-            return
-        console.print(
-            "[yellow]Notice:[/] Step skills are retired. Pipeline steps run via the external `hyperresearch-runner` agent."
-        )
+        _report_steps_retired(path, json_output)
         return
 
     # Global install path: only the user-level Claude Code entry skill +
@@ -94,37 +189,7 @@ def install(
     # of v8; pipeline steps run via the external `hyperresearch-runner`
     # agent.
     if global_install:
-        from hyperresearch.core.agent_docs import _resolve_executable
-
-        hpr_path = _resolve_executable()
-        home = Path.home()
-        global_profile = profile if profile is not None else "full"
-        _check_profile(global_profile, None)
-        hook_actions = install_global_hooks(home, hpr_path=hpr_path, profile=global_profile)
-
-        if json_output:
-            output(
-                success(
-                    {"global": True, "home": str(home), "hooks_installed": hook_actions},
-                    vault=None,
-                ),
-                json_mode=True,
-            )
-            return
-
-        console.print(f"[green]Global install:[/] {home}/.claude/")
-        if hook_actions:
-            for action in hook_actions:
-                console.print(f"  {action}")
-        else:
-            console.print("[dim]All skills and agents already installed.[/]")
-        console.print(
-            "\n[bold]Ready.[/] /hyperresearch is now available in every Claude Code session."
-        )
-        console.print(
-            "[dim]On first /hyperresearch run in a project, the vault, output/ folder, "
-            "and the 16 step skills are created in that project's .claude/.[/]"
-        )
+        _install_global(profile, json_output)
         return
 
     root = Path(path).resolve()
@@ -138,30 +203,17 @@ def install(
         setup(path=path, json_output=False)
         return
 
-    try:
-        vault = Vault.discover(root)
-        vault_action = "existing"
-    except VaultError:
-        try:
-            vault = Vault.init(root, name=name)
-            vault_action = "created"
-        except VaultError as e:
-            if json_output:
-                output(error(str(e), "INIT_ERROR"), json_mode=True)
-            else:
-                console.print(f"[red]Error:[/] {e}")
-            raise typer.Exit(1)
+    vault, vault_action = _open_or_init_vault(root, name, json_output)
 
     from hyperresearch.core.agent_docs import _resolve_executable, inject_agent_docs
 
     hpr_path = _resolve_executable()
-
     doc_actions = inject_agent_docs(root)
 
     project_config = root / ".hyperresearch" / "config.toml"
     project_config_path = project_config if project_config.exists() else None
-    project_profile = _default_profile(project_config_path)
-    _check_profile(project_profile, project_config_path)
+    project_profile = _resolve_default_profile(profile, project_config_path)
+    _check_profile(project_profile, project_config_path, json_output)
     hook_actions = install_hooks(root, hpr_path=hpr_path, profile=project_profile)
 
     crawl4ai_status = _setup_crawl4ai(vault)
@@ -177,39 +229,7 @@ def install(
     if json_output:
         output(success(data, vault=str(vault.root)), json_mode=True)
     else:
-        if vault_action == "created":
-            console.print(f"[green]Vault created:[/] {vault.root}")
-        else:
-            console.print(f"[dim]Vault exists:[/] {vault.root}")
-
-        if doc_actions:
-            console.print("[green]Agent docs:[/]")
-            for action in doc_actions:
-                console.print(f"  {action}")
-
-        if hook_actions:
-            console.print("[green]Hooks installed:[/]")
-            for action in hook_actions:
-                console.print(f"  {action}")
-        else:
-            console.print("[dim]All hooks already installed.[/]")
-
-        if crawl4ai_status == "configured":
-            console.print("[green]crawl4ai:[/] detected, set as default provider + browser ready")
-        elif crawl4ai_status == "browser_installed":
-            console.print("[green]crawl4ai:[/] browser installed + set as default provider")
-        elif crawl4ai_status == "not_installed":
-            console.print(
-                "[dim]crawl4ai:[/] not installed. "
-                "For local headless browsing: pip install hyperresearch[crawl4ai]"
-            )
-
-        console.print(
-            "\n[bold]Ready.[/] Agents will now check the research base before web searches."
-        )
-        console.print(
-            "[dim]Tip: Run 'hyperresearch setup' for interactive configuration (profile, stealth, etc.)[/]"
-        )
+        _print_install_result(vault, vault_action, doc_actions, hook_actions, crawl4ai_status)
 
 
 def _setup_crawl4ai(vault) -> str:

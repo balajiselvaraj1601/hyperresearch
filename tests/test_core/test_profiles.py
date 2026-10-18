@@ -15,40 +15,87 @@ from hyperresearch.core.profiles import (
 )
 
 
+def _assert_full_source_knobs(p) -> None:
+    assert p.steps == tuple(range(1, 17))
+    assert p.source_min == 45
+    assert p.source_target == (55, 80)
+    assert p.batch_count == (10, 12)
+    assert p.batch_size == (8, 12)
+    assert p.wave1_fetchers == (10, 12)
+    assert p.adversarial_searches_min == 5
+    assert p.source_analyst_cap == 6
+    assert p.source_analyst_word_trigger == 5000
+
+
+def _assert_full_depth_knobs(p) -> None:
+    assert p.loci_analysts == 2
+    assert p.loci_max == 6
+    assert p.depth_budget_total == 40
+    assert p.depth_budget_brackets == ((30, 15), (20, 10), (10, 5), (0, 3))
+    assert p.investigator_max == 6
+
+
+def _assert_full_funnel_knobs(p) -> None:
+    assert p.claims_cap == (80, 120)
+    assert p.claims_min == 30
+    assert p.draft_count == 3
+    assert p.must_read["argumentative"] == (35, 50)
+    assert p.word_targets["argumentative"] == (5000, 10000)
+    assert p.critic_finding_caps == {
+        "dialectic": 12,
+        "depth": 12,
+        "width": 10,
+        "instruction": 15,
+    }
+    assert p.gap_fetch_cap == 5
+    assert p.readability_rec_cap == 50
+    _assert_full_models(p)
+
+
+def _assert_full_models(p) -> None:
+    assert p.models.fetcher == "mimo"
+    assert p.models.synthesizer == "mimo"
+
+
+def _assert_profile_metadata(rows: dict) -> None:
+    # Friendly metadata is present for every built-in
+    for name in ("light", "full", "premier", "dissertation"):
+        assert rows[name]["description"]
+        assert rows[name]["kind"] in ("gear", "tier")
+
+
+def _assert_premier_width(p) -> None:
+    # Width roughly doubles
+    assert p.source_min == 90
+    assert p.source_target == (100, 130)
+    assert p.wave1_fetchers == (14, 18)
+    assert p.adversarial_searches_min == 8
+
+
+def _assert_premier_depth(p) -> None:
+    # Depth doubles
+    assert p.loci_max == 10
+    assert p.depth_budget_total == 80
+    assert p.investigator_max == 10
+
+
+def _assert_premier_funnel(p) -> None:
+    # The downstream funnel widens too — raising only fetch targets would
+    # strand the extra corpus in the vault.
+    assert p.claims_cap == (150, 220)
+    assert p.must_read["argumentative"] == (50, 70)
+    assert p.word_targets["argumentative"] == (8000, 16000)
+    assert p.citation_totals["argumentative"] == (120, 220)
+
+
 class TestBuiltins:
     def test_full_matches_shipped_pipeline_values(self):
-        p = resolve_profile("full")
         # These pins mirror the V8 skill prose; the render golden tests depend
         # on them staying in lockstep with the templates.
-        assert p.steps == tuple(range(1, 17))
-        assert p.source_min == 45
-        assert p.source_target == (55, 80)
-        assert p.batch_count == (10, 12)
-        assert p.batch_size == (8, 12)
-        assert p.wave1_fetchers == (10, 12)
-        assert p.adversarial_searches_min == 5
-        assert p.source_analyst_cap == 6
-        assert p.source_analyst_word_trigger == 5000
-        assert p.loci_analysts == 2
-        assert p.loci_max == 6
-        assert p.depth_budget_total == 40
-        assert p.depth_budget_brackets == ((30, 15), (20, 10), (10, 5), (0, 3))
-        assert p.investigator_max == 6
-        assert p.claims_cap == (80, 120)
-        assert p.claims_min == 30
-        assert p.draft_count == 3
-        assert p.must_read["argumentative"] == (35, 50)
-        assert p.word_targets["argumentative"] == (5000, 10000)
-        assert p.critic_finding_caps == {
-            "dialectic": 12,
-            "depth": 12,
-            "width": 10,
-            "instruction": 15,
-        }
-        assert p.gap_fetch_cap == 5
-        assert p.readability_rec_cap == 50
-        assert p.models.fetcher == "mimo"
-        assert p.models.synthesizer == "mimo"
+        p = resolve_profile("full")
+        _assert_full_source_knobs(p)
+        _assert_full_depth_knobs(p)
+        _assert_full_funnel_knobs(p)
 
     def test_light_matches_shipped_pipeline_values(self):
         p = resolve_profile("light")
@@ -78,21 +125,9 @@ class TestBuiltins:
         # Same step sequence as full — premier is a scale gear, not a tier.
         assert p.steps == full.steps
         assert p.chapters == (0, 0)  # unchaptered
-        # Width roughly doubles
-        assert p.source_min == 90
-        assert p.source_target == (100, 130)
-        assert p.wave1_fetchers == (14, 18)
-        assert p.adversarial_searches_min == 8
-        # Depth doubles
-        assert p.loci_max == 10
-        assert p.depth_budget_total == 80
-        assert p.investigator_max == 10
-        # The downstream funnel widens too — raising only fetch targets would
-        # strand the extra corpus in the vault.
-        assert p.claims_cap == (150, 220)
-        assert p.must_read["argumentative"] == (50, 70)
-        assert p.word_targets["argumentative"] == (8000, 16000)
-        assert p.citation_totals["argumentative"] == (120, 220)
+        _assert_premier_width(p)
+        _assert_premier_depth(p)
+        _assert_premier_funnel(p)
         # Every scale knob is >= full's
         assert p.source_min > full.source_min
         assert p.depth_budget_total > full.depth_budget_total
@@ -373,10 +408,7 @@ class TestProfileCli:
         rows = {p["name"]: p for p in payload["data"]["profiles"]}
         assert rows["full"]["current_gear"] is True
         assert rows["premier"]["current_gear"] is False
-        # Friendly metadata is present for every built-in
-        for name in ("light", "full", "premier", "dissertation"):
-            assert rows[name]["description"]
-            assert rows[name]["kind"] in ("gear", "tier")
+        _assert_profile_metadata(rows)
         assert rows["premier"]["kind"] == "gear"
         assert rows["dissertation"]["kind"] == "tier"
 

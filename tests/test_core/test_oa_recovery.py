@@ -91,7 +91,9 @@ class TestCheckOaUrl:
 
     def test_rejects_loopback_ip_literal(self, monkeypatch):
         monkeypatch.setattr(
-            oa.socket, "getaddrinfo", lambda h, p: [(2, 1, 6, "", ("127.0.0.1", 0))]  # type: ignore[reportPrivateImportUsage]
+            oa.socket,
+            "getaddrinfo",
+            lambda h, p: [(2, 1, 6, "", ("127.0.0.1", 0))],  # type: ignore[reportPrivateImportUsage]
         )  # type: ignore[reportPrivateImportUsage]
         ok, reason = oa.check_oa_url("https://127.0.0.1/p.pdf")
         assert ok is False and "non-public address" in reason
@@ -152,6 +154,22 @@ class TestNeedsRecovery:
         assert oa.needs_oa_recovery(_result(body), ScholarSettings()) is True
 
 
+def _assert_unpaywall_pdf_location(loc) -> None:
+    assert loc is not None
+    assert loc.url == "https://repo.example.org/record/1.pdf"
+    assert loc is not None
+    assert loc.resolver == "unpaywall"
+    assert loc is not None
+    assert loc.kind == "pdf"
+
+
+def _assert_unpaywall_pdf_provenance(loc) -> None:
+    assert loc is not None
+    assert loc.version == "publishedVersion"
+    assert loc is not None
+    assert loc.license == "cc-by"
+
+
 class TestResolve:
     def test_arxiv_ids_are_declined(self, tmp_vault, monkeypatch):
         calls = _stub_http(monkeypatch, {})
@@ -167,16 +185,8 @@ class TestResolve:
     def test_unpaywall_pdf_preferred(self, tmp_vault, monkeypatch):
         _stub_http(monkeypatch, {"unpaywall": UNPAYWALL_PDF})
         loc = oa.resolve_oa(tmp_vault.db, "10.1/x", 30, email="a@b.co")
-        assert loc is not None
-        assert loc.url == "https://repo.example.org/record/1.pdf"
-        assert loc is not None
-        assert loc.resolver == "unpaywall"
-        assert loc is not None
-        assert loc.kind == "pdf"
-        assert loc is not None
-        assert loc.version == "publishedVersion"
-        assert loc is not None
-        assert loc.license == "cc-by"
+        _assert_unpaywall_pdf_location(loc)
+        _assert_unpaywall_pdf_provenance(loc)
 
     def test_published_version_beats_preprint(self, tmp_vault, monkeypatch):
         payload = {

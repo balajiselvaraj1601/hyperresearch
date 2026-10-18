@@ -751,6 +751,10 @@ def test_audit_gate_fails_when_only_comprehensiveness_run_exists(tmp_vault):
 
     data = json.loads(out)
     issues = [i for i in data.get("data", {}).get("issues", []) if i.get("rule") == "audit-gate"]
+    _assert_audit_gate_failed(issues)
+
+
+def _assert_audit_gate_failed(issues) -> None:
     # Expect: one error for missing conformance, one info for important findings.
     errors = [i for i in issues if i.get("severity") == "error"]
     infos = [i for i in issues if i.get("severity") == "info"]

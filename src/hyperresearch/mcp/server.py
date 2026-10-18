@@ -290,6 +290,43 @@ def vault_status() -> str:
     )
 
 
+# (rule name, SQL, severity, row id field, message builder)
+_LINT_CHECKS = (
+    (
+        "missing-tags",
+        "SELECT id FROM notes WHERE type NOT IN ('index','raw') "
+        "AND id NOT IN (SELECT DISTINCT note_id FROM tags)",
+        "warning",
+        "id",
+        lambda r: "No tags",
+    ),
+    (
+        "missing-summary",
+        "SELECT id FROM notes WHERE type NOT IN ('index','raw') "
+        "AND (summary IS NULL OR LENGTH(TRIM(COALESCE(summary, ''))) = 0)",
+        "warning",
+        "id",
+        lambda r: "No summary",
+    ),
+    (
+        "broken-links",
+        "SELECT source_id, target_ref FROM links WHERE target_id IS NULL",
+        "warning",
+        "source_id",
+        lambda r: f"Broken: [[{r['target_ref']}]]",
+    ),
+    (
+        "orphaned-notes",
+        "SELECT id FROM notes WHERE type NOT IN ('index','raw') "
+        "AND id NOT IN (SELECT DISTINCT target_id FROM links WHERE target_id IS NOT NULL) "
+        "AND id NOT IN (SELECT DISTINCT source_id FROM links)",
+        "info",
+        "id",
+        lambda r: "No links",
+    ),
+)
+
+
 @server.tool()
 def lint_vault(rule: str = "") -> str:
     """Run health checks on the vault. Returns issues found.
@@ -304,50 +341,16 @@ def lint_vault(rule: str = "") -> str:
     rules = (
         [rule] if rule else ["missing-tags", "missing-summary", "broken-links", "orphaned-notes"]
     )
-    if "missing-tags" in rules:
-        for r in conn.execute(
-            "SELECT id FROM notes WHERE type NOT IN ('index','raw') AND id NOT IN (SELECT DISTINCT note_id FROM tags)"
-        ):
+    for name, sql, severity, id_field, message in _LINT_CHECKS:
+        if name not in rules:
+            continue
+        for r in conn.execute(sql):
             issues.append(
                 {
-                    "rule": "missing-tags",
-                    "severity": "warning",
-                    "note_id": r["id"],
-                    "message": "No tags",
-                }
-            )
-    if "missing-summary" in rules:
-        for r in conn.execute(
-            "SELECT id FROM notes WHERE type NOT IN ('index','raw') AND (summary IS NULL OR LENGTH(TRIM(COALESCE(summary, ''))) = 0)"
-        ):
-            issues.append(
-                {
-                    "rule": "missing-summary",
-                    "severity": "warning",
-                    "note_id": r["id"],
-                    "message": "No summary",
-                }
-            )
-    if "broken-links" in rules:
-        for r in conn.execute("SELECT source_id, target_ref FROM links WHERE target_id IS NULL"):
-            issues.append(
-                {
-                    "rule": "broken-links",
-                    "severity": "warning",
-                    "note_id": r["source_id"],
-                    "message": f"Broken: [[{r['target_ref']}]]",
-                }
-            )
-    if "orphaned-notes" in rules:
-        for r in conn.execute(
-            "SELECT id FROM notes WHERE type NOT IN ('index','raw') AND id NOT IN (SELECT DISTINCT target_id FROM links WHERE target_id IS NOT NULL) AND id NOT IN (SELECT DISTINCT source_id FROM links)"
-        ):
-            issues.append(
-                {
-                    "rule": "orphaned-notes",
-                    "severity": "info",
-                    "note_id": r["id"],
-                    "message": "No links",
+                    "rule": name,
+                    "severity": severity,
+                    "note_id": r[id_field],
+                    "message": message(r),
                 }
             )
     return json.dumps(
@@ -486,6 +489,51 @@ def create_note(
     )
 
 
+def _validate_note_status(status: str) -> str | None:
+    """Error JSON when the status value is invalid, else None."""
+    from hyperresearch.models.note import NoteStatus
+
+    if not status:
+        return None
+    try:
+        NoteStatus(status)
+    except ValueError:
+        valid = ", ".join(s.value for s in NoteStatus)
+        return json.dumps(
+            {
+                "ok": False,
+                "error": f"Invalid status '{status}'. Must be one of: {valid}",
+                "error_code": "INVALID_STATUS",
+            }
+        )
+    return None
+
+
+def _apply_status_summary(meta, status: str, summary: str, changed: list) -> None:
+    from hyperresearch.models.note import NoteStatus
+
+    if status:
+        meta.status = NoteStatus(status)
+        changed.append(f"status={status}")
+    if summary:
+        meta.summary = summary
+        changed.append("summary")
+
+
+def _apply_add_tags(meta, add_tags: str, changed: list) -> None:
+    for t in [t.strip() for t in add_tags.split(",") if t.strip()]:
+        if t.lower() not in meta.tags:
+            meta.tags.append(t.lower())
+            changed.append(f"+tag:{t}")
+
+
+def _apply_remove_tags(meta, remove_tags: str, changed: list) -> None:
+    for t in [t.strip() for t in remove_tags.split(",") if t.strip()]:
+        if t.lower() in meta.tags:
+            meta.tags.remove(t.lower())
+            changed.append(f"-tag:{t}")
+
+
 @server.tool()
 def update_note(
     note_id: str, status: str = "", add_tags: str = "", remove_tags: str = "", summary: str = ""
@@ -501,24 +549,14 @@ def update_note(
     """
     from hyperresearch.core.frontmatter import parse_frontmatter, serialize_frontmatter
     from hyperresearch.core.sync import compute_sync_plan, execute_sync
-    from hyperresearch.models.note import NoteStatus
 
     # Validate up-front. NoteMeta is a pydantic model without
     # validate_assignment, so `meta.status = status` would accept any string
     # and write it to frontmatter — after which parse_frontmatter refuses to
     # read the note back and sync drops it from the index for good.
-    if status:
-        try:
-            NoteStatus(status)
-        except ValueError:
-            valid = ", ".join(s.value for s in NoteStatus)
-            return json.dumps(
-                {
-                    "ok": False,
-                    "error": f"Invalid status '{status}'. Must be one of: {valid}",
-                    "error_code": "INVALID_STATUS",
-                }
-            )
+    status_error = _validate_note_status(status)
+    if status_error is not None:
+        return status_error
 
     vault = _get_vault()
     vault.auto_sync()
@@ -534,20 +572,9 @@ def update_note(
     meta, body = parse_frontmatter(content)
 
     changed = []
-    if status:
-        meta.status = NoteStatus(status)
-        changed.append(f"status={status}")
-    for t in [t.strip() for t in add_tags.split(",") if t.strip()]:
-        if t.lower() not in meta.tags:
-            meta.tags.append(t.lower())
-            changed.append(f"+tag:{t}")
-    for t in [t.strip() for t in remove_tags.split(",") if t.strip()]:
-        if t.lower() in meta.tags:
-            meta.tags.remove(t.lower())
-            changed.append(f"-tag:{t}")
-    if summary:
-        meta.summary = summary
-        changed.append("summary")
+    _apply_status_summary(meta, status, summary, changed)
+    _apply_add_tags(meta, add_tags, changed)
+    _apply_remove_tags(meta, remove_tags, changed)
 
     if not changed:
         return json.dumps({"ok": True, "data": {"note_id": note_id, "changes": []}})

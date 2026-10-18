@@ -43,7 +43,10 @@ def _seed_prior_run(root: Path, vault_tag: str = "alpha-beta") -> None:
     _write(research / "critic-findings-dialectic.json", "{}")
     # Namespaced — must NOT be archived.
     _write(research / f"query-{vault_tag}.md", "verbatim query")
-    _write(research / "reports" / vault_tag / f"final_report_{vault_tag}.md", "---\ntitle: Report\n---\n# Report")
+    _write(
+        research / "reports" / vault_tag / f"final_report_{vault_tag}.md",
+        "---\ntitle: Report\n---\n# Report",
+    )
     # Scratch tree.
     _write(research / "temp" / "evidence-digest.md", "scratch")
     _write(research / "temp" / "claims-foo.json", "{}")
@@ -61,6 +64,32 @@ def test_archive_run_no_prior_artifacts_is_noop(vault_root: Path):
     assert not (vault_root / "output" / "runs").exists()
 
 
+def _assert_originals_gone(research: Path) -> None:
+    """Originals are gone."""
+    assert not (research / "scaffold.md").exists()
+    assert not (research / "loci.json").exists()
+    assert not (research / "comparisons.md").exists()
+    assert not (research / "patch-log.json").exists()
+    assert not (research / "critic-findings-dialectic.json").exists()
+    assert not (research / "temp" / "evidence-digest.md").exists()
+    assert not (research / "temp" / "draft-a.md").exists()
+
+
+def _assert_namespaced_stay(research: Path) -> None:
+    """Namespaced files stay put."""
+    assert (research / "query-alpha-beta.md").exists()
+    assert (research / "reports" / "alpha-beta" / "final_report_alpha-beta.md").exists()
+
+
+def _assert_archive_contents(archive_dir: Path) -> None:
+    """Archive dir holds them. Use the path the command reported."""
+    assert archive_dir.is_dir()
+    assert (archive_dir / "scaffold.md").read_text(encoding="utf-8").startswith("# Scaffold")
+    assert (archive_dir / "loci.json").exists()
+    assert (archive_dir / "temp" / "evidence-digest.md").exists()
+    assert (archive_dir / "temp" / "draft-a.md").exists()
+
+
 def test_archive_run_moves_flat_artifacts_and_temp_tree(vault_root: Path):
     """Prior-run files and the temp/ scratch tree both end up in the archive."""
     _seed_prior_run(vault_root, vault_tag="alpha-beta")
@@ -70,27 +99,12 @@ def test_archive_run_moves_flat_artifacts_and_temp_tree(vault_root: Path):
     assert data["data"]["archived"] is True
     assert data["data"]["previous_vault_tag"] == "alpha-beta"
 
-    # Originals are gone.
     research = vault_root / "output"
-    assert not (research / "scaffold.md").exists()
-    assert not (research / "loci.json").exists()
-    assert not (research / "comparisons.md").exists()
-    assert not (research / "patch-log.json").exists()
-    assert not (research / "critic-findings-dialectic.json").exists()
-    assert not (research / "temp" / "evidence-digest.md").exists()
-    assert not (research / "temp" / "draft-a.md").exists()
+    _assert_originals_gone(research)
+    _assert_namespaced_stay(research)
 
-    # Namespaced files stay put.
-    assert (research / "query-alpha-beta.md").exists()
-    assert (research / "reports" / "alpha-beta" / "final_report_alpha-beta.md").exists()
-
-    # Archive dir holds them. Use the path the command reported.
     archive_dir = vault_root / data["data"]["archive_dir"]
-    assert archive_dir.is_dir()
-    assert (archive_dir / "scaffold.md").read_text(encoding="utf-8").startswith("# Scaffold")
-    assert (archive_dir / "loci.json").exists()
-    assert (archive_dir / "temp" / "evidence-digest.md").exists()
-    assert (archive_dir / "temp" / "draft-a.md").exists()
+    _assert_archive_contents(archive_dir)
 
     # output/temp/ is recreated empty so the next run can write into it
     # without an extra mkdir.

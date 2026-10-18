@@ -132,6 +132,40 @@ def _authors(work: dict[str, Any]) -> tuple[str, ...]:
     return tuple(names)
 
 
+def _openalex_venue(primary: dict, best_oa: dict):
+    """Venue name, preferring the primary location's source."""
+    return as_str(as_dict(primary.get("source")).get("display_name")) or as_str(
+        as_dict(best_oa.get("source")).get("display_name")
+    )
+
+
+def _openalex_url(primary: dict, best_oa: dict, doi, openalex_id):
+    """Best landing URL: primary, OA copy, DOI, then the OpenAlex id."""
+    return (
+        as_str(primary.get("landing_page_url"))
+        or as_str(best_oa.get("landing_page_url"))
+        or (f"https://doi.org/{doi}" if doi else None)
+        or openalex_id
+    )
+
+
+def _openalex_identifier(openalex_id):
+    """Bare OpenAlex id without the URL prefix."""
+    if openalex_id and openalex_id.startswith(_ID_PREFIX):
+        return openalex_id[len(_ID_PREFIX) :]
+    return openalex_id
+
+
+def _openalex_extra(work: dict, raw_type: str) -> dict:
+    extra: dict[str, str] = {}
+    if raw_type:
+        extra["openalex_type"] = raw_type
+    oa_status = as_str(as_dict(work.get("open_access")).get("oa_status"))
+    if oa_status:
+        extra["oa_status"] = oa_status
+    return extra
+
+
 class OpenAlexProvider(SearchProvider):
     """Relevance search over the OpenAlex works index."""
 
@@ -193,29 +227,13 @@ class OpenAlexProvider(SearchProvider):
         best_oa = as_dict(work.get("best_oa_location"))
         primary = as_dict(work.get("primary_location"))
         pdf_url = as_str(best_oa.get("pdf_url")) or as_str(primary.get("pdf_url"))
-        venue = as_str(as_dict(primary.get("source")).get("display_name")) or as_str(
-            as_dict(best_oa.get("source")).get("display_name")
-        )
+        venue = _openalex_venue(primary, best_oa)
 
         doi = normalize_doi(as_str(work.get("doi")))
         openalex_id = as_str(work.get("id"))
-        identifier = openalex_id
-        if openalex_id and openalex_id.startswith(_ID_PREFIX):
-            identifier = openalex_id[len(_ID_PREFIX) :]
-        url = (
-            as_str(primary.get("landing_page_url"))
-            or as_str(best_oa.get("landing_page_url"))
-            or (f"https://doi.org/{doi}" if doi else None)
-            or openalex_id
-        )
+        url = _openalex_url(primary, best_oa, doi, openalex_id)
 
         raw_type = (as_str(work.get("type")) or "").lower()
-        extra: dict[str, str] = {}
-        if raw_type:
-            extra["openalex_type"] = raw_type
-        oa_status = as_str(as_dict(work.get("open_access")).get("oa_status"))
-        if oa_status:
-            extra["oa_status"] = oa_status
 
         return Paper(
             title=title,
@@ -229,8 +247,8 @@ class OpenAlexProvider(SearchProvider):
             pdf_url=pdf_url,
             citation_count=as_int(work.get("cited_by_count")),
             work_type=_TYPE_MAP.get(raw_type, "other"),
-            identifier=identifier,
-            extra=extra,
+            identifier=_openalex_identifier(openalex_id),
+            extra=_openalex_extra(work, raw_type),
         )
 
     # -- Entry point --------------------------------------------------------

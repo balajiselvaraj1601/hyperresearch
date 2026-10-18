@@ -14,6 +14,51 @@ from hyperresearch.core.config import (
 )
 
 
+def _assert_fetch_defaults(f: FetchSettings) -> None:
+    assert f.page_timeout_ms == 30000
+    assert f.pdf_timeout_s == 30
+    assert f.min_pdf_bytes == 100
+    assert f.wait_initial_ms == 2000
+    assert f.poll_interval_ms == 500
+    assert f.stable_checks == 2
+    assert f.max_checks == 16
+    assert f.image_timeout_s == 15
+    _assert_fetch_domains(f)
+
+
+def _assert_fetch_domains(f: FetchSettings) -> None:
+    assert "linkedin.com" in f.visible_browser_domains
+    assert len(f.visible_browser_domains) == 6
+
+
+def _assert_junk_defaults(j: JunkGates) -> None:
+    assert j.min_content_chars == 300
+    assert j.login_wall_max_chars == 1000
+    assert j.cookie_wall_max_chars == 1500
+    assert j.binary_garbage_ratio == 0.05
+    assert j.sample_window == 2000
+    assert j.login_sample_chars == 500
+
+
+def _assert_asset_defaults(a: AssetSettings) -> None:
+    assert a.max_images == 5
+    assert a.min_image_bytes == 50_000
+
+
+def _assert_dedup_defaults(d: DedupSettings) -> None:
+    assert d.shingle_size == 3
+    assert d.minhash_perm == 128
+    assert d.lsh_bands == 16
+    assert d.lsh_switchover == 200
+    assert d.default_threshold == 0.6
+
+
+def _assert_lint_defaults(li: LintSettings) -> None:
+    assert li.extract_min_words == 150
+    assert li.extract_coverage_divisor == 3
+    assert li.stale_review_days == 90
+
+
 class TestDefaults:
     """Absent config keys must reproduce pre-2.0 behavior exactly."""
 
@@ -26,41 +71,11 @@ class TestDefaults:
         assert cfg.lint == LintSettings()
 
     def test_default_values_match_pre_20_literals(self):
-        f = FetchSettings()
-        assert f.page_timeout_ms == 30000
-        assert f.pdf_timeout_s == 30
-        assert f.min_pdf_bytes == 100
-        assert f.wait_initial_ms == 2000
-        assert f.poll_interval_ms == 500
-        assert f.stable_checks == 2
-        assert f.max_checks == 16
-        assert f.image_timeout_s == 15
-        assert "linkedin.com" in f.visible_browser_domains
-        assert len(f.visible_browser_domains) == 6
-
-        j = JunkGates()
-        assert j.min_content_chars == 300
-        assert j.login_wall_max_chars == 1000
-        assert j.cookie_wall_max_chars == 1500
-        assert j.binary_garbage_ratio == 0.05
-        assert j.sample_window == 2000
-        assert j.login_sample_chars == 500
-
-        a = AssetSettings()
-        assert a.max_images == 5
-        assert a.min_image_bytes == 50_000
-
-        d = DedupSettings()
-        assert d.shingle_size == 3
-        assert d.minhash_perm == 128
-        assert d.lsh_bands == 16
-        assert d.lsh_switchover == 200
-        assert d.default_threshold == 0.6
-
-        li = LintSettings()
-        assert li.extract_min_words == 150
-        assert li.extract_coverage_divisor == 3
-        assert li.stale_review_days == 90
+        _assert_fetch_defaults(FetchSettings())
+        _assert_junk_defaults(JunkGates())
+        _assert_asset_defaults(AssetSettings())
+        _assert_dedup_defaults(DedupSettings())
+        _assert_lint_defaults(LintSettings())
 
     def test_pdf_verify_tls_defaults_true(self):
         # Deliberate 2.0 behavior change: TLS verification ON by default
@@ -177,7 +192,7 @@ class TestProfileOverlayRoundtrip:
             'extends = "full"\n'
             "source_target = [300, 450]\n"
             "depth_budget_brackets = [[35, 20], [0, 5]]\n"
-            'must_read = { argumentative = [50, 70], short = [20, 30] }\n'
+            "must_read = { argumentative = [50, 70], short = [20, 30] }\n"
             "utility_scoring = false\n"
             'time_estimate = "~4 hours"\n',
             encoding="utf-8",

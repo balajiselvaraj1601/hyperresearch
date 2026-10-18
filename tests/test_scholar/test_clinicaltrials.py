@@ -96,12 +96,7 @@ def _serve(monkeypatch: pytest.MonkeyPatch, body: str | None) -> list[str]:
     return seen
 
 
-def test_parses_a_full_study(monkeypatch: pytest.MonkeyPatch) -> None:
-    urls = _serve(monkeypatch, json.dumps(_payload(FULL_STUDY)))
-    papers = ClinicalTrialsProvider().search(None, "pembrolizumab", 5)
-
-    assert len(papers) == 1
-    paper = papers[0]
+def _assert_study_identity(paper) -> None:
     assert paper.identifier == "NCT04041310"
     assert paper.work_type == "trial"
     assert paper.source == "clinicaltrials"
@@ -110,14 +105,31 @@ def test_parses_a_full_study(monkeypatch: pytest.MonkeyPatch) -> None:
     assert paper.year == 2019
     assert paper.venue == "Nouscom SRL"
     assert paper.abstract == "NOUS-209-01 is a multicenter, open-label clinical study."
+
+
+def _assert_study_extras(paper) -> None:
     assert paper.extra["status"] == "ACTIVE_NOT_RECRUITING"
     assert paper.extra["phase"] == "PHASE1/PHASE2"
     assert paper.extra["study_type"] == "INTERVENTIONAL"
     assert paper.extra["enrollment"] == "130"
     assert paper.extra["conditions"] == "Solid Tumor, Adult; Colorectal Cancer"
     assert paper.extra["lead_sponsor"] == "Nouscom SRL"
+
+
+def _assert_study_request(urls) -> None:
     assert "query.term=pembrolizumab" in urls[0]
     assert "pageSize=5" in urls[0]
+
+
+def test_parses_a_full_study(monkeypatch: pytest.MonkeyPatch) -> None:
+    urls = _serve(monkeypatch, json.dumps(_payload(FULL_STUDY)))
+    papers = ClinicalTrialsProvider().search(None, "pembrolizumab", 5)
+
+    assert len(papers) == 1
+    paper = papers[0]
+    _assert_study_identity(paper)
+    _assert_study_extras(paper)
+    _assert_study_request(urls)
 
 
 def test_sparse_study_keeps_what_exists_and_nulls_the_rest(

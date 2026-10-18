@@ -102,83 +102,103 @@ def _iter_claim_dicts(data) -> list[dict]:
     return []
 
 
-def ingest_claims_file(conn, path: Path, vault_tag: str | None = None) -> _IngestResult:
-    """Ingest one claims JSON file. Returns {ingested, skipped, errors}."""
-    note_id = _note_id_from_filename(path)
-    result: _IngestResult = {
-        "file": str(path),
-        "note_id": note_id,
-        "ingested": 0,
-        "skipped": 0,
-        "errors": [],
-    }
+def _resolve_ingest_note(conn, path: Path, result: _IngestResult) -> str | None:
+    """Validate the claims file's note exists. Records errors, returns note_id."""
+    note_id = result["note_id"]
     if note_id is None:
         result["errors"].append("filename does not match claims-<note-id>.json")
-        return result
-
+        return None
     note_row = conn.execute("SELECT id FROM notes WHERE id = ?", (note_id,)).fetchone()
     if note_row is None:
         result["errors"].append(f"note '{note_id}' not in vault (sync first?)")
-        return result
+        return None
+    return note_id
 
+
+def _read_claims_data(path: Path, result: _IngestResult):
+    """Read+parse the claims JSON. Records errors, returns data or None."""
     try:
         size = path.stat().st_size
     except OSError as e:
         result["errors"].append(f"unreadable JSON: {e}")
-        return result
+        return None
     if size > MAX_CLAIMS_FILE_BYTES:
         result["errors"].append(
             f"claims file is {size} bytes (limit {MAX_CLAIMS_FILE_BYTES}); skipped"
         )
-        return result
+        return None
     try:
-        data = json.loads(path.read_text(encoding="utf-8-sig"))
+        return json.loads(path.read_text(encoding="utf-8-sig"))
     except (json.JSONDecodeError, OSError, UnicodeDecodeError, RecursionError) as e:
         result["errors"].append(f"unreadable JSON: {e}")
+        return None
+
+
+def _store_claim(
+    conn, note_id: str, c: dict, vault_tag: str | None, now: str, result: _IngestResult
+) -> None:
+    """Store one claim dict. Updates ingested/skipped/errors in result."""
+    claim_text = _text_field(c.get("claim")) or _text_field(c.get("text"))
+    if not claim_text:
+        result["skipped"] += 1
+        return
+    h = _claim_hash(claim_text)
+    numbers = c.get("numbers")
+    try:
+        cur = conn.execute(
+            """INSERT OR IGNORE INTO claims
+               (note_id, claim, claim_hash, quoted_support, numbers, confidence,
+                evidence_type, stance_target, stance, vault_tag, ingested_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                note_id,
+                claim_text,
+                h,
+                _text_field(c.get("quoted_support")) or None,
+                json.dumps(numbers)[:MAX_CLAIM_FIELD_CHARS] if numbers else None,
+                _scalar_field(c.get("confidence")),
+                _text_field(c.get("evidence_type")) or None,
+                _text_field(c.get("stance_target")) or None,
+                _text_field(c.get("stance")) or None,
+                vault_tag,
+                now,
+            ),
+        )
+        if cur.rowcount:
+            claim_id = cur.lastrowid
+            conn.execute(
+                "INSERT INTO claims_fts (claim_id, claim, quoted_support) VALUES (?, ?, ?)",
+                (claim_id, claim_text, _text_field(c.get("quoted_support"))),
+            )
+            result["ingested"] += 1
+        else:
+            result["skipped"] += 1
+    except sqlite3.Error as e:
+        # One malformed claim (agent-written from fetched, hostile page
+        # content) must not abort the whole ingest.
+        result["errors"].append(f"claim {h} not stored: {e}")
+        result["skipped"] += 1
+
+
+def ingest_claims_file(conn, path: Path, vault_tag: str | None = None) -> _IngestResult:
+    """Ingest one claims JSON file. Returns {ingested, skipped, errors}."""
+    result: _IngestResult = {
+        "file": str(path),
+        "note_id": _note_id_from_filename(path),
+        "ingested": 0,
+        "skipped": 0,
+        "errors": [],
+    }
+    note_id = _resolve_ingest_note(conn, path, result)
+    if note_id is None:
+        return result
+    data = _read_claims_data(path, result)
+    if data is None:
         return result
 
     now = datetime.now(UTC).isoformat()
     for c in _iter_claim_dicts(data):
-        claim_text = _text_field(c.get("claim")) or _text_field(c.get("text"))
-        if not claim_text:
-            result["skipped"] += 1
-            continue
-        h = _claim_hash(claim_text)
-        numbers = c.get("numbers")
-        try:
-            cur = conn.execute(
-                """INSERT OR IGNORE INTO claims
-                   (note_id, claim, claim_hash, quoted_support, numbers, confidence,
-                    evidence_type, stance_target, stance, vault_tag, ingested_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-                (
-                    note_id,
-                    claim_text,
-                    h,
-                    _text_field(c.get("quoted_support")) or None,
-                    json.dumps(numbers)[:MAX_CLAIM_FIELD_CHARS] if numbers else None,
-                    _scalar_field(c.get("confidence")),
-                    _text_field(c.get("evidence_type")) or None,
-                    _text_field(c.get("stance_target")) or None,
-                    _text_field(c.get("stance")) or None,
-                    vault_tag,
-                    now,
-                ),
-            )
-            if cur.rowcount:
-                claim_id = cur.lastrowid
-                conn.execute(
-                    "INSERT INTO claims_fts (claim_id, claim, quoted_support) VALUES (?, ?, ?)",
-                    (claim_id, claim_text, _text_field(c.get("quoted_support"))),
-                )
-                result["ingested"] += 1
-            else:
-                result["skipped"] += 1
-        except sqlite3.Error as e:
-            # One malformed claim (agent-written from fetched, hostile page
-            # content) must not abort the whole ingest.
-            result["errors"].append(f"claim {h} not stored: {e}")
-            result["skipped"] += 1
+        _store_claim(conn, note_id, c, vault_tag, now, result)
     return result
 
 
@@ -357,15 +377,20 @@ def render_matrix_markdown(rows: list[dict]) -> str:
         "|---|---|---|---|---|---|---|---|",
     ]
     for r in rows:
-        quality = f"{r['quality_score']:.2f}" if r["quality_score"] is not None else "-"
-        retracted = " **RETRACTED**" if r["is_retracted"] else ""
-        key = (r["key_claim"] or "").replace("|", "/")[:140]
-        lines.append(
-            f"| [[{r['id']}]]{retracted} | {r['tier'] or '-'} | {r['content_type'] or '-'} "
-            f"| {r['venue'] or '-'} | {r['citation_count'] if r['citation_count'] is not None else '-'} "
-            f"| {quality} | {r['n_claims']} ({r['n_empirical'] or 0}/{r['n_quantified'] or 0}) | {key} |"
-        )
+        lines.append(_matrix_row(r))
     return "\n".join(lines) + "\n"
+
+
+def _matrix_row(r: dict) -> str:
+    """One literature-matrix markdown table row."""
+    quality = f"{r['quality_score']:.2f}" if r["quality_score"] is not None else "-"
+    retracted = " **RETRACTED**" if r["is_retracted"] else ""
+    key = (r["key_claim"] or "").replace("|", "/")[:140]
+    return (
+        f"| [[{r['id']}]]{retracted} | {r['tier'] or '-'} | {r['content_type'] or '-'} "
+        f"| {r['venue'] or '-'} | {r['citation_count'] if r['citation_count'] is not None else '-'} "
+        f"| {quality} | {r['n_claims']} ({r['n_empirical'] or 0}/{r['n_quantified'] or 0}) | {key} |"
+    )
 
 
 def group_by_target(conn, vault_tag: str | None = None, min_sources: int = 2) -> list[dict]:

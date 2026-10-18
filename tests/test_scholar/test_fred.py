@@ -123,12 +123,7 @@ def test_available_with_key(with_key: None) -> None:
 # --- parsing -----------------------------------------------------------------
 
 
-def test_parses_a_series(monkeypatch: pytest.MonkeyPatch, with_key: None) -> None:
-    urls = _serve(monkeypatch, _envelope(GDPC1))
-    papers = FredProvider().search(None, "real gdp", 5)
-
-    assert len(papers) == 1
-    paper = papers[0]
+def _assert_series_identity(paper) -> None:
     assert paper.work_type == "series"
     assert paper.source == "fred"
     assert paper.identifier == "GDPC1"
@@ -137,6 +132,9 @@ def test_parses_a_series(monkeypatch: pytest.MonkeyPatch, with_key: None) -> Non
     assert paper.venue == "Federal Reserve Economic Data"
     assert paper.year == 1947
     assert paper.abstract is not None and paper.abstract.startswith("BEA Account Code")
+
+
+def _assert_series_extras(paper) -> None:
     assert paper.extra["series_id"] == "GDPC1"
     assert paper.extra["frequency"] == "Quarterly"
     assert paper.extra["units"] == "Billions of Chained 2017 Dollars"
@@ -146,12 +144,25 @@ def test_parses_a_series(monkeypatch: pytest.MonkeyPatch, with_key: None) -> Non
     assert paper.extra["last_updated"] == "2026-08-28 07:46:02-05"
     assert paper.extra["popularity"] == "92"
 
+
+def _assert_series_request(urls) -> None:
     assert len(urls) == 1
     assert urls[0].startswith("https://api.stlouisfed.org/fred/series/search?")
     assert "search_text=real%20gdp" in urls[0]
     assert "file_type=json" in urls[0]
     assert "limit=5" in urls[0]
     assert f"api_key={KEY}" in urls[0]
+
+
+def test_parses_a_series(monkeypatch: pytest.MonkeyPatch, with_key: None) -> None:
+    urls = _serve(monkeypatch, _envelope(GDPC1))
+    papers = FredProvider().search(None, "real gdp", 5)
+
+    assert len(papers) == 1
+    paper = papers[0]
+    _assert_series_identity(paper)
+    _assert_series_extras(paper)
+    _assert_series_request(urls)
 
 
 def test_series_without_notes_has_no_abstract(

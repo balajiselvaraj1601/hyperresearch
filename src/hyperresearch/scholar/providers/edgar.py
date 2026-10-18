@@ -109,6 +109,53 @@ def _archive_url(accession: str, cik: str | None, document: str | None) -> str |
     return f"{base}/{accession}-index.htm"
 
 
+def _edgar_accession(row: dict) -> tuple | None:
+    """Resolve (source, accession, document). None when the row is unusable."""
+    source = row.get("_source")
+    if not isinstance(source, dict):
+        return None
+    # `_id` is "<accession>:<filename>". `_source.adsh` carries the same
+    # accession and is preferred; the `_id` prefix is the fallback for
+    # rows where it is missing.
+    document: str | None = None
+    id_accession: str | None = None
+    raw_id = row.get("_id")
+    if isinstance(raw_id, str) and raw_id.strip():
+        head, _, tail = raw_id.strip().partition(":")
+        id_accession = head or None
+        document = tail or None
+    accession = _first_string(source.get("adsh")) or id_accession
+    if not accession:
+        return None
+    return source, accession, document
+
+
+def _edgar_title(company, form, filed, accession: str) -> str:
+    # EDGAR filings have no titles, so one is composed. Company plus form
+    # plus date is what a reader needs to recognize the citation; without
+    # it the entry reads as a bare accession number.
+    parts = [p for p in (company, form) if p]
+    title = " — ".join(parts) if parts else f"SEC filing {accession}"
+    if filed:
+        title = f"{title} (filed {filed})"
+    return title
+
+
+def _edgar_extra(accession: str, form, company, cik, filed, description, period) -> dict:
+    extra: dict[str, str] = {"accession": accession}
+    for key, value in (
+        ("form", form),
+        ("company", company),
+        ("cik", cik),
+        ("filed", filed),
+        ("file_description", description),
+        ("period_ending", period),
+    ):
+        if value:
+            extra[key] = value
+    return extra
+
+
 class EdgarProvider(SearchProvider):
     """Full-text search over EDGAR filings. Needs a contact address, not a key."""
 
@@ -172,23 +219,10 @@ class EdgarProvider(SearchProvider):
     def _to_paper(self, row: Any) -> Paper | None:
         if not isinstance(row, dict):
             return None
-        source = row.get("_source")
-        if not isinstance(source, dict):
+        resolved = _edgar_accession(row)
+        if resolved is None:
             return None
-
-        # `_id` is "<accession>:<filename>". `_source.adsh` carries the same
-        # accession and is preferred; the `_id` prefix is the fallback for
-        # rows where it is missing.
-        document: str | None = None
-        raw_id = row.get("_id")
-        id_accession: str | None = None
-        if isinstance(raw_id, str) and raw_id.strip():
-            head, _, tail = raw_id.strip().partition(":")
-            id_accession = head or None
-            document = tail or None
-        accession = _first_string(source.get("adsh")) or id_accession
-        if not accession:
-            return None
+        source, accession, document = resolved
 
         company = _first_string(source.get("display_names"))
         company = _tidy(company) if company else None
@@ -196,29 +230,10 @@ class EdgarProvider(SearchProvider):
         filed = _first_string(source.get("file_date"))
         cik = _first_string(source.get("ciks"))
         description = _first_string(source.get("file_description"))
-
-        # EDGAR filings have no titles, so one is composed. Company plus form
-        # plus date is what a reader needs to recognize the citation; without
-        # it the entry reads as a bare accession number.
-        parts = [p for p in (company, form) if p]
-        title = " — ".join(parts) if parts else f"SEC filing {accession}"
-        if filed:
-            title = f"{title} (filed {filed})"
-
-        extra: dict[str, str] = {"accession": accession}
-        if form:
-            extra["form"] = form
-        if company:
-            extra["company"] = company
-        if cik:
-            extra["cik"] = cik
-        if filed:
-            extra["filed"] = filed
-        if description:
-            extra["file_description"] = description
         period = _first_string(source.get("period_ending"))
-        if period:
-            extra["period_ending"] = period
+
+        title = _edgar_title(company, form, filed, accession)
+        extra = _edgar_extra(accession, form, company, cik, filed, description, period)
 
         return Paper(
             title=title,

@@ -10,6 +10,30 @@ from hyperresearch.models.output import error, success
 app = typer.Typer()
 
 
+def _open_assets_vault(json_output: bool):
+    from hyperresearch.core.vault import Vault, VaultError
+
+    try:
+        return Vault.discover()
+    except VaultError as e:
+        if json_output:
+            output(error(str(e), "NO_VAULT"), json_mode=True)
+        else:
+            console.print(f"[red]Error:[/] {e}")
+        raise typer.Exit(1)
+
+
+def _print_assets(assets: list) -> None:
+    if not assets:
+        console.print("[dim]No assets found.[/]")
+        return
+    for a in assets:
+        size = f"{a['size_bytes'] / 1024:.0f}KB" if a["size_bytes"] else "?"
+        alt = f" — {a['alt_text'][:60]}" if a["alt_text"] else ""
+        console.print(f"  [{a['type']}] {a['note_id']}: {a['filename']} ({size}){alt}")
+    console.print(f"\n[dim]{len(assets)} assets total[/]")
+
+
 @app.command("list")
 def assets_list(
     note_id: str | None = typer.Option(None, "--note", "-n", help="Filter by note ID"),
@@ -19,17 +43,7 @@ def assets_list(
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
 ) -> None:
     """List downloaded assets (images, screenshots, PDFs)."""
-    from hyperresearch.core.vault import Vault, VaultError
-
-    try:
-        vault = Vault.discover()
-    except VaultError as e:
-        if json_output:
-            output(error(str(e), "NO_VAULT"), json_mode=True)
-        else:
-            console.print(f"[red]Error:[/] {e}")
-        raise typer.Exit(1)
-
+    vault = _open_assets_vault(json_output)
     vault.auto_sync()
     conn = vault.db
 
@@ -61,14 +75,7 @@ def assets_list(
     if json_output:
         output(success(assets, count=len(assets), vault=str(vault.root)), json_mode=True)
     else:
-        if not assets:
-            console.print("[dim]No assets found.[/]")
-            return
-        for a in assets:
-            size = f"{a['size_bytes'] / 1024:.0f}KB" if a["size_bytes"] else "?"
-            alt = f" — {a['alt_text'][:60]}" if a["alt_text"] else ""
-            console.print(f"  [{a['type']}] {a['note_id']}: {a['filename']} ({size}){alt}")
-        console.print(f"\n[dim]{len(assets)} assets total[/]")
+        _print_assets(assets)
 
 
 @app.command("path")

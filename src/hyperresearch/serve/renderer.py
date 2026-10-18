@@ -66,36 +66,48 @@ def render_markdown(body: str) -> str:
     text = html.escape(body)
 
     # Handle code blocks (preserve them)
-    code_blocks = []
-
-    def save_code_block(m):
-        code_blocks.append(m.group(0))
-        return f"\x00CODE{len(code_blocks) - 1}\x00"
-
-    text = re.sub(r"```(\w*)\n(.*?)```", save_code_block, text, flags=re.DOTALL)
+    code_blocks: list[str] = []
+    text = re.sub(
+        r"```(\w*)\n(.*?)```",
+        lambda m: _save_code_block(code_blocks, m),
+        text,
+        flags=re.DOTALL,
+    )
 
     for pattern, replacement in MD_PATTERNS:
         text = pattern.sub(replacement, text)  # type: ignore[call-overload]
 
     # Wiki links: [[target|display]] or [[target]]
-    def replace_wiki_link(m):
-        full = m.group(0)
-        # Unescape the brackets that html.escape would have converted
-        inner = full[2:-2]
-        if "|" in inner:
-            target, display = inner.split("|", 1)
-        else:
-            target = display = inner
-        target = target.strip()
-        display = display.strip()
-        return f'<a href="/note/{target}" class="wiki-link">{display}</a>'
-
-    text = re.sub(r"\[\[([^\]]+)\]\]", replace_wiki_link, text)
+    text = re.sub(r"\[\[([^\]]+)\]\]", _replace_wiki_link, text)
 
     text = re.sub(r"^- (.+)$", r"<li>\1</li>", text, flags=re.MULTILINE)
     text = re.sub(r"(<li>.*</li>\n?)+", lambda m: f"<ul>{m.group(0)}</ul>", text)
 
-    lines = text.split("\n")
+    text = _fold_tables(text.split("\n"))
+    text = _restore_code_blocks(text, code_blocks)
+    return _wrap_paragraphs(text)
+
+
+def _save_code_block(code_blocks: list, m) -> str:
+    code_blocks.append(m.group(0))
+    return f"\x00CODE{len(code_blocks) - 1}\x00"
+
+
+def _replace_wiki_link(m):
+    full = m.group(0)
+    # Unescape the brackets that html.escape would have converted
+    inner = full[2:-2]
+    if "|" in inner:
+        target, display = inner.split("|", 1)
+    else:
+        target = display = inner
+    target = target.strip()
+    display = display.strip()
+    return f'<a href="/note/{target}" class="wiki-link">{display}</a>'
+
+
+def _fold_tables(lines: list[str]) -> str:
+    """Render markdown tables in a line list, returning joined HTML."""
     in_table = False
     table_lines: list[str] = []
     result_lines = []
@@ -113,8 +125,10 @@ def render_markdown(body: str) -> str:
             result_lines.append(line)
     if in_table:
         result_lines.append(_render_table(table_lines))
-    text = "\n".join(result_lines)
+    return "\n".join(result_lines)
 
+
+def _restore_code_blocks(text: str, code_blocks: list) -> str:
     for i, block in enumerate(code_blocks):
         html.escape(block)
         lang_match = re.match(r"```(\w+)\n", block)
@@ -122,14 +136,16 @@ def render_markdown(body: str) -> str:
         code_content = re.sub(r"```\w*\n|```", "", block)
         code_html = f'<pre><code class="language-{lang}">{html.escape(code_content)}</code></pre>'
         text = text.replace(f"\x00CODE{i}\x00", code_html)
+    return text
 
-    # Paragraphs: wrap standalone lines
+
+def _wrap_paragraphs(text: str) -> str:
+    """Wrap standalone lines in paragraphs."""
     text = re.sub(r"\n\n+", "\n</p>\n<p>\n", text)
     if not text.startswith("<"):
         text = "<p>\n" + text
     if not text.rstrip().endswith(">"):
         text = text + "\n</p>"
-
     return text
 
 

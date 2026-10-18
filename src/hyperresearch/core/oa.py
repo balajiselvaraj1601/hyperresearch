@@ -148,8 +148,9 @@ def check_oa_url(url: str) -> tuple[bool, str]:
     except ValueError:
         return False, "unparseable URL"
 
-    if parsed.scheme not in ("http", "https"):
-        return False, f"scheme {parsed.scheme!r} is not http(s)"
+    scheme_ok = _check_oa_scheme(parsed)
+    if scheme_ok is not None:
+        return scheme_ok
     if parsed.username or parsed.password:
         return False, "credentials embedded in URL"
 
@@ -166,6 +167,21 @@ def check_oa_url(url: str) -> tuple[bool, str]:
     except OSError as exc:
         return False, f"DNS resolution failed: {exc}"
 
+    addr_verdict = _check_resolved_addrs(infos)
+    if addr_verdict is not None:
+        return addr_verdict
+    return True, ""
+
+
+def _check_oa_scheme(parsed) -> tuple[bool, str] | None:
+    """None when the scheme is acceptable, else the rejection."""
+    if parsed.scheme not in ("http", "https"):
+        return False, f"scheme {parsed.scheme!r} is not http(s)"
+    return None
+
+
+def _check_resolved_addrs(infos) -> tuple[bool, str] | None:
+    """None when every resolved address is publicly routable, else rejection."""
     for info in infos:
         addr: str = info[4][0]  # type: ignore[assignment]
         try:
@@ -174,8 +190,7 @@ def check_oa_url(url: str) -> tuple[bool, str]:
             return False, f"unparseable address {addr!r}"
         if not ip.is_global or ip.is_multicast:
             return False, f"host resolves to non-public address {ip}"
-
-    return True, ""
+    return None
 
 
 def _is_ip_literal(host: str) -> bool:
@@ -283,30 +298,10 @@ def _unpaywall_candidates(
         return
 
     # best_oa_location goes first so it wins ties under a stable sort.
-    locations: list[dict] = []
-    best = data.get("best_oa_location")
-    if isinstance(best, dict):
-        locations.append(best)
-    for loc in data.get("oa_locations") or []:
-        if isinstance(loc, dict) and loc not in locations:
-            locations.append(loc)
-
-    def sort_key(loc: dict) -> tuple[int, int]:
-        has_pdf = 0 if loc.get("url_for_pdf") else 1
-        rank = _VERSION_RANK.get(loc.get("version") or "", 3) if prefer_published else 0
-        return (has_pdf, rank)
-
-    ordered = sorted(locations, key=sort_key)
-
-    def build(loc: dict, target: str, kind: str) -> OALocation:
-        return OALocation(
-            url=target,
-            resolver="unpaywall",
-            kind=kind,
-            version=loc.get("version") or None,
-            license=loc.get("license") or None,
-            host_type=loc.get("host_type") or None,
-        )
+    ordered = sorted(
+        _unpaywall_locations(data),
+        key=lambda loc: _unpaywall_sort_key(loc, prefer_published),
+    )
 
     seen: set[str] = set()
     # Every PDF first, then the landing pages as fallbacks — a publisher that
@@ -317,7 +312,36 @@ def _unpaywall_candidates(
             if not target or target in seen:
                 continue
             seen.add(target)
-            yield build(loc, target, "pdf" if want_pdf else "page")
+            yield _unpaywall_build(loc, target, "pdf" if want_pdf else "page")
+
+
+def _unpaywall_locations(data: dict) -> list[dict]:
+    """Deduplicated OA locations, best first."""
+    locations: list[dict] = []
+    best = data.get("best_oa_location")
+    if isinstance(best, dict):
+        locations.append(best)
+    for loc in data.get("oa_locations") or []:
+        if isinstance(loc, dict) and loc not in locations:
+            locations.append(loc)
+    return locations
+
+
+def _unpaywall_sort_key(loc: dict, prefer_published: bool) -> tuple[int, int]:
+    has_pdf = 0 if loc.get("url_for_pdf") else 1
+    rank = _VERSION_RANK.get(loc.get("version") or "", 3) if prefer_published else 0
+    return (has_pdf, rank)
+
+
+def _unpaywall_build(loc: dict, target: str, kind: str) -> OALocation:
+    return OALocation(
+        url=target,
+        resolver="unpaywall",
+        kind=kind,
+        version=loc.get("version") or None,
+        license=loc.get("license") or None,
+        host_type=loc.get("host_type") or None,
+    )
 
 
 def _resolve_europepmc(conn, doi: str, ttl_days: int, fresh: bool) -> OALocation | None:
@@ -431,6 +455,20 @@ def _core_candidates(
     except ImportError:
         return
 
+    rec = _core_record(conn, core_oa, fetch_json, key, doi, ttl_days, fresh)
+    if rec is None:
+        return
+
+    seen: set[str] = set()
+    for target, kind in _core_targets(rec, core_oa):
+        if target in seen:
+            continue
+        seen.add(target)
+        yield _core_build(rec, target, kind)
+
+
+def _core_record(conn, core_oa, fetch_json, key: str, doi: str, ttl_days: int, fresh: bool):
+    """CORE's first work record for `doi`, or None when unusable."""
     try:
         data = fetch_json(
             conn,
@@ -440,47 +478,41 @@ def _core_candidates(
             headers=core_oa.auth_headers(key),
         )
     except Exception:
-        return
+        return None
     if not isinstance(data, dict):
-        return
+        return None
     results = data.get("results")
     if not isinstance(results, list) or not results:
-        return
+        return None
     rec = results[0]
     if not isinstance(rec, dict):
-        return
+        return None
+    return rec
 
-    version = _core_version(rec)
-    licence = _core_license(rec)
 
-    def build(target: str, kind: str) -> OALocation:
-        return OALocation(
-            url=target,
-            resolver="core",
-            kind=kind,
-            version=version,
-            license=licence,
-            host_type="repository",
-        )
-
-    seen: set[str] = set()
-
+def _core_targets(rec: dict, core_oa):
+    """(target, kind) copies in preference order: coretext, pdf, fallbacks."""
     core_id = rec.get("id")
     if isinstance(core_id, int) or (isinstance(core_id, str) and core_id.strip()):
-        target = core_oa.work_url(str(core_id).strip())
-        seen.add(target)
-        yield build(target, "coretext")
+        yield core_oa.work_url(str(core_id).strip()), "coretext"
 
     download = rec.get("downloadUrl")
-    if isinstance(download, str) and download.strip() and download not in seen:
-        seen.add(download)
-        yield build(download, "pdf")
+    if isinstance(download, str) and download.strip():
+        yield download, "pdf"
 
     for target in core_oa.source_fulltext_urls(rec):
-        if target in seen:
-            continue
-        seen.add(target)
-        yield build(target, "pdf" if core_oa.looks_like_pdf(target) else "page")
+        yield target, "pdf" if core_oa.looks_like_pdf(target) else "page"
+
+
+def _core_build(rec: dict, target: str, kind: str) -> OALocation:
+    return OALocation(
+        url=target,
+        resolver="core",
+        kind=kind,
+        version=_core_version(rec),
+        license=_core_license(rec),
+        host_type="repository",
+    )
 
 
 def _fetch_core_text(url: str, fallback_title: str | None) -> WebResult | None:
@@ -589,52 +621,67 @@ def jats_to_markdown(xml_text: str) -> str | None:
 
     out: list[str] = []
 
-    title_el = root.find(".//front//article-title")
-    if title_el is not None:
-        title = _jats_block_text(title_el)
-        if title:
-            out.append(f"# {title}\n")
-
-    abstract = root.find(".//front//abstract")
-    if abstract is not None:
-        out.append("## Abstract\n")
-        for para in abstract.iter("p"):
-            text = _jats_block_text(para)
-            if text:
-                out.append(text + "\n")
+    _jats_title(root, out)
+    _jats_abstract(root, out)
 
     body = root.find("body")
     if body is None:
         return "\n".join(out).strip() or None
 
-    def walk(node, depth: int) -> None:
-        for child in node:
-            if child.tag == "sec":
-                heading = child.find("title")
-                if heading is not None:
-                    text = _jats_block_text(heading)
-                    if text:
-                        out.append(f"{'#' * min(depth, 6)} {text}\n")
-                walk(child, depth + 1)
-            elif child.tag in ("p", "disp-quote"):
-                text = _jats_block_text(child)
-                if text:
-                    out.append(text + "\n")
-            elif child.tag in ("fig", "table-wrap"):
-                caption = child.find("caption")
-                if caption is not None:
-                    text = _jats_block_text(caption)
-                    if text:
-                        out.append(f"*{text}*\n")
-            elif child.tag == "list":
-                for item in child.iter("list-item"):
-                    text = _jats_block_text(item)
-                    if text:
-                        out.append(f"- {text}")
-                out.append("")
-
-    walk(body, 2)
+    _walk_jats(body, 2, out)
     return "\n".join(out).strip() or None
+
+
+def _emit(out: list, text: str, prefix: str = "", suffix: str = "\n") -> None:
+    if text:
+        out.append(f"{prefix}{text}{suffix}")
+
+
+def _jats_title(root, out: list) -> None:
+    title_el = root.find(".//front//article-title")
+    if title_el is not None:
+        _emit(out, _jats_block_text(title_el), prefix="# ", suffix="\n")
+
+
+def _jats_abstract(root, out: list) -> None:
+    abstract = root.find(".//front//abstract")
+    if abstract is None:
+        return
+    out.append("## Abstract\n")
+    for para in abstract.iter("p"):
+        _emit(out, _jats_block_text(para), suffix="\n")
+
+
+def _walk_jats(node, depth: int, out: list) -> None:
+    for child in node:
+        if child.tag == "sec":
+            _walk_sec(child, depth, out)
+        elif child.tag in ("p", "disp-quote"):
+            _emit(out, _jats_block_text(child), suffix="\n")
+        elif child.tag in ("fig", "table-wrap"):
+            _walk_fig(child, out)
+        elif child.tag == "list":
+            _walk_list(child, out)
+
+
+def _walk_sec(child, depth: int, out: list) -> None:
+    heading = child.find("title")
+    if heading is not None:
+        _emit(out, _jats_block_text(heading), prefix=f"{'#' * min(depth, 6)} ")
+    _walk_jats(child, depth + 1, out)
+
+
+def _walk_fig(child, out: list) -> None:
+    caption = child.find("caption")
+    if caption is not None:
+        text = _jats_block_text(caption)
+        _emit(out, text, prefix="*", suffix="*\n")
+
+
+def _walk_list(child, out: list) -> None:
+    for item in child.iter("list-item"):
+        _emit(out, _jats_block_text(item), prefix="- ", suffix="")
+    out.append("")
 
 
 # ---------------------------------------------------------------------------
@@ -789,47 +836,54 @@ def _try_candidates(vault, prov, doi: str, settings, *, fallback_title, beat_cha
             continue
 
         attempts += 1
-        try:
-            if loc.kind == "pdf":
-                from hyperresearch.web.pdf import fetch_pdf
-
-                recovered = fetch_pdf(loc.url, vault.config.fetch)
-            elif loc.kind == "jats":
-                recovered = _fetch_jats(loc.url, fallback_title)
-            elif loc.kind == "coretext":
-                recovered = _fetch_core_text(loc.url, fallback_title)
-            elif prov is not None:
-                recovered = prov.fetch(loc.url)
-            else:
-                continue
-        except Exception:
-            continue
-
-        if recovered is None:
-            continue
-        if recovered.looks_like_junk(vault.config.junk):
-            continue
-
-        # Two bars, and a candidate has to clear both. Never shrink a note: a
-        # badly-extracted PDF is worse than the abstract. And a recovery only
-        # counts if it clears the same threshold that made this page look thin
-        # in the first place — otherwise a repository *record page* (title,
-        # authors, a 200-word summary) passes for full text just by being
-        # marginally longer than the publisher's abstract.
-        recovered_len = len(recovered.content or "")
-        if recovered_len <= beat_chars:
-            continue
-        if recovered_len < settings.oa_min_full_text_chars:
-            log.debug(
-                "Open-access candidate %s is still not full text (%d chars)",
-                loc.url,
-                recovered_len,
-            )
-            continue
-
-        return recovered, loc
+        recovered = _fetch_candidate(vault, prov, loc, fallback_title)
+        if _candidate_usable(recovered, vault, loc, beat_chars, settings, log):
+            return recovered, loc
 
     return None, None
+
+
+def _fetch_candidate(vault, prov, loc, fallback_title):
+    """Fetch one OA candidate. Returns None when unusable or failed."""
+    try:
+        if loc.kind == "pdf":
+            from hyperresearch.web.pdf import fetch_pdf
+
+            return fetch_pdf(loc.url, vault.config.fetch)
+        elif loc.kind == "jats":
+            return _fetch_jats(loc.url, fallback_title)
+        elif loc.kind == "coretext":
+            return _fetch_core_text(loc.url, fallback_title)
+        elif prov is not None:
+            return prov.fetch(loc.url)
+    except Exception:
+        pass
+    return None
+
+
+def _candidate_usable(recovered, vault, loc, beat_chars: int, settings, log) -> bool:
+    """True when a fetched candidate clears both length bars."""
+    if recovered is None:
+        return False
+    if recovered.looks_like_junk(vault.config.junk):
+        return False
+    # Two bars, and a candidate has to clear both. Never shrink a note: a
+    # badly-extracted PDF is worse than the abstract. And a recovery only
+    # counts if it clears the same threshold that made this page look thin
+    # in the first place — otherwise a repository *record page* (title,
+    # authors, a 200-word summary) passes for full text just by being
+    # marginally longer than the publisher's abstract.
+    recovered_len = len(recovered.content or "")
+    if recovered_len <= beat_chars:
+        return False
+    if recovered_len < settings.oa_min_full_text_chars:
+        log.debug(
+            "Open-access candidate %s is still not full text (%d chars)",
+            loc.url,
+            recovered_len,
+        )
+        return False
+    return True
 
 
 def recover_full_text(vault, prov, url: str, doi: str | None, result):

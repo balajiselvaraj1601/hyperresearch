@@ -495,12 +495,7 @@ def _critical_findings_resolved(run_dir: Path) -> tuple[bool, str]:
     skipped / conflicts / orchestrator_escalated entries that name a finding
     number at least the critical count.
     """
-    criticals = 0
-    for name in CRITIC_NAMES:
-        findings = _load_findings(run_dir / f"critic-findings-{name}.json")
-        if findings is None:
-            continue
-        criticals += sum(1 for f in findings if f.get("severity") == "critical")
+    criticals = _count_criticals(run_dir)
     if criticals == 0:
         return True, "no critical findings"
     log_path = run_dir / "patch-log.json"
@@ -523,6 +518,256 @@ def _critical_findings_resolved(run_dir: Path) -> tuple[bool, str]:
     )
 
 
+def _count_criticals(run_dir: Path) -> int:
+    criticals = 0
+    for name in CRITIC_NAMES:
+        findings = _load_findings(run_dir / f"critic-findings-{name}.json")
+        if findings is None:
+            continue
+        criticals += sum(1 for f in findings if f.get("severity") == "critical")
+    return criticals
+
+
+def _check_decomposition(run_dir: Path, checks: list) -> tuple:
+    """Read prompt-decomposition.json. Returns (format, headings, levers)."""
+    decomp_path = run_dir / "prompt-decomposition.json"
+    response_format = None
+    required_headings: list[str] = []
+    declares_levers = False
+    if not decomp_path.exists():
+        return response_format, required_headings, declares_levers
+    try:
+        decomp = json.loads(decomp_path.read_text(encoding="utf-8-sig"))
+        response_format = decomp.get("response_format")
+        required_headings = decomp.get("required_section_headings", []) or []
+        declares_levers = bool(decomp.get("levers"))
+    except json.JSONDecodeError:
+        checks.append(
+            {
+                "name": "decomposition-readable",
+                "ok": False,
+                "detail": "prompt-decomposition.json is not valid JSON",
+            }
+        )
+    return response_format, required_headings, declares_levers
+
+
+def _check_levers_rendered(
+    run_dir: Path, declares_levers: bool, vault_tag: str, checks: list
+) -> None:
+    # Runs that declared levers must have rendered the shim files the
+    # spawn contract pastes downstream. Lever-less runs (pre-levers or
+    # defaults-only) skip the check entirely.
+    if not declares_levers:
+        return
+    from hyperresearch.core.levers import ROLES
+
+    missing_shims = [role for role in ROLES if not (run_dir / "shims" / f"{role}.md").exists()]
+    checks.append(
+        {
+            "name": "levers-rendered",
+            "ok": not missing_shims,
+            "detail": "all shim files present"
+            if not missing_shims
+            else f"missing shims: {missing_shims} (run `hpr levers render {vault_tag}`)",
+        }
+    )
+
+
+def _check_length_in_range(profile, response_format: str, report_text: str, checks: list) -> None:
+    if _lacks_word_boundaries(report_text):
+        # char_targets_no_word_boundary is profile-configurable per
+        # response_format; falls back to word_target * chars_per_word
+        # if a format has no explicit target.
+        char_targets = profile.char_targets_no_word_boundary
+        if response_format in char_targets:
+            low, high = char_targets[response_format]
+        else:
+            low_w, high_w = profile.word_targets[response_format]
+            ratio = profile.chars_per_word_no_word_boundary
+            low, high = int(low_w * ratio), int(high_w * ratio)
+        count = len(report_text)
+        checks.append(
+            {
+                "name": "length-in-range",
+                "ok": low * 0.8 <= count <= high * 1.2,
+                "detail": f"{count} chars vs target {low}-{high} ({response_format}; char-based; ±20% tolerance)",
+            }
+        )
+    else:
+        low, high = profile.word_targets[response_format]
+        wc = len(report_text.split())
+        checks.append(
+            {
+                "name": "length-in-range",
+                "ok": low * 0.8 <= wc <= high * 1.2,
+                "detail": f"{wc} words vs target {low}-{high} ({response_format}; ±20% tolerance)",
+            }
+        )
+
+
+def _check_citation_density(profile, report_text: str, checks: list) -> None:
+    import re as _re
+
+    from hyperresearch.core.patterns import WIKI_LINK_RE
+
+    # Grouped markers ([7, 12]) count one citation per source number,
+    # so consolidating stacks never lowers measured density. Wiki-link
+    # citations use the shared pattern so this gate and the lint/cite-
+    # check rules agree on what a [[...]] citation is.
+    cites = sum(
+        len(g.split(",")) for g in _re.findall(r"\[(\d{1,3}(?:\s*,\s*\d{1,3})*)\]", report_text)
+    ) + len(WIKI_LINK_RE.findall(report_text))
+    # Per 1000 *effective* words, not characters: a character floor
+    # means a different amount of content per script (CJK packs ~3x
+    # the content per character), so the same number would be a
+    # different bar for a Japanese report than for an English one.
+    no_boundaries = _lacks_word_boundaries(report_text)
+    effective_words = _effective_word_count(report_text, profile.chars_per_word_no_word_boundary)
+    density = cites * 1000 / max(1.0, effective_words)
+    floor = profile.citation_density_min  # also the instruction critic's re-count trigger
+    unit = (
+        f"words (chars / {profile.chars_per_word_no_word_boundary:g}; no word boundaries)"
+        if no_boundaries
+        else "words"
+    )
+    checks.append(
+        {
+            "name": "citation-density",
+            "ok": density >= floor,
+            "detail": f"{density:.2f} citations/1000 {unit} (floor {floor})",
+        }
+    )
+
+
+def _check_content_lints(vault, report_path, report_text: str, checks: list) -> None:
+    # Content gates: the blocking lint rules run in-process, so this ONE
+    # command carries the whole ship verdict. Bench Q62 shipped with 24
+    # hallucinated-quote errors because the orchestrator ran the lint
+    # separately and re-interpreted the failures as false positives —
+    # folding the rules in here removes that seam.
+    try:
+        from hyperresearch.cli.lint import (
+            _check_quote_integrity,
+            _check_retracted_citations,
+        )
+
+        for rule, fn in (
+            ("quote-integrity", _check_quote_integrity),
+            ("retracted-citations", _check_retracted_citations),
+        ):
+            errors = [
+                i
+                for i in fn(vault, vault.db, report_path, report_text)
+                if i.get("severity") == "error"
+            ]
+            checks.append(
+                {
+                    "name": rule,
+                    "ok": not errors,
+                    "detail": "clean"
+                    if not errors
+                    else (f"{len(errors)} error(s) — first: {errors[0].get('message', '')[:160]}"),
+                }
+            )
+    except Exception as exc:
+        checks.append(
+            {
+                "name": "content-lints",
+                "ok": False,
+                "detail": f"content lint rules failed to run: {exc}",
+            }
+        )
+
+
+def _verify_report_metrics(
+    profile, response_format, required_headings: list, report_text: str, checks: list
+) -> None:
+    if response_format and response_format in profile.word_targets:
+        _check_length_in_range(profile, response_format, report_text, checks)
+    missing = [h for h in required_headings if h not in report_text]
+    checks.append(
+        {
+            "name": "required-headings",
+            "ok": not missing,
+            "detail": "all present" if not missing else f"missing: {missing}",
+        }
+    )
+    _check_citation_density(profile, report_text, checks)
+    checks.append(
+        {
+            "name": "no-scaffold-leak",
+            "ok": "## User Prompt (VERBATIM" not in report_text,
+            "detail": "scaffold gospel header must not ship",
+        }
+    )
+
+
+def _verify_report_section(
+    vault, run_dir: Path, profile, report_path, report_text: str, vault_tag: str, checks: list
+) -> None:
+    response_format, required_headings, declares_levers = _check_decomposition(run_dir, checks)
+    _check_levers_rendered(run_dir, declares_levers, vault_tag, checks)
+    _verify_report_metrics(profile, response_format, required_headings, report_text, checks)
+    _check_content_lints(vault, report_path, report_text, checks)
+
+
+def _verify_tier_artifacts(manifest: dict, run_dir: Path, vault, checks: list) -> None:
+    # Tier-mandated artifacts, keyed on the tier the run actually ran (see
+    # _required_step_ids) rather than the profile it was initialized with.
+    steps = _required_step_ids(manifest, run_dir, vault.config_path)
+    if {"12", "14"} <= steps:
+        for name in (
+            "critic-findings-dialectic.json",
+            "critic-findings-depth.json",
+            "critic-findings-width.json",
+            "critic-findings-instruction.json",
+            "patch-log.json",
+        ):
+            checks.append(
+                {
+                    "name": f"artifact:{name}",
+                    "ok": (run_dir / name).exists(),
+                    "detail": str(run_dir / name),
+                }
+            )
+        ok, detail = _critical_findings_resolved(run_dir)
+        checks.append({"name": "critical-findings-resolved", "ok": ok, "detail": detail})
+    if "15" in steps:
+        checks.append(
+            {
+                "name": "artifact:polish-log.json",
+                "ok": (run_dir / "polish-log.json").exists(),
+                "detail": str(run_dir / "polish-log.json"),
+            }
+        )
+
+
+def _verify_cite_check(manifest: dict, run_dir: Path, checks: list) -> None:
+    # Cite-check (step 14.5): findings must exist and critical ones resolved
+    cc_findings = run_dir / "cite-check-findings.json"
+    if manifest.get("steps", {}).get("14.5", {}).get("status") != "done":
+        return
+    ok = cc_findings.exists()
+    detail = str(cc_findings)
+    if ok:
+        try:
+            findings = json.loads(cc_findings.read_text(encoding="utf-8-sig"))
+            # The cite-check step writes {"findings": [...]}; older runs
+            # (and the original design sketch) used a bare list. Accept both.
+            if isinstance(findings, dict):
+                findings = findings.get("findings", [])
+            criticals = [f for f in findings if f.get("severity") == "critical"]
+            if criticals:
+                log_path = run_dir / "cite-check-patch-log.json"
+                ok = log_path.exists()
+                detail = f"{len(criticals)} critical finding(s); patch log {'present' if ok else 'MISSING'}"
+        except json.JSONDecodeError:
+            ok = False
+            detail = "cite-check-findings.json is not valid JSON"
+    checks.append({"name": "cite-check-resolved", "ok": ok, "detail": detail})
+
+
 def verify_run(vault, vault_tag: str) -> dict:
     """Structural verification battery for a completed run.
 
@@ -539,191 +784,17 @@ def verify_run(vault, vault_tag: str) -> dict:
     run_dir = vault.run_dir(vault_tag)
     checks: list[dict] = []
 
-    def check(name: str, ok: bool, detail: str) -> None:
-        checks.append({"name": name, "ok": bool(ok), "detail": detail})
-
     report_path = vault.reports_dir / vault_tag / f"final_report_{vault_tag}.md"
-    check("report-exists", report_path.exists(), str(report_path))
+    checks.append(
+        {"name": "report-exists", "ok": bool(report_path.exists()), "detail": str(report_path)}
+    )
 
-    report_text = ""
     if report_path.exists():
         report_text = report_path.read_text(encoding="utf-8-sig")
+        _verify_report_section(vault, run_dir, profile, report_path, report_text, vault_tag, checks)
 
-        decomp_path = run_dir / "prompt-decomposition.json"
-        response_format = None
-        required_headings: list[str] = []
-        declares_levers = False
-        if decomp_path.exists():
-            try:
-                decomp = json.loads(decomp_path.read_text(encoding="utf-8-sig"))
-                response_format = decomp.get("response_format")
-                required_headings = decomp.get("required_section_headings", []) or []
-                declares_levers = bool(decomp.get("levers"))
-            except json.JSONDecodeError:
-                check(
-                    "decomposition-readable", False, "prompt-decomposition.json is not valid JSON"
-                )
-
-        # Runs that declared levers must have rendered the shim files the
-        # spawn contract pastes downstream. Lever-less runs (pre-levers or
-        # defaults-only) skip the check entirely.
-        if declares_levers:
-            from hyperresearch.core.levers import ROLES
-
-            missing_shims = [
-                role for role in ROLES if not (run_dir / "shims" / f"{role}.md").exists()
-            ]
-            check(
-                "levers-rendered",
-                not missing_shims,
-                "all shim files present"
-                if not missing_shims
-                else f"missing shims: {missing_shims} (run `hpr levers render {vault_tag}`)",
-            )
-
-        if response_format and response_format in profile.word_targets:
-            if _lacks_word_boundaries(report_text):
-                # char_targets_no_word_boundary is profile-configurable per
-                # response_format; falls back to word_target * chars_per_word
-                # if a format has no explicit target.
-                char_targets = profile.char_targets_no_word_boundary
-                if response_format in char_targets:
-                    low, high = char_targets[response_format]
-                else:
-                    low_w, high_w = profile.word_targets[response_format]
-                    ratio = profile.chars_per_word_no_word_boundary
-                    low, high = int(low_w * ratio), int(high_w * ratio)
-                count = len(report_text)
-                check(
-                    "length-in-range",
-                    low * 0.8 <= count <= high * 1.2,
-                    f"{count} chars vs target {low}-{high} ({response_format}; char-based; ±20% tolerance)",
-                )
-            else:
-                low, high = profile.word_targets[response_format]
-                wc = len(report_text.split())
-                check(
-                    "length-in-range",
-                    low * 0.8 <= wc <= high * 1.2,
-                    f"{wc} words vs target {low}-{high} ({response_format}; ±20% tolerance)",
-                )
-
-        missing = [h for h in required_headings if h not in report_text]
-        check(
-            "required-headings",
-            not missing,
-            "all present" if not missing else f"missing: {missing}",
-        )
-
-        import re as _re
-
-        from hyperresearch.core.patterns import WIKI_LINK_RE
-
-        # Grouped markers ([7, 12]) count one citation per source number,
-        # so consolidating stacks never lowers measured density. Wiki-link
-        # citations use the shared pattern so this gate and the lint/cite-
-        # check rules agree on what a [[...]] citation is.
-        cites = sum(
-            len(g.split(",")) for g in _re.findall(r"\[(\d{1,3}(?:\s*,\s*\d{1,3})*)\]", report_text)
-        ) + len(WIKI_LINK_RE.findall(report_text))
-        # Per 1000 *effective* words, not characters: a character floor
-        # means a different amount of content per script (CJK packs ~3x
-        # the content per character), so the same number would be a
-        # different bar for a Japanese report than for an English one.
-        no_boundaries = _lacks_word_boundaries(report_text)
-        effective_words = _effective_word_count(
-            report_text, profile.chars_per_word_no_word_boundary
-        )
-        density = cites * 1000 / max(1.0, effective_words)
-        floor = profile.citation_density_min  # also the instruction critic's re-count trigger
-        unit = (
-            f"words (chars / {profile.chars_per_word_no_word_boundary:g}; no word boundaries)"
-            if no_boundaries
-            else "words"
-        )
-        check(
-            "citation-density",
-            density >= floor,
-            f"{density:.2f} citations/1000 {unit} (floor {floor})",
-        )
-
-        check(
-            "no-scaffold-leak",
-            "## User Prompt (VERBATIM" not in report_text,
-            "scaffold gospel header must not ship",
-        )
-
-        # Content gates: the blocking lint rules run in-process, so this ONE
-        # command carries the whole ship verdict. Bench Q62 shipped with 24
-        # hallucinated-quote errors because the orchestrator ran the lint
-        # separately and re-interpreted the failures as false positives —
-        # folding the rules in here removes that seam.
-        try:
-            from hyperresearch.cli.lint import (
-                _check_quote_integrity,
-                _check_retracted_citations,
-            )
-
-            for rule, fn in (
-                ("quote-integrity", _check_quote_integrity),
-                ("retracted-citations", _check_retracted_citations),
-            ):
-                errors = [
-                    i
-                    for i in fn(vault, vault.db, report_path, report_text)
-                    if i.get("severity") == "error"
-                ]
-                check(
-                    rule,
-                    not errors,
-                    "clean"
-                    if not errors
-                    else (f"{len(errors)} error(s) — first: {errors[0].get('message', '')[:160]}"),
-                )
-        except Exception as exc:
-            check("content-lints", False, f"content lint rules failed to run: {exc}")
-
-    # Tier-mandated artifacts, keyed on the tier the run actually ran (see
-    # _required_step_ids) rather than the profile it was initialized with.
-    steps = _required_step_ids(manifest, run_dir, vault.config_path)
-    if {"12", "14"} <= steps:
-        for name in (
-            "critic-findings-dialectic.json",
-            "critic-findings-depth.json",
-            "critic-findings-width.json",
-            "critic-findings-instruction.json",
-            "patch-log.json",
-        ):
-            check(f"artifact:{name}", (run_dir / name).exists(), str(run_dir / name))
-        check("critical-findings-resolved", *_critical_findings_resolved(run_dir))
-    if "15" in steps:
-        check(
-            "artifact:polish-log.json",
-            (run_dir / "polish-log.json").exists(),
-            str(run_dir / "polish-log.json"),
-        )
-
-    # Cite-check (step 14.5): findings must exist and critical ones resolved
-    cc_findings = run_dir / "cite-check-findings.json"
-    if manifest.get("steps", {}).get("14.5", {}).get("status") == "done":
-        ok = cc_findings.exists()
-        detail = str(cc_findings)
-        if ok:
-            try:
-                findings = json.loads(cc_findings.read_text(encoding="utf-8-sig"))
-                # The cite-check step writes {"findings": [...]}; older runs
-                # (and the original design sketch) used a bare list. Accept both.
-                if isinstance(findings, dict):
-                    findings = findings.get("findings", [])
-                criticals = [f for f in findings if f.get("severity") == "critical"]
-                if criticals:
-                    log_path = run_dir / "cite-check-patch-log.json"
-                    ok = log_path.exists()
-                    detail = f"{len(criticals)} critical finding(s); patch log {'present' if ok else 'MISSING'}"
-            except json.JSONDecodeError:
-                ok = False
-                detail = "cite-check-findings.json is not valid JSON"
-        check("cite-check-resolved", ok, detail)
+    _verify_tier_artifacts(manifest, run_dir, vault, checks)
+    _verify_cite_check(manifest, run_dir, checks)
 
     return {"vault_tag": vault_tag, "passed": all(c["ok"] for c in checks), "checks": checks}
 

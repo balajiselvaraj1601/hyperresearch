@@ -29,9 +29,21 @@ def pagerank(
     if not nodes:
         return {}
     n = len(nodes)
-    node_set = set(nodes)
+    out, incoming = _build_graph(nodes, edges)
 
-    # Deduplicate edges; drop self-loops and edges to unknown nodes
+    rank = dict.fromkeys(nodes, 1.0 / n)
+    base = (1.0 - damping) / n
+
+    for _ in range(max_iterations):
+        rank, converged = _iterate_rank(nodes, out, incoming, rank, base, damping)
+        if converged < convergence:
+            break
+    return rank
+
+
+def _build_graph(nodes: list[str], edges: list[tuple[str, str]]):
+    """Deduplicated out/in adjacency; drops self-loops and unknown nodes."""
+    node_set = set(nodes)
     out: dict[str, set[str]] = {node: set() for node in nodes}
     for src, dst in edges:
         if src in node_set and dst in node_set and src != dst:
@@ -41,21 +53,19 @@ def pagerank(
     for src, targets in out.items():
         for dst in targets:
             incoming[dst].append(src)
+    return out, incoming
 
-    rank = dict.fromkeys(nodes, 1.0 / n)
-    base = (1.0 - damping) / n
 
-    for _ in range(max_iterations):
-        dangling_mass = sum(rank[node] for node in nodes if not out[node])
-        new_rank = {}
-        for node in nodes:
-            incoming_sum = sum(rank[src] / len(out[src]) for src in incoming[node])
-            new_rank[node] = base + damping * (incoming_sum + dangling_mass / n)
-        delta = sum(abs(new_rank[node] - rank[node]) for node in nodes)
-        rank = new_rank
-        if delta < convergence:
-            break
-    return rank
+def _iterate_rank(nodes, out, incoming, rank, base, damping):
+    """One power-iteration step. Returns (new_rank, delta)."""
+    n = len(nodes)
+    dangling_mass = sum(rank[node] for node in nodes if not out[node])
+    new_rank = {}
+    for node in nodes:
+        incoming_sum = sum(rank[src] / len(out[src]) for src in incoming[node])
+        new_rank[node] = base + damping * (incoming_sum + dangling_mass / n)
+    delta = sum(abs(new_rank[node] - rank[node]) for node in nodes)
+    return new_rank, delta
 
 
 def compute_centrality(conn) -> int:

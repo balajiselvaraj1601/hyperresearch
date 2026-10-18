@@ -42,6 +42,34 @@ _SUFFIX_BYTES = 3  # 6 hex chars → 16M-name space
 _MAX_RETRIES = 100  # 16M^100 collisions before this trips — astronomical
 
 
+def _collect_query_tags(research_dir: Path, tags: set) -> None:
+    if not research_dir.is_dir():
+        return
+    for p in research_dir.glob("query-*.md"):
+        m = _QUERY_FILE_RE.match(p.name)
+        if m:
+            tags.add(m.group(1))
+
+
+def _collect_report_tags(research_dir: Path, tags: set) -> None:
+    reports_dir = research_dir / "reports"
+    if not reports_dir.is_dir():
+        return
+    for p in reports_dir.rglob("final_report_*.md"):
+        m = _REPORT_FILE_RE.match(p.name)
+        if m:
+            tags.add(m.group(1))
+
+
+def _collect_run_tags(research_dir: Path, tags: set) -> None:
+    runs_dir = research_dir / "runs"
+    if not runs_dir.is_dir():
+        return
+    for d in runs_dir.iterdir():
+        if d.is_dir() and not d.name.startswith("archive-"):
+            tags.add(d.name)
+
+
 def _existing_tags(vault_root: Path, research_dir: Path) -> set[str]:
     """Collect every vault_tag the vault already references on disk.
 
@@ -56,26 +84,62 @@ def _existing_tags(vault_root: Path, research_dir: Path) -> set[str]:
     benefit.
     """
     tags: set[str] = set()
-    if research_dir.is_dir():
-        for p in research_dir.glob("query-*.md"):
-            m = _QUERY_FILE_RE.match(p.name)
-            if m:
-                tags.add(m.group(1))
-    reports_dir = research_dir / "reports"
-    if reports_dir.is_dir():
-        for p in reports_dir.rglob("final_report_*.md"):
-            m = _REPORT_FILE_RE.match(p.name)
-            if m:
-                tags.add(m.group(1))
+    _collect_query_tags(research_dir, tags)
+    _collect_report_tags(research_dir, tags)
     # 3.0 per-run workspaces: every output/runs/<tag>/ directory IS a tag
     # (excluding archive-* dirs from `archive-run`, which embed old tags with
     # a prefix that can't collide with fresh mints).
-    runs_dir = research_dir / "runs"
-    if runs_dir.is_dir():
-        for d in runs_dir.iterdir():
-            if d.is_dir() and not d.name.startswith("archive-"):
-                tags.add(d.name)
+    _collect_run_tags(research_dir, tags)
     return tags
+
+
+def _validate_slug(slug: str, json_output: bool) -> None:
+    if _SLUG_RE.match(slug):
+        return
+    msg = (
+        f"Invalid slug '{slug}'. Must be lowercase, start with alnum, "
+        "contain only alnum + dashes, up to 60 chars."
+    )
+    if json_output:
+        output(error(msg, "INVALID_SLUG"), json_mode=True)
+    else:
+        console.print(f"[red]{msg}[/]")
+    raise typer.Exit(1)
+
+
+def _open_tag_vault(json_output: bool):
+    from hyperresearch.core.vault import Vault, VaultError
+
+    try:
+        return Vault.discover()
+    except VaultError as e:
+        if json_output:
+            output(error(str(e), "NO_VAULT"), json_mode=True)
+        else:
+            console.print(f"[red]Error:[/] {e}")
+        raise typer.Exit(1)
+
+
+def _report_minted(vault, slug: str, suffix: str, json_output: bool) -> None:
+    data = {"vault_tag": f"{slug}-{suffix}", "slug": slug, "suffix": suffix}
+    if json_output:
+        output(success(data, vault=str(vault.root)), json_mode=True)
+    else:
+        console.print(f"{slug}-{suffix}")
+
+
+def _fail_exhausted(slug: str, json_output: bool) -> None:
+    msg = (
+        f"Could not mint a unique vault_tag for slug '{slug}' after "
+        f"{_MAX_RETRIES} retries. Suffix space ({_SUFFIX_BYTES * 2} hex chars) "
+        "exhausted — your vault has an implausibly large number of prior runs "
+        "of this exact slug. Pick a more specific slug."
+    )
+    if json_output:
+        output(error(msg, "TAG_SPACE_EXHAUSTED"), json_mode=True)
+    else:
+        console.print(f"[red]{msg}[/]")
+    raise typer.Exit(1)
 
 
 def vault_tag(
@@ -96,49 +160,15 @@ def vault_tag(
     invocation can never silently overwrite a prior run's outputs even
     when the topical slug repeats.
     """
-    from hyperresearch.core.vault import Vault, VaultError
-
-    if not _SLUG_RE.match(slug):
-        msg = (
-            f"Invalid slug '{slug}'. Must be lowercase, start with alnum, "
-            "contain only alnum + dashes, up to 60 chars."
-        )
-        if json_output:
-            output(error(msg, "INVALID_SLUG"), json_mode=True)
-        else:
-            console.print(f"[red]{msg}[/]")
-        raise typer.Exit(1)
-
-    try:
-        vault = Vault.discover()
-    except VaultError as e:
-        if json_output:
-            output(error(str(e), "NO_VAULT"), json_mode=True)
-        else:
-            console.print(f"[red]Error:[/] {e}")
-        raise typer.Exit(1)
-
+    _validate_slug(slug, json_output)
+    vault = _open_tag_vault(json_output)
     taken = _existing_tags(vault.root, vault.research_dir)
 
     for _ in range(_MAX_RETRIES):
         suffix = secrets.token_hex(_SUFFIX_BYTES)
         candidate = f"{slug}-{suffix}"
         if candidate not in taken:
-            data = {"vault_tag": candidate, "slug": slug, "suffix": suffix}
-            if json_output:
-                output(success(data, vault=str(vault.root)), json_mode=True)
-            else:
-                console.print(candidate)
+            _report_minted(vault, slug, suffix, json_output)
             return
 
-    msg = (
-        f"Could not mint a unique vault_tag for slug '{slug}' after "
-        f"{_MAX_RETRIES} retries. Suffix space ({_SUFFIX_BYTES * 2} hex chars) "
-        "exhausted — your vault has an implausibly large number of prior runs "
-        "of this exact slug. Pick a more specific slug."
-    )
-    if json_output:
-        output(error(msg, "TAG_SPACE_EXHAUSTED"), json_mode=True)
-    else:
-        console.print(f"[red]{msg}[/]")
-    raise typer.Exit(1)
+    _fail_exhausted(slug, json_output)

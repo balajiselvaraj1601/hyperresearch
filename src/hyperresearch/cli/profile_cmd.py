@@ -43,24 +43,23 @@ def _config_path() -> Path | None:
     return vault.config_path if vault else None
 
 
-@app.command("list")
-def profile_list(
-    json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
-) -> None:
-    """List available pipeline profiles (built-in + user-defined)."""
-    from hyperresearch.core.profiles import (
-        BUILTIN_PROFILES,
-        GEAR_PROFILES,
-        ProfileError,
-        list_profiles,
-        resolve_profile,
-    )
+def _resolve_profile_row(n: str, cfg, row: dict) -> None:
+    from hyperresearch.core.profiles import ProfileError, resolve_profile
 
-    vault = _discover_vault()
-    cfg = vault.config_path if vault else None
-    current_gear = vault.config.pipeline_profile if vault else "full"
+    try:
+        p = resolve_profile(n, cfg)
+        row.update(
+            description=p.description,
+            sources=list(p.source_target),
+            time_estimate=p.time_estimate,
+        )
+    except ProfileError as e:
+        row.update(description=f"INVALID: {e}", sources=None, time_estimate="")
 
-    names = list_profiles(cfg)
+
+def _collect_profile_rows(names: list, cfg, current_gear: str) -> list:
+    from hyperresearch.core.profiles import BUILTIN_PROFILES, GEAR_PROFILES
+
     rows = []
     for n in names:
         row: dict = {
@@ -69,24 +68,12 @@ def profile_list(
             "kind": "gear" if (n in GEAR_PROFILES or n not in BUILTIN_PROFILES) else "tier",
             "current_gear": n == current_gear,
         }
-        try:
-            p = resolve_profile(n, cfg)
-            row.update(
-                description=p.description,
-                sources=list(p.source_target),
-                time_estimate=p.time_estimate,
-            )
-        except ProfileError as e:
-            row.update(description=f"INVALID: {e}", sources=None, time_estimate="")
+        _resolve_profile_row(n, cfg, row)
         rows.append(row)
+    return rows
 
-    if json_output:
-        output(
-            success({"profiles": rows, "current_gear": current_gear}, count=len(rows)),
-            json_mode=True,
-        )
-        return
 
+def _print_profile_rows(rows: list) -> None:
     for r in rows:
         mark = " [green]*current gear[/]" if r["current_gear"] else ""
         kind = r["kind"] if r["builtin"] else "user-defined gear"
@@ -103,6 +90,75 @@ def profile_list(
     )
 
 
+@app.command("list")
+def profile_list(
+    json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
+) -> None:
+    """List available pipeline profiles (built-in + user-defined)."""
+    from hyperresearch.core.profiles import list_profiles
+
+    vault = _discover_vault()
+    cfg = vault.config_path if vault else None
+    current_gear = vault.config.pipeline_profile if vault else "full"
+
+    names = list_profiles(cfg)
+    rows = _collect_profile_rows(names, cfg, current_gear)
+
+    if json_output:
+        output(
+            success({"profiles": rows, "current_gear": current_gear}, count=len(rows)),
+            json_mode=True,
+        )
+        return
+    _print_profile_rows(rows)
+
+
+def _reject_tier_as_gear(name: str, json_output: bool) -> None:
+    if name not in ("light", "dissertation"):
+        return
+    msg = (
+        f"'{name}' is a run-time tier, not a scale gear. "
+        "light is auto-selected for bounded queries; dissertation runs are requested "
+        "per query (or via `hyperresearch run init <tag> --profile dissertation`). "
+        "Gears control the flat pipeline's scale: full, premier, or a custom [profile.*] overlay."
+    )
+    if json_output:
+        output(error(msg, "TIER_NOT_GEAR"), json_mode=True)
+    else:
+        console.print(f"[red]Error:[/] {msg}")
+    raise typer.Exit(1)
+
+
+def _resolve_gear(name: str, vault, json_output: bool):
+    from hyperresearch.core.profiles import ProfileError, resolve_profile
+
+    try:
+        return resolve_profile(name, vault.config_path)
+    except ProfileError as e:
+        if json_output:
+            output(error(str(e), "UNKNOWN_PROFILE"), json_mode=True)
+        else:
+            console.print(f"[red]Error:[/] {e}")
+        raise typer.Exit(1)
+
+
+def _print_gear_switched(name: str, profile, actions: list) -> None:
+    console.print(f"[green]Gear switched:[/] [bold]{name}[/]")
+    if profile.description:
+        console.print(f"  {profile.description}")
+    console.print(
+        f"  [dim]sources {profile.source_target[0]}-{profile.source_target[1]}"
+        f"  {profile.time_estimate}[/]"
+    )
+    if actions:
+        console.print(f"  re-rendered {len(actions)} skill/agent file(s)")
+    else:
+        console.print("  [dim]all installed prompts already at this gear[/]")
+    console.print(
+        "[dim]Takes effect on the next /hyperresearch run. Revert with: hyperresearch profile use full[/]"
+    )
+
+
 @app.command("use")
 def profile_use(
     name: str = typer.Argument(
@@ -111,8 +167,6 @@ def profile_use(
     json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
 ) -> None:
     """Switch the pipeline scale gear: re-render installed skills/agents from this profile and persist it as the project default."""
-    from hyperresearch.core.profiles import ProfileError, resolve_profile
-
     vault = _discover_vault()
     if vault is None:
         msg = "no vault here — run `hyperresearch install` first"
@@ -122,27 +176,8 @@ def profile_use(
             console.print(f"[red]Error:[/] {msg}")
         raise typer.Exit(1)
 
-    if name in ("light", "dissertation"):
-        msg = (
-            f"'{name}' is a run-time tier, not a scale gear. "
-            "light is auto-selected for bounded queries; dissertation runs are requested "
-            "per query (or via `hyperresearch run init <tag> --profile dissertation`). "
-            "Gears control the flat pipeline's scale: full, premier, or a custom [profile.*] overlay."
-        )
-        if json_output:
-            output(error(msg, "TIER_NOT_GEAR"), json_mode=True)
-        else:
-            console.print(f"[red]Error:[/] {msg}")
-        raise typer.Exit(1)
-
-    try:
-        profile = resolve_profile(name, vault.config_path)
-    except ProfileError as e:
-        if json_output:
-            output(error(str(e), "UNKNOWN_PROFILE"), json_mode=True)
-        else:
-            console.print(f"[red]Error:[/] {e}")
-        raise typer.Exit(1)
+    _reject_tier_as_gear(name, json_output)
+    profile = _resolve_gear(name, vault, json_output)
 
     # Persist the gear, then re-render every installed prompt from it.
     vault.config.pipeline_profile = name
@@ -163,21 +198,7 @@ def profile_use(
     if json_output:
         output(success(data, vault=str(vault.root)), json_mode=True)
         return
-
-    console.print(f"[green]Gear switched:[/] [bold]{name}[/]")
-    if profile.description:
-        console.print(f"  {profile.description}")
-    console.print(
-        f"  [dim]sources {profile.source_target[0]}-{profile.source_target[1]}"
-        f"  {profile.time_estimate}[/]"
-    )
-    if actions:
-        console.print(f"  re-rendered {len(actions)} skill/agent file(s)")
-    else:
-        console.print("  [dim]all installed prompts already at this gear[/]")
-    console.print(
-        "[dim]Takes effect on the next /hyperresearch run. Revert with: hyperresearch profile use full[/]"
-    )
+    _print_gear_switched(name, profile, actions)
 
 
 @app.command("show")
@@ -208,26 +229,17 @@ def profile_show(
             console.print(f"  {key} = {value}")
 
 
-@app.command("validate")
-def profile_validate(
-    name: str | None = typer.Argument(None, help="Profile name (default: validate all)"),
-    json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
-) -> None:
-    """Validate profile definitions (built-ins + user overlays)."""
-    from hyperresearch.core.profiles import ProfileError, list_profiles, resolve_profile
+def _validate_one_profile(n: str, cfg) -> tuple:
+    from hyperresearch.core.profiles import ProfileError, resolve_profile
 
-    cfg = _config_path()
-    names = [name] if name else list_profiles(cfg)
-    results = []
-    ok = True
-    for n in names:
-        try:
-            resolve_profile(n, cfg)
-            results.append({"name": n, "valid": True, "error": None})
-        except ProfileError as e:
-            ok = False
-            results.append({"name": n, "valid": False, "error": str(e)})
+    try:
+        resolve_profile(n, cfg)
+        return {"name": n, "valid": True, "error": None}, True
+    except ProfileError as e:
+        return {"name": n, "valid": False, "error": str(e)}, False
 
+
+def _report_validation(results: list, ok: bool, json_output: bool) -> None:
     if json_output:
         if ok:
             output(
@@ -237,9 +249,29 @@ def profile_validate(
         else:
             bad = "; ".join(f"{r['name']}: {r['error']}" for r in results if not r["valid"])
             output(error(f"invalid profile(s) — {bad}", "INVALID_PROFILE"), json_mode=True)
-    else:
-        for r in results:
-            mark = "[green]ok[/]" if r["valid"] else f"[red]INVALID[/] — {r['error']}"
-            console.print(f"  [cyan]{r['name']}[/]: {mark}")
+        return
+    for r in results:
+        mark = "[green]ok[/]" if r["valid"] else f"[red]INVALID[/] — {r['error']}"
+        console.print(f"  [cyan]{r['name']}[/]: {mark}")
+
+
+@app.command("validate")
+def profile_validate(
+    name: str | None = typer.Argument(None, help="Profile name (default: validate all)"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
+) -> None:
+    """Validate profile definitions (built-ins + user overlays)."""
+    from hyperresearch.core.profiles import list_profiles
+
+    cfg = _config_path()
+    names = [name] if name else list_profiles(cfg)
+    results = []
+    ok = True
+    for n in names:
+        result, valid = _validate_one_profile(n, cfg)
+        results.append(result)
+        ok = ok and valid
+
+    _report_validation(results, ok, json_output)
     if not ok:
         raise typer.Exit(1)

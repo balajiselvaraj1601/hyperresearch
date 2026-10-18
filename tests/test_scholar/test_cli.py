@@ -134,7 +134,9 @@ def test_sources_runs_with_zero_providers_installed(monkeypatch: pytest.MonkeyPa
     assert "No discovery providers" in result.output
 
 
-def test_sources_json_lists_slug_label_covers_and_availability(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_sources_json_lists_slug_label_covers_and_availability(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.delenv("FAKE_GAMMA_KEY", raising=False)
     install(
         monkeypatch,
@@ -170,14 +172,7 @@ def test_sources_rejects_an_unknown_scope(monkeypatch: pytest.MonkeyPatch) -> No
 # scholar search
 
 
-def test_search_json_shape_and_cross_provider_merge(monkeypatch: pytest.MonkeyPatch) -> None:
-    install(
-        monkeypatch,
-        make_provider("alpha", papers=(ALPHA_PAPER,)),
-        make_provider("beta", papers=(BETA_SAME, BETA_OTHER)),
-    )
-    data = payload(runner.invoke(app, ["scholar", "search", "transformers", "--json"]))["data"]
-
+def _assert_search_envelope(data) -> None:
     assert data["query"] == "transformers"
     assert data["providers"] == ["alpha", "beta"]
     assert data["per_source"] == {"alpha": 1, "beta": 2}
@@ -185,6 +180,8 @@ def test_search_json_shape_and_cross_provider_merge(monkeypatch: pytest.MonkeyPa
     assert data["merged_records"] == 2
     assert data["failed"] == []
 
+
+def _assert_merged_first_row(data) -> None:
     first = data["results"][0]
     assert first["title"] == "Attention Is All You Need"
     assert first["source"] == "alpha"
@@ -197,14 +194,24 @@ def test_search_json_shape_and_cross_provider_merge(monkeypatch: pytest.MonkeyPa
     assert data["results"][1]["title"] == "Deep Residual Learning"
 
 
+def test_search_json_shape_and_cross_provider_merge(monkeypatch: pytest.MonkeyPatch) -> None:
+    install(
+        monkeypatch,
+        make_provider("alpha", papers=(ALPHA_PAPER,)),
+        make_provider("beta", papers=(BETA_SAME, BETA_OTHER)),
+    )
+    data = payload(runner.invoke(app, ["scholar", "search", "transformers", "--json"]))["data"]
+
+    _assert_search_envelope(data)
+    _assert_merged_first_row(data)
+
+
 def test_search_source_filter_queries_only_that_provider(monkeypatch: pytest.MonkeyPatch) -> None:
     alpha = make_provider("alpha", papers=(ALPHA_PAPER,))
     beta = make_provider("beta", papers=(BETA_OTHER,))
     install(monkeypatch, alpha, beta)
 
-    data = payload(
-        runner.invoke(app, ["scholar", "search", "q", "-s", "beta", "--json"])
-    )["data"]
+    data = payload(runner.invoke(app, ["scholar", "search", "q", "-s", "beta", "--json"]))["data"]
 
     assert data["providers"] == ["beta"]
     assert [r["title"] for r in data["results"]] == ["Deep Residual Learning"]
@@ -212,7 +219,9 @@ def test_search_source_filter_queries_only_that_provider(monkeypatch: pytest.Mon
     assert len(beta.calls) == 1  # type: ignore[attr-defined]
 
 
-def test_search_passes_limit_and_fresh_through_to_providers(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_search_passes_limit_and_fresh_through_to_providers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     alpha = make_provider("alpha", papers=(ALPHA_PAPER,))
     install(monkeypatch, alpha)
 
@@ -279,9 +288,9 @@ def test_search_reports_why_a_source_was_skipped(monkeypatch: pytest.MonkeyPatch
 def test_search_year_from_drops_older_records(monkeypatch: pytest.MonkeyPatch) -> None:
     undated = Paper(title="Undated Work", source="alpha")
     install(monkeypatch, make_provider("alpha", papers=(ALPHA_PAPER, BETA_OTHER, undated)))
-    data = payload(
-        runner.invoke(app, ["scholar", "search", "q", "--year-from", "2017", "--json"])
-    )["data"]
+    data = payload(runner.invoke(app, ["scholar", "search", "q", "--year-from", "2017", "--json"]))[
+        "data"
+    ]
     titles = [r["title"] for r in data["results"]]
     assert "Deep Residual Learning" not in titles
     assert "Attention Is All You Need" in titles
@@ -320,9 +329,9 @@ def test_search_scope_papers_narrows_the_provider_set(monkeypatch: pytest.Monkey
         make_provider("alpha", papers=(ALPHA_PAPER,)),
         make_provider("beta", papers=(BETA_OTHER,)),
     )
-    data = payload(
-        runner.invoke(app, ["scholar", "search", "q", "--scope", "papers", "--json"])
-    )["data"]
+    data = payload(runner.invoke(app, ["scholar", "search", "q", "--scope", "papers", "--json"]))[
+        "data"
+    ]
     assert data["providers"] == ["alpha"]
 
 

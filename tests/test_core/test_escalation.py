@@ -183,6 +183,74 @@ class TestFetchGateIntegration:
         assert items[0]["utility_score"] == 15.0
 
 
+def _esc_add(runner, app) -> str:
+    """Add the gated item via CLI. Returns its id."""
+    r = runner.invoke(
+        app,
+        [
+            "escalation",
+            "add",
+            "https://gated.example.com/paper",
+            "--reason",
+            "interactive_needed",
+            "--tag",
+            "cli-esc",
+            "--utility",
+            "12",
+            "--json",
+        ],
+    )
+    assert r.exit_code == 0
+    return json.loads(r.stdout)["data"]["id"]
+
+
+def _esc_claim(runner, app, item_id: str) -> None:
+    r = runner.invoke(app, ["escalation", "claim", "--tag", "cli-esc", "--json"])
+    assert r.exit_code == 0
+    assert json.loads(r.stdout)["data"]["item"]["id"] == item_id
+
+
+def _esc_ingest(runner, app, tmp_vault, item_id: str) -> dict:
+    body = tmp_vault.root / "scratch-body.md"
+    body.write_text("Extracted page content with plenty of real words in it.", encoding="utf-8")
+    r = runner.invoke(
+        app,
+        [
+            "escalation",
+            "ingest",
+            str(item_id),
+            "--title",
+            "Gated Paper",
+            "--body-file",
+            str(body),
+            "--json",
+        ],
+    )
+    assert r.exit_code == 0
+    return json.loads(r.stdout)["data"]
+
+
+def _assert_ingested_note(tmp_vault, data: dict) -> None:
+    """Note exists with chrome provenance + vault_tag tag; source row recorded."""
+    note_id = data["note_id"]
+    row = tmp_vault.db.execute("SELECT * FROM notes WHERE id = ?", (note_id,)).fetchone()
+    assert row is not None
+    src = tmp_vault.db.execute(
+        "SELECT provider, note_id FROM sources WHERE url = 'https://gated.example.com/paper'"
+    ).fetchone()
+    assert src["provider"] == "chrome"
+    assert src["note_id"] == note_id
+    tags = {
+        t["tag"] for t in tmp_vault.db.execute("SELECT tag FROM tags WHERE note_id = ?", (note_id,))
+    }
+    assert "cli-esc" in tags
+    note_text = (tmp_vault.root / data["path"]).read_text(encoding="utf-8")
+    assert "fetch_provider: chrome" in note_text
+
+    # Item resolved
+    assert list_items(tmp_vault.db, vault_tag="cli-esc")[0]["status"] == "fetched"
+
+
 class TestEscalationCli:
     def test_add_claim_ingest_roundtrip(self, tmp_vault, monkeypatch):
         from typer.testing import CliRunner
@@ -192,65 +260,10 @@ class TestEscalationCli:
         monkeypatch.chdir(tmp_vault.root)
         runner = CliRunner()
 
-        r = runner.invoke(
-            app,
-            [
-                "escalation",
-                "add",
-                "https://gated.example.com/paper",
-                "--reason",
-                "interactive_needed",
-                "--tag",
-                "cli-esc",
-                "--utility",
-                "12",
-                "--json",
-            ],
-        )
-        assert r.exit_code == 0
-        item_id = json.loads(r.stdout)["data"]["id"]
-
-        r = runner.invoke(app, ["escalation", "claim", "--tag", "cli-esc", "--json"])
-        assert r.exit_code == 0
-        assert json.loads(r.stdout)["data"]["item"]["id"] == item_id
-
-        body = tmp_vault.root / "scratch-body.md"
-        body.write_text("Extracted page content with plenty of real words in it.", encoding="utf-8")
-        r = runner.invoke(
-            app,
-            [
-                "escalation",
-                "ingest",
-                str(item_id),
-                "--title",
-                "Gated Paper",
-                "--body-file",
-                str(body),
-                "--json",
-            ],
-        )
-        assert r.exit_code == 0
-        data = json.loads(r.stdout)["data"]
-        note_id = data["note_id"]
-
-        # Note exists with chrome provenance + vault_tag tag; source row recorded
-        row = tmp_vault.db.execute("SELECT * FROM notes WHERE id = ?", (note_id,)).fetchone()
-        assert row is not None
-        src = tmp_vault.db.execute(
-            "SELECT provider, note_id FROM sources WHERE url = 'https://gated.example.com/paper'"
-        ).fetchone()
-        assert src["provider"] == "chrome"
-        assert src["note_id"] == note_id
-        tags = {
-            t["tag"]
-            for t in tmp_vault.db.execute("SELECT tag FROM tags WHERE note_id = ?", (note_id,))
-        }
-        assert "cli-esc" in tags
-        note_text = (tmp_vault.root / data["path"]).read_text(encoding="utf-8")
-        assert "fetch_provider: chrome" in note_text
-
-        # Item resolved
-        assert list_items(tmp_vault.db, vault_tag="cli-esc")[0]["status"] == "fetched"
+        item_id = _esc_add(runner, app)
+        _esc_claim(runner, app, item_id)
+        data = _esc_ingest(runner, app, tmp_vault, item_id)
+        _assert_ingested_note(tmp_vault, data)
 
     def test_human_flow_cli(self, tmp_vault, monkeypatch):
         from typer.testing import CliRunner

@@ -135,48 +135,21 @@ def escalation_claim(
             console.print(f"  claimed #{item['id']} ({item['reason']}) {item['url']}")
 
 
-@app.command("ingest")
-def escalation_ingest(
-    item_id: int = typer.Argument(..., help="Claimed escalation item id"),
-    title: str = typer.Option(..., "--title", help="Page title"),
-    body_file: str = typer.Option(
-        ..., "--body-file", help="File containing the extracted page content (markdown/plain text)"
-    ),
-    tags: list[str] = typer.Option(
-        [], "--tag", "-t", help="Tags (repeatable; the item's vault_tag is added automatically)"
-    ),
-    json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
-) -> None:
-    """Complete a claimed item: write the note + source row, sync, resolve.
-
-    One command so the browser agent can't half-finish the bookkeeping.
-    Notes carry `fetch_provider: chrome` — browser-lane provenance is visible.
-    """
-    from hyperresearch.core.escalation import EscalationError, list_items, resolve
-    from hyperresearch.core.note import write_note
-    from hyperresearch.core.scholar import extract_doi
-    from hyperresearch.core.sync import compute_sync_plan, execute_sync
-
-    vault = _vault_or_exit(json_output)
-    conn = vault.db
+def _find_escalation_item(conn, item_id: int, json_output: bool) -> dict:
+    from hyperresearch.core.escalation import list_items
 
     matching = [it for it in list_items(conn, limit=10000) if it["id"] == item_id]
-    if not matching:
-        if json_output:
-            output(error(f"no escalation item #{item_id}", "NOT_FOUND"), json_mode=True)
-        else:
-            console.print(f"[red]Error:[/] no escalation item #{item_id}")
-        raise typer.Exit(1)
-    item = matching[0]
+    if matching:
+        return matching[0]
+    if json_output:
+        output(error(f"no escalation item #{item_id}", "NOT_FOUND"), json_mode=True)
+    else:
+        console.print(f"[red]Error:[/] no escalation item #{item_id}")
+    raise typer.Exit(1)
 
-    body = Path(body_file).read_text(encoding="utf-8-sig")
-    url = item["url"]
-    domain = urlparse(url).netloc
-    now = datetime.now(UTC)
 
-    all_tags = list(tags)
-    if item["vault_tag"] and item["vault_tag"] not in all_tags:
-        all_tags.insert(0, item["vault_tag"])
+def _build_ingest_meta(url: str, domain: str, now, item: dict, body: str) -> tuple:
+    from hyperresearch.core.scholar import extract_doi
 
     extra_meta: dict = {
         "source": url,
@@ -189,9 +162,16 @@ def escalation_ingest(
         extra_meta["doi"] = detected_doi
     if item["utility_score"] is not None:
         extra_meta["utility_score"] = item["utility_score"]
-
     if item["suggested_by"]:
         body = f"*Suggested by [[{item['suggested_by']}]]*\n\n" + body
+    return extra_meta, body
+
+
+def _store_ingested_note(
+    vault, conn, url: str, domain: str, now, title: str, body: str, all_tags: list, extra_meta: dict
+) -> tuple:
+    from hyperresearch.core.note import write_note
+    from hyperresearch.core.sync import compute_sync_plan, execute_sync
 
     note_path = write_note(
         vault.notes_dir,
@@ -215,9 +195,14 @@ def escalation_ingest(
         (url, note_id, domain, now.isoformat(), "chrome", content_hash),
     )
     conn.commit()
+    return note_path, note_id
+
+
+def _resolve_ingested(conn, item_id: int, note_id: str, json_output: bool):
+    from hyperresearch.core.escalation import EscalationError, resolve
 
     try:
-        resolved = resolve(conn, item_id, "fetched", note_id=note_id)
+        return resolve(conn, item_id, "fetched", note_id=note_id)
     except EscalationError as e:
         if json_output:
             output(error(str(e), "ESCALATION_ERROR"), json_mode=True)
@@ -225,6 +210,10 @@ def escalation_ingest(
             console.print(f"[red]Error:[/] {e}")
         raise typer.Exit(1)
 
+
+def _report_ingested(
+    item_id: int, note_id: str, note_path, body: str, resolved, vault, json_output: bool
+) -> None:
     data = {
         "note_id": note_id,
         "path": str(note_path.relative_to(vault.root)),
@@ -235,6 +224,45 @@ def escalation_ingest(
         output(success(data, vault=str(vault.root)), json_mode=True)
     else:
         console.print(f"[green]Ingested:[/] #{item_id} -> note '{note_id}'")
+
+
+@app.command("ingest")
+def escalation_ingest(
+    item_id: int = typer.Argument(..., help="Claimed escalation item id"),
+    title: str = typer.Option(..., "--title", help="Page title"),
+    body_file: str = typer.Option(
+        ..., "--body-file", help="File containing the extracted page content (markdown/plain text)"
+    ),
+    tags: list[str] = typer.Option(
+        [], "--tag", "-t", help="Tags (repeatable; the item's vault_tag is added automatically)"
+    ),
+    json_output: bool = typer.Option(False, "--json", "-j", help="JSON output"),
+) -> None:
+    """Complete a claimed item: write the note + source row, sync, resolve.
+
+    One command so the browser agent can't half-finish the bookkeeping.
+    Notes carry `fetch_provider: chrome` — browser-lane provenance is visible.
+    """
+    vault = _vault_or_exit(json_output)
+    conn = vault.db
+
+    item = _find_escalation_item(conn, item_id, json_output)
+
+    body = Path(body_file).read_text(encoding="utf-8-sig")
+    url = item["url"]
+    domain = urlparse(url).netloc
+    now = datetime.now(UTC)
+
+    all_tags = list(tags)
+    if item["vault_tag"] and item["vault_tag"] not in all_tags:
+        all_tags.insert(0, item["vault_tag"])
+
+    extra_meta, body = _build_ingest_meta(url, domain, now, item, body)
+    note_path, note_id = _store_ingested_note(
+        vault, conn, url, domain, now, title, body, all_tags, extra_meta
+    )
+    resolved = _resolve_ingested(conn, item_id, note_id, json_output)
+    _report_ingested(item_id, note_id, note_path, body, resolved, vault, json_output)
 
 
 @app.command("human")

@@ -121,28 +121,36 @@ def _stub(monkeypatch: pytest.MonkeyPatch, payload: Any, calls: list[str] | None
     monkeypatch.setattr(base, "_throttle", lambda url: None)
 
 
+def _assert_book_identity(paper) -> None:
+    assert paper.title == "Prisms of Work"
+    assert paper.source == "doab"
+    assert paper.work_type == "book"
+    assert paper.doi == "10.1515/9783111218090"
+    assert paper.identifier == "20.500.12854/87866"
+    assert paper.url == "https://directory.doabooks.org/handle/20.500.12854/87866"
+    assert paper.year == 2024
+    assert paper.authors == ("Rösser, Michael",)
+    assert paper.venue == "De Gruyter"
+
+
+def _assert_book_extras(paper) -> None:
+    # Internal whitespace and the newline are collapsed.
+    assert paper.abstract == "Labour relations on the German East African railway, 1890-1918."
+    assert paper.pdf_url is None
+    assert paper.citation_count is None
+    assert paper.extra["language"] == "English"
+    assert paper.extra["series"] == "Work in Global and Historical Perspective"
+    assert paper.extra["oapen_url"] == "https://library.oapen.org/handle/20.500.12657/87866"
+    assert paper.extra["doab_type"] == "book"
+    assert "editors" not in paper.extra
+
+
 class TestParsing:
     def test_maps_every_contract_field(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _stub(monkeypatch, [BOOK])
         (paper,) = DoabProvider().search(None, "labour history", 10)
-        assert paper.title == "Prisms of Work"
-        assert paper.source == "doab"
-        assert paper.work_type == "book"
-        assert paper.doi == "10.1515/9783111218090"
-        assert paper.identifier == "20.500.12854/87866"
-        assert paper.url == "https://directory.doabooks.org/handle/20.500.12854/87866"
-        assert paper.year == 2024
-        assert paper.authors == ("Rösser, Michael",)
-        assert paper.venue == "De Gruyter"
-        # Internal whitespace and the newline are collapsed.
-        assert paper.abstract == "Labour relations on the German East African railway, 1890-1918."
-        assert paper.pdf_url is None
-        assert paper.citation_count is None
-        assert paper.extra["language"] == "English"
-        assert paper.extra["series"] == "Work in Global and Historical Perspective"
-        assert paper.extra["oapen_url"] == "https://library.oapen.org/handle/20.500.12657/87866"
-        assert paper.extra["doab_type"] == "book"
-        assert "editors" not in paper.extra
+        _assert_book_identity(paper)
+        _assert_book_extras(paper)
 
     def test_chapter_maps_to_book_chapter(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _stub(monkeypatch, [CHAPTER])

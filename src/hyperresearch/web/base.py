@@ -90,22 +90,11 @@ class WebResult:
         title_lower = (self.title or "").lower()
         content_lower = (self.content or "")[: gates.login_sample_chars].lower()
 
-        # Title contains login language
-        title_match = any(s in title_lower for s in login_signals)
-
-        # Content is mostly login form (very short with login keywords)
-        content_match = len(self.content or "") < gates.login_wall_max_chars and any(
-            s in content_lower for s in login_signals
+        return (
+            _login_title_match(title_lower, login_signals)
+            or _login_content_match(self.content, content_lower, gates, login_signals)
+            or _login_url_redirected(self.url)
         )
-
-        # URL changed to a login/auth path
-        from urllib.parse import urlparse
-
-        result_path = urlparse(self.url).path.lower()
-        auth_paths = ("/login", "/signin", "/signup", "/auth", "/sso", "/register")
-        url_redirected = any(p in result_path for p in auth_paths)
-
-        return title_match or content_match or url_redirected
 
     def looks_like_junk(self, gates: JunkGates | None = None) -> str | None:
         """Check if the result is junk that shouldn't be saved.
@@ -116,79 +105,131 @@ class WebResult:
         content = self.content or ""
         title_lower = (self.title or "").lower()
         content_lower = content[: gates.sample_window].lower()
-
-        # Empty or near-empty content
-        if len(content.strip()) < gates.min_content_chars:
-            return "Empty or near-empty content"
-
-        # Cloudflare / bot detection pages
-        cf_signals = (
-            "just a moment",
-            "checking your browser",
-            "ray id",
-            "cloudflare",
-            "please wait while we verify",
-            "unusual activity",
-            "captcha",
-            "recaptcha",
-            "verify you are human",
-            "verify you are not a robot",
-            "please complete the security check",
-            "access denied",
-            "enable javascript and cookies",
-            "browser check",
-            "ddos protection",
-            "attention required",
-        )
-        if any(
-            s in title_lower or s in content_lower
-            for s in cf_signals + tuple(gates.extra_junk_signals)
-        ):
-            return f"Bot detection page: {self.title}"
-
-        # Error pages
-        error_signals = (
-            "404 not found",
-            "page not found",
-            "403 forbidden",
-            "500 internal server error",
-            "502 bad gateway",
-            "an error occurred",
-            "this page isn't available",
-            "the page you requested",
-            "sorry, we couldn't find",
-        )
-        if any(s in title_lower or s in content_lower for s in error_signals):
-            return f"Error page: {self.title}"
-
-        # Search result / index pages (not actual content)
-        search_signals = ("search results for", "results for query")
-        if any(s in title_lower for s in search_signals):
-            return f"Search results page: {self.title}"
-
-        # Binary garbage from PDFs that weren't properly extracted
-        pdf_binary_signals = ("endstream", "endobj", "/FlateDecode", "%PDF-")
         sample = content[: gates.sample_window]
-        if any(m in sample for m in pdf_binary_signals):
-            return "Binary PDF garbage in content"
 
-        if is_binary_garbage(sample, gates):
-            return "High ratio of binary/non-printable content"
-
-        # Cookie consent / boilerplate pages (short with mostly nav/cookie text)
-        if len(content.strip()) < gates.cookie_wall_max_chars:
-            cookie_signals = (
-                "we use cookies",
-                "cookie policy",
-                "accept cookies",
-                "cookie consent",
-                "there appears to be a technical issue",
-                "please enable javascript",
-            )
-            if any(s in content_lower for s in cookie_signals):
-                return "Cookie/boilerplate page"
-
+        for check in _JUNK_CHECKS:
+            reason = check(self, gates, content, title_lower, content_lower, sample)
+            if reason is not None:
+                return reason
         return None
+
+
+def _login_title_match(title_lower: str, login_signals) -> bool:
+    """Title contains login language."""
+    return any(s in title_lower for s in login_signals)
+
+
+def _login_content_match(content, content_lower: str, gates, login_signals) -> bool:
+    """Content is mostly login form (very short with login keywords)."""
+    return len(content or "") < gates.login_wall_max_chars and any(
+        s in content_lower for s in login_signals
+    )
+
+
+def _login_url_redirected(url: str) -> bool:
+    """URL changed to a login/auth path."""
+    from urllib.parse import urlparse
+
+    result_path = urlparse(url).path.lower()
+    auth_paths = ("/login", "/signin", "/signup", "/auth", "/sso", "/register")
+    return any(p in result_path for p in auth_paths)
+
+
+def _junk_empty(result, gates, content, title_lower, content_lower, sample) -> str | None:
+    """Empty or near-empty content."""
+    if len(content.strip()) < gates.min_content_chars:
+        return "Empty or near-empty content"
+    return None
+
+
+def _junk_bot(result, gates, content, title_lower, content_lower, sample) -> str | None:
+    """Cloudflare / bot detection pages."""
+    cf_signals = (
+        "just a moment",
+        "checking your browser",
+        "ray id",
+        "cloudflare",
+        "please wait while we verify",
+        "unusual activity",
+        "captcha",
+        "recaptcha",
+        "verify you are human",
+        "verify you are not a robot",
+        "please complete the security check",
+        "access denied",
+        "enable javascript and cookies",
+        "browser check",
+        "ddos protection",
+        "attention required",
+    )
+    if any(
+        s in title_lower or s in content_lower for s in cf_signals + tuple(gates.extra_junk_signals)
+    ):
+        return f"Bot detection page: {result.title}"
+    return None
+
+
+def _junk_error(result, gates, content, title_lower, content_lower, sample) -> str | None:
+    """Error pages."""
+    error_signals = (
+        "404 not found",
+        "page not found",
+        "403 forbidden",
+        "500 internal server error",
+        "502 bad gateway",
+        "an error occurred",
+        "this page isn't available",
+        "the page you requested",
+        "sorry, we couldn't find",
+    )
+    if any(s in title_lower or s in content_lower for s in error_signals):
+        return f"Error page: {result.title}"
+    return None
+
+
+def _junk_search_page(result, gates, content, title_lower, content_lower, sample) -> str | None:
+    """Search result / index pages (not actual content)."""
+    search_signals = ("search results for", "results for query")
+    if any(s in title_lower for s in search_signals):
+        return f"Search results page: {result.title}"
+    return None
+
+
+def _junk_binary(result, gates, content, title_lower, content_lower, sample) -> str | None:
+    """Binary garbage from PDFs that weren't properly extracted."""
+    pdf_binary_signals = ("endstream", "endobj", "/FlateDecode", "%PDF-")
+    if any(m in sample for m in pdf_binary_signals):
+        return "Binary PDF garbage in content"
+    if is_binary_garbage(sample, gates):
+        return "High ratio of binary/non-printable content"
+    return None
+
+
+def _junk_cookie(result, gates, content, title_lower, content_lower, sample) -> str | None:
+    """Cookie consent / boilerplate pages (short with mostly nav/cookie text)."""
+    if len(content.strip()) >= gates.cookie_wall_max_chars:
+        return None
+    cookie_signals = (
+        "we use cookies",
+        "cookie policy",
+        "accept cookies",
+        "cookie consent",
+        "there appears to be a technical issue",
+        "please enable javascript",
+    )
+    if any(s in content_lower for s in cookie_signals):
+        return "Cookie/boilerplate page"
+    return None
+
+
+_JUNK_CHECKS = (
+    _junk_empty,
+    _junk_bot,
+    _junk_error,
+    _junk_search_page,
+    _junk_binary,
+    _junk_cookie,
+)
 
 
 @runtime_checkable
@@ -225,18 +266,7 @@ def get_provider(
         return BuiltinProvider(settings=settings)
 
     if name == "crawl4ai":
-        try:
-            from hyperresearch.web.crawl4ai_provider import Crawl4AIProvider
-
-            return Crawl4AIProvider(
-                profile=profile or None,
-                magic=magic,
-                headless=headless,
-                settings=settings,
-                gates=gates,
-            )
-        except ImportError:
-            raise ImportError("crawl4ai provider requires: pip install hyperresearch[crawl4ai]")
+        return _load_crawl4ai(profile, magic, headless, settings, gates)
 
     if name == "exa":
         from hyperresearch.web.exa_provider import ExaProvider
@@ -244,20 +274,10 @@ def get_provider(
         return ExaProvider()
 
     if name == "tavily":
-        try:
-            from hyperresearch.web.tavily_provider import TavilyProvider
-
-            return TavilyProvider()
-        except ImportError:
-            raise ImportError('tavily provider requires: pip install "hyperresearch[tavily]"')
+        return _load_tavily()
 
     if name == "parallel":
-        try:
-            from hyperresearch.web.parallel_provider import ParallelProvider
-
-            return ParallelProvider(settings=settings)
-        except ImportError:
-            raise ImportError('parallel provider requires: pip install "hyperresearch[parallel]"')
+        return _load_parallel(settings)
 
     if name == "serply":
         from hyperresearch.web.serply_provider import SerplyProvider
@@ -268,3 +288,36 @@ def get_provider(
         f"Unknown web provider: {name!r}. "
         "Available: builtin, crawl4ai, exa, tavily, parallel, serply"
     )
+
+
+def _load_crawl4ai(profile, magic: bool, headless: bool, settings, gates):
+    try:
+        from hyperresearch.web.crawl4ai_provider import Crawl4AIProvider
+
+        return Crawl4AIProvider(
+            profile=profile or None,
+            magic=magic,
+            headless=headless,
+            settings=settings,
+            gates=gates,
+        )
+    except ImportError:
+        raise ImportError("crawl4ai provider requires: pip install hyperresearch[crawl4ai]")
+
+
+def _load_tavily():
+    try:
+        from hyperresearch.web.tavily_provider import TavilyProvider
+
+        return TavilyProvider()
+    except ImportError:
+        raise ImportError('tavily provider requires: pip install "hyperresearch[tavily]"')
+
+
+def _load_parallel(settings):
+    try:
+        from hyperresearch.web.parallel_provider import ParallelProvider
+
+        return ParallelProvider(settings=settings)
+    except ImportError:
+        raise ImportError('parallel provider requires: pip install "hyperresearch[parallel]"')

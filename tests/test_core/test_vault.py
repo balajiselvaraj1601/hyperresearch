@@ -7,14 +7,16 @@ import pytest
 from hyperresearch.core.vault import Vault, VaultError
 
 
-def test_init_creates_structure(tmp_path: Path):
-    vault = Vault.init(tmp_path / "kb", name="My KB")
+def _assert_config_tree(vault) -> None:
     assert vault.is_initialized
     assert (vault.root / ".hyperresearch").is_dir()
     assert (vault.root / ".hyperresearch" / "config.toml").exists()
     assert (vault.root / ".hyperresearch" / "hyperresearch.db").exists()
     assert (vault.root / ".hyperresearch" / "templates").is_dir()
     assert (vault.root / ".hyperresearch" / "exports").is_dir()
+
+
+def _assert_research_tree(vault) -> None:
     # One visible directory
     assert vault.research_dir.is_dir()
     assert vault.notes_dir.is_dir()
@@ -23,6 +25,12 @@ def test_init_creates_structure(tmp_path: Path):
     assert vault.temp_dir.is_dir()
     assert vault.temp_dir.parent == vault.research_dir
     assert vault.temp_dir.name == "temp"
+
+
+def test_init_creates_structure(tmp_path: Path):
+    vault = Vault.init(tmp_path / "kb", name="My KB")
+    _assert_config_tree(vault)
+    _assert_research_tree(vault)
 
 
 def test_init_custom_dir(tmp_path: Path):

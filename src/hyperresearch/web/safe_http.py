@@ -229,7 +229,6 @@ def safe_get(
     ) as client:
         for _ in range(max_redirects + 1):
             check_url(current_url, allow_private_hosts)
-            declared = None
             with client.stream("GET", current_url, headers=request_headers) as resp:
                 if resp.is_redirect:
                     location = resp.headers.get("location")
@@ -238,24 +237,32 @@ def safe_get(
                     current_url = str(httpx.URL(current_url).join(location))
                     continue
 
-                declared = resp.headers.get("content-length")
-                if declared and declared.isdigit() and int(declared) > max_bytes:
-                    raise SafeHTTPError(
-                        f"refusing response from {current_url!r}: "
-                        f"Content-Length {declared} exceeds cap {max_bytes}"
-                    )
-
-                body = bytearray()
-                for chunk in resp.iter_bytes():
-                    body.extend(chunk)
-                    if len(body) > max_bytes:
-                        raise SafeHTTPError(
-                            f"refusing response from {current_url!r}: "
-                            f"body exceeds cap {max_bytes} bytes"
-                        )
-                return _materialize(resp, bytes(body), current_url)
+                _check_declared_length(resp, current_url, max_bytes)
+                return _materialize(resp, _stream_capped(resp, current_url, max_bytes), current_url)
 
     raise SafeHTTPError(f"too many redirects (>{max_redirects}) starting at {url!r}")
+
+
+def _check_declared_length(resp: httpx.Response, current_url: str, max_bytes: int) -> None:
+    """Reject a response whose declared Content-Length already exceeds the cap."""
+    declared = resp.headers.get("content-length")
+    if declared and declared.isdigit() and int(declared) > max_bytes:
+        raise SafeHTTPError(
+            f"refusing response from {current_url!r}: "
+            f"Content-Length {declared} exceeds cap {max_bytes}"
+        )
+
+
+def _stream_capped(resp: httpx.Response, current_url: str, max_bytes: int) -> bytes:
+    """Read the body, refusing it the moment it exceeds the cap."""
+    body = bytearray()
+    for chunk in resp.iter_bytes():
+        body.extend(chunk)
+        if len(body) > max_bytes:
+            raise SafeHTTPError(
+                f"refusing response from {current_url!r}: body exceeds cap {max_bytes} bytes"
+            )
+    return bytes(body)
 
 
 def _materialize(resp: httpx.Response, body: bytes, final_url: str) -> SafeResponse:

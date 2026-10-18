@@ -126,12 +126,7 @@ def test_available_with_contact_email(with_contact: None) -> None:
 # --- parsing -----------------------------------------------------------------
 
 
-def test_parses_a_filing(monkeypatch: pytest.MonkeyPatch, with_contact: None) -> None:
-    urls = _serve(monkeypatch, _envelope(_hit("0001161697-21-000289:form_10-k.htm", 18.4)))
-    papers = EdgarProvider().search(None, '"artificial intelligence"', 5)
-
-    assert len(papers) == 1
-    paper = papers[0]
+def _assert_filing_identity(paper) -> None:
     assert paper.work_type == "filing"
     assert paper.source == "edgar"
     assert paper.identifier == "0001161697-21-000289"
@@ -147,6 +142,9 @@ def test_parses_a_filing(monkeypatch: pytest.MonkeyPatch, with_contact: None) ->
         "Artificial Intelligence Technology Solutions Inc. (AITX) (CIK 0001498148)"
         " — 10-K (filed 2021-06-01)"
     )
+
+
+def _assert_filing_extras(paper) -> None:
     assert paper.extra["form"] == "10-K"
     assert paper.extra["cik"] == "0001498148"
     assert paper.extra["filed"] == "2021-06-01"
@@ -154,8 +152,22 @@ def test_parses_a_filing(monkeypatch: pytest.MonkeyPatch, with_contact: None) ->
     assert paper.extra["file_description"] == "FORM 10-K ANNUAL REPORT FOR 02-28-2021"
     assert paper.extra["period_ending"] == "2021-02-28"
     assert paper.extra["company"].startswith("Artificial Intelligence Technology")
+
+
+def _assert_filing_request(urls) -> None:
     assert urls[0].startswith("https://efts.sec.gov/LATEST/search-index?q=")
     assert "%22artificial%20intelligence%22" in urls[0]
+
+
+def test_parses_a_filing(monkeypatch: pytest.MonkeyPatch, with_contact: None) -> None:
+    urls = _serve(monkeypatch, _envelope(_hit("0001161697-21-000289:form_10-k.htm", 18.4)))
+    papers = EdgarProvider().search(None, '"artificial intelligence"', 5)
+
+    assert len(papers) == 1
+    paper = papers[0]
+    _assert_filing_identity(paper)
+    _assert_filing_extras(paper)
+    _assert_filing_request(urls)
 
 
 def test_exhibits_of_one_filing_collapse_to_the_best_hit(

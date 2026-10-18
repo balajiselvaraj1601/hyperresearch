@@ -20,8 +20,26 @@ def auto_link(vault, note_ids: list[str] | None = None) -> dict:
         Dict mapping note_id -> list of note_ids that were linked to.
     """
     conn = vault.db
+    ref_vocab = _build_ref_vocab(conn)
+    if not ref_vocab:
+        return {}
 
-    # Build reference vocabulary: {lowercase_title: note_id, lowercase_alias: note_id}
+    report: dict[str, list[str]] = {}
+    for row in _notes_to_process(conn, note_ids):
+        nid = row["id"]
+        note_path = vault.root / row["path"]
+        if not note_path.exists():
+            continue
+
+        linked = _link_note(note_path, nid, ref_vocab)
+        if linked:
+            report[nid] = linked
+
+    return report
+
+
+def _build_ref_vocab(conn) -> dict[str, str]:
+    """{lowercase_title: note_id, lowercase_alias: note_id} reference vocabulary."""
     ref_vocab: dict[str, str] = {}
     for row in conn.execute("SELECT id, title FROM notes WHERE type != 'index'"):
         title = row["title"]
@@ -35,32 +53,17 @@ def auto_link(vault, note_ids: list[str] | None = None) -> dict:
         alias = row["alias"]
         if len(alias) >= MIN_TITLE_LEN:
             ref_vocab[alias.lower()] = row["note_id"]
+    return ref_vocab
 
-    if not ref_vocab:
-        return {}
 
-    # Determine which notes to process
+def _notes_to_process(conn, note_ids: list[str] | None):
+    """DB rows of the notes to process."""
     if note_ids:
         placeholders = ",".join("?" for _ in note_ids)
-        rows = conn.execute(
+        return conn.execute(
             f"SELECT id, path FROM notes WHERE id IN ({placeholders})", note_ids
         ).fetchall()
-    else:
-        rows = conn.execute("SELECT id, path FROM notes WHERE type != 'index'").fetchall()
-
-    # Process each note
-    report: dict[str, list[str]] = {}
-    for row in rows:
-        nid = row["id"]
-        note_path = vault.root / row["path"]
-        if not note_path.exists():
-            continue
-
-        linked = _link_note(note_path, nid, ref_vocab)
-        if linked:
-            report[nid] = linked
-
-    return report
+    return conn.execute("SELECT id, path FROM notes WHERE type != 'index'").fetchall()
 
 
 def _link_note(note_path: Path, note_id: str, ref_vocab: dict[str, str]) -> list[str]:
@@ -80,6 +83,29 @@ def _link_note(note_path: Path, note_id: str, ref_vocab: dict[str, str]) -> list
     existing_links = set(re.findall(r"\[\[([^\]|]+)(?:\|[^\]]+)?\]\]", body))
 
     # Find mentions of other notes' titles in the body
+    found_links = _find_mentions(body, body_lower, existing_links, note_id, ref_vocab)
+    if not found_links:
+        return []
+
+    # Deduplicate (multiple refs can point to same note)
+    found_links = list(dict.fromkeys(found_links))
+
+    # Append Related section if we found new links
+    related_lines = "\n".join(f"- [[{nid}]]" for nid in found_links)
+    body_with_links = _append_related(body, related_lines)
+
+    # Reconstruct the file
+    if len(parts) >= 3:
+        new_content = parts[0] + "---" + parts[1] + "---" + body_with_links
+    else:
+        new_content = body_with_links
+
+    note_path.write_text(new_content, encoding="utf-8")
+    return found_links
+
+
+def _find_mentions(body, body_lower, existing_links, note_id, ref_vocab) -> list[str]:
+    """Note IDs whose titles are mentioned whole-word outside code blocks."""
     found_links: list[str] = []
     for ref_text, ref_id in ref_vocab.items():
         # Skip self-references
@@ -96,38 +122,23 @@ def _link_note(note_path: Path, note_id: str, ref_vocab: dict[str, str]) -> list
             match = re.search(pattern, body_lower)
             if match and not _in_code_block(body, match.start()):
                 found_links.append(ref_id)
+    return found_links
 
-    if not found_links:
-        return []
 
-    # Deduplicate (multiple refs can point to same note)
-    found_links = list(dict.fromkeys(found_links))
-
-    # Append Related section if we found new links
-    related_lines = "\n".join(f"- [[{nid}]]" for nid in found_links)
+def _append_related(body: str, related_lines: str) -> str:
+    """Body with the new links merged into (or starting) a Related section."""
     related_section = f"\n\n## Related\n\n{related_lines}\n"
-
     # Check if there's already a ## Related section
     if re.search(r"^## Related\s*$", body, re.MULTILINE):
         # Append to existing Related section
-        body_with_links = re.sub(
+        return re.sub(
             r"(^## Related\s*\n)",
             rf"\1{related_lines}\n",
             body,
             count=1,
             flags=re.MULTILINE,
         )
-    else:
-        body_with_links = body.rstrip() + related_section
-
-    # Reconstruct the file
-    if len(parts) >= 3:
-        new_content = parts[0] + "---" + parts[1] + "---" + body_with_links
-    else:
-        new_content = body_with_links
-
-    note_path.write_text(new_content, encoding="utf-8")
-    return found_links
+    return body.rstrip() + related_section
 
 
 def _in_code_block(text: str, pos: int) -> bool:

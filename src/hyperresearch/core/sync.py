@@ -85,6 +85,15 @@ def compute_sync_plan(vault, force: bool = False) -> SyncPlan:
     if not kb_dir.exists():
         return plan
 
+    disk_files = _scan_disk_files(vault, kb_dir)
+    db_state = _load_db_state(vault)
+    _classify_disk_files(vault, disk_files, db_state, force, plan)
+    _classify_deletes(db_state, disk_files, plan)
+    return plan
+
+
+def _scan_disk_files(vault, kb_dir) -> dict[str, float]:
+    """{rel_path: mtime} for syncable notes under the research dir."""
     runs_dir = kb_dir / "runs"
     reports_dir = kb_dir / "reports"
     disk_files: dict[str, float] = {}
@@ -105,8 +114,11 @@ def compute_sync_plan(vault, force: bool = False) -> SyncPlan:
             continue
         rel = md_file.relative_to(vault.root).as_posix()
         disk_files[rel] = md_file.stat().st_mtime
+    return disk_files
 
-    # Load DB state — only catch "table not found" on fresh vaults
+
+def _load_db_state(vault) -> dict[str, tuple[float, str]]:
+    """{path: (file_mtime, content_hash)} — tolerates a fresh vault."""
     db_state: dict[str, tuple[float, str]] = {}
     try:
         for row in vault.db.execute("SELECT path, file_mtime, content_hash FROM notes"):
@@ -114,7 +126,10 @@ def compute_sync_plan(vault, force: bool = False) -> SyncPlan:
     except sqlite3.OperationalError:
         # Table doesn't exist yet (fresh vault before schema init)
         pass
+    return db_state
 
+
+def _classify_disk_files(vault, disk_files: dict, db_state: dict, force: bool, plan) -> None:
     for rel_path, mtime in disk_files.items():
         full_path = vault.root / rel_path
         if rel_path not in db_state:
@@ -129,11 +144,11 @@ def compute_sync_plan(vault, force: bool = False) -> SyncPlan:
         else:
             plan.unchanged += 1
 
+
+def _classify_deletes(db_state: dict, disk_files: dict, plan) -> None:
     for db_path in db_state:
         if db_path not in disk_files:
             plan.to_delete.append(db_path)
-
-    return plan
 
 
 def execute_sync(vault, plan: SyncPlan) -> SyncResult:
@@ -153,56 +168,16 @@ def execute_sync(vault, plan: SyncPlan) -> SyncResult:
     # The collision would otherwise be order-dependent and lose data on the
     # next `note update`.
     deleted_paths = set(plan.to_delete)
-    id_to_path: dict[str, str] = {}
-    for row in conn.execute("SELECT id, path FROM notes"):
-        if row["path"] in deleted_paths:
-            continue
-        id_to_path[row["id"]] = row["path"]
-
-    def _upsert_with_collision_check(file_path: Path) -> str | None:
-        note = read_note(file_path, vault.root)
-        rel = file_path.relative_to(vault.root).as_posix()
-        existing = id_to_path.get(note.meta.id)
-        if existing is not None and existing != rel:
-            result.errors.append(
-                {
-                    "path": rel,
-                    "error": (
-                        f"id collision: '{note.meta.id}' already belongs to "
-                        f"'{existing}'. Skipped to avoid silent overwrite."
-                    ),
-                }
-            )
-            return None
-        _upsert_note_to_db(conn, note, now_iso, file_mtime=file_path.stat().st_mtime)
-        id_to_path[note.meta.id] = rel
-        changed_ids.add(note.meta.id)
-        return note.meta.id
+    id_to_path = _load_id_paths(conn, deleted_paths)
 
     try:
-        for rel_path in plan.to_delete:
-            try:
-                row = conn.execute("SELECT id FROM notes WHERE path = ?", (rel_path,)).fetchone()
-                if row:
-                    _delete_note_from_db(conn, row["id"])
-                    changed_ids.add(row["id"])
-                    result.deleted += 1
-            except Exception as e:
-                result.errors.append({"path": rel_path, "error": str(e)})
-
-        for file_path in plan.to_add:
-            try:
-                if _upsert_with_collision_check(file_path) is not None:
-                    result.added += 1
-            except Exception as e:
-                result.errors.append({"path": str(file_path), "error": str(e)})
-
-        for file_path in plan.to_update:
-            try:
-                if _upsert_with_collision_check(file_path) is not None:
-                    result.updated += 1
-            except Exception as e:
-                result.errors.append({"path": str(file_path), "error": str(e)})
+        _delete_sync_paths(conn, plan, changed_ids, result)
+        result.added += _apply_upserts(
+            conn, vault, plan.to_add, now_iso, id_to_path, changed_ids, result
+        )
+        result.updated += _apply_upserts(
+            conn, vault, plan.to_update, now_iso, id_to_path, changed_ids, result
+        )
 
         # Resolve links — only for changed notes' outgoing + incoming
         _resolve_links_incremental(conn, changed_ids)
@@ -218,6 +193,70 @@ def execute_sync(vault, plan: SyncPlan) -> SyncResult:
 
     result.duration_ms = (time.monotonic() - start) * 1000
     return result
+
+
+def _load_id_paths(conn, deleted_paths: set) -> dict[str, str]:
+    """{note_id: path} for live rows — the collision-check baseline."""
+    id_to_path: dict[str, str] = {}
+    for row in conn.execute("SELECT id, path FROM notes"):
+        if row["path"] in deleted_paths:
+            continue
+        id_to_path[row["id"]] = row["path"]
+    return id_to_path
+
+
+def _upsert_with_collision_check(
+    conn, vault, file_path: Path, now_iso: str, id_to_path: dict, changed_ids: set, result
+) -> str | None:
+    note = read_note(file_path, vault.root)
+    rel = file_path.relative_to(vault.root).as_posix()
+    existing = id_to_path.get(note.meta.id)
+    if existing is not None and existing != rel:
+        result.errors.append(
+            {
+                "path": rel,
+                "error": (
+                    f"id collision: '{note.meta.id}' already belongs to "
+                    f"'{existing}'. Skipped to avoid silent overwrite."
+                ),
+            }
+        )
+        return None
+    _upsert_note_to_db(conn, note, now_iso, file_mtime=file_path.stat().st_mtime)
+    id_to_path[note.meta.id] = rel
+    changed_ids.add(note.meta.id)
+    return note.meta.id
+
+
+def _delete_sync_paths(conn, plan, changed_ids: set, result) -> None:
+    for rel_path in plan.to_delete:
+        try:
+            row = conn.execute("SELECT id FROM notes WHERE path = ?", (rel_path,)).fetchone()
+            if row:
+                _delete_note_from_db(conn, row["id"])
+                changed_ids.add(row["id"])
+                result.deleted += 1
+        except Exception as e:
+            result.errors.append({"path": rel_path, "error": str(e)})
+
+
+def _apply_upserts(
+    conn, vault, file_paths, now_iso: str, id_to_path: dict, changed_ids: set, result
+) -> int:
+    """Upsert a batch of files. Returns the success count."""
+    count = 0
+    for file_path in file_paths:
+        try:
+            if (
+                _upsert_with_collision_check(
+                    conn, vault, file_path, now_iso, id_to_path, changed_ids, result
+                )
+                is not None
+            ):
+                count += 1
+        except Exception as e:
+            result.errors.append({"path": str(file_path), "error": str(e)})
+    return count
 
 
 def _upsert_note_to_db(conn, note, synced_at: str, file_mtime: float = 0) -> None:
@@ -295,7 +334,14 @@ def _upsert_note_to_db(conn, note, synced_at: str, file_mtime: float = 0) -> Non
         ),
     )
 
-    # Update tags — resolve aliases before writing
+    _write_note_tags(conn, meta)
+    _write_note_aliases(conn, meta)
+    _write_note_content(conn, meta, note)
+    _write_note_links(conn, meta, note)
+
+
+def _write_note_tags(conn, meta) -> None:
+    """Replace the note's tags — resolve aliases before writing."""
     conn.execute("DELETE FROM tags WHERE note_id = ?", (meta.id,))
     alias_map = {}
     try:
@@ -312,10 +358,15 @@ def _upsert_note_to_db(conn, note, synced_at: str, file_mtime: float = 0) -> Non
         resolved = alias_map.get(tag.lower(), tag.lower())
         conn.execute("INSERT OR IGNORE INTO tags (note_id, tag) VALUES (?, ?)", (meta.id, resolved))
 
+
+def _write_note_aliases(conn, meta) -> None:
     conn.execute("DELETE FROM aliases WHERE note_id = ?", (meta.id,))
     for alias in meta.aliases:
         conn.execute("INSERT INTO aliases (note_id, alias) VALUES (?, ?)", (meta.id, alias))
 
+
+def _write_note_content(conn, meta, note) -> str:
+    """Replace the note's body + FTS row. Returns the plain-text body."""
     body_plain = strip_markdown(note.body)
     conn.execute(
         """
@@ -331,8 +382,11 @@ def _upsert_note_to_db(conn, note, synced_at: str, file_mtime: float = 0) -> Non
         "INSERT INTO notes_fts (id, title, body_plain, tags, aliases) VALUES (?, ?, ?, ?, ?)",
         (meta.id, meta.title, body_plain, " ".join(meta.tags), " ".join(meta.aliases)),
     )
+    return body_plain
 
-    # Update links — extract from original body (not stripped)
+
+def _write_note_links(conn, meta, note) -> None:
+    """Replace the note's outgoing links from the original body (not stripped)."""
     # Uses the shared filter so this path stays in sync with core.note.read_note
     conn.execute("DELETE FROM links WHERE source_id = ?", (meta.id,))
     cleaned = CODE_BLOCK_RE.sub("", note.body)

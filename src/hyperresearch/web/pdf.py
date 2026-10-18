@@ -159,25 +159,50 @@ def extract_pdf(
     if pymupdf is None:
         return None, "pymupdf is not importable"
 
+    reason = _validate_pdf_bytes(pdf_bytes, content_type, settings, url, log)
+    if reason is not None:
+        return None, reason
+
+    pages, page_count, reason = _read_pdf_pages(pymupdf, pdf_bytes, url, log)
+    if reason is not None:
+        return None, reason
+
+    if not pages:
+        reason = (
+            f"has {page_count} page(s) but no extractable text layer — "
+            "likely a scanned document requiring OCR"
+        )
+        log.warning("PDF at %s %s.", url, reason)
+        return None, reason
+
+    return _pdf_result(url, pdf_bytes, pages), None
+
+
+def _validate_pdf_bytes(pdf_bytes: bytes, content_type: str, settings, url: str, log) -> str | None:
+    """None when the bytes look like a real PDF, else the refusal reason."""
     if not pdf_bytes.startswith(b"%PDF-"):
         reason = (
             f"did not return PDF data (content-type={content_type!r}, "
             f"first bytes={pdf_bytes[:8]!r})"
         )
         log.warning("PDF fetch for %s %s", url, reason)
-        return None, reason
+        return reason
 
     if len(pdf_bytes) < settings.min_pdf_bytes:
         reason = f"returned only {len(pdf_bytes)} bytes"
         log.warning("PDF fetch for %s %s", url, reason)
-        return None, reason
+        return reason
+    return None
 
+
+def _read_pdf_pages(pymupdf, pdf_bytes: bytes, url: str, log):
+    """(pages, page_count, reason) — reason is None on success."""
     try:
         doc = pymupdf.open(stream=pdf_bytes, filetype="pdf")
     except Exception as e:
         reason = f"pymupdf could not open the document: {e}"
         log.warning("PDF fetch for %s: %s", url, reason)
-        return None, reason
+        return [], 0, reason
 
     # Extract text from all pages. The handle is closed on the way out even
     # when page iteration raises (encrypted or damaged documents), which used
@@ -192,19 +217,14 @@ def extract_pdf(
     except Exception as e:
         reason = f"pymupdf failed while reading pages: {e}"
         log.warning("PDF fetch for %s: %s", url, reason)
-        return None, reason
+        return [], 0, reason
     finally:
         doc.close()
+    return pages, page_count, None
 
-    if not pages:
-        reason = (
-            f"has {page_count} page(s) but no extractable text layer — "
-            "likely a scanned document requiring OCR"
-        )
-        log.warning("PDF at %s %s.", url, reason)
-        return None, reason
 
-    # Build markdown from extracted text
+def _pdf_result(url: str, pdf_bytes: bytes, pages: list) -> WebResult:
+    """WebResult from extracted pages; title is the first long line."""
     full_text = "\n\n---\n\n".join(pages)
     title = ""
     # Try to get title from first page (first non-empty line)
@@ -222,7 +242,7 @@ def extract_pdf(
         metadata={"content_type": "application/pdf", "pages": len(pages)},
         raw_bytes=pdf_bytes,
         raw_content_type="application/pdf",
-    ), None
+    )
 
 
 def fetch_pdf_ex(

@@ -44,7 +44,7 @@ def test_multi_number_citations_rejected():
     assert not is_valid_wiki_link_target("100-105")
 
 
-def test_cite_prefix_patterns_rejected():
+def _assert_cite_ref_fn_rejected() -> None:
     assert not is_valid_wiki_link_target("cite-1")
     assert not is_valid_wiki_link_target("cite_2")
     assert not is_valid_wiki_link_target("cite:3")
@@ -52,9 +52,17 @@ def test_cite_prefix_patterns_rejected():
     assert not is_valid_wiki_link_target("ref_42")
     assert not is_valid_wiki_link_target("fn-1")
     assert not is_valid_wiki_link_target("fn:2")
+
+
+def _assert_note_footnote_rejected() -> None:
     assert not is_valid_wiki_link_target("note-5")
     assert not is_valid_wiki_link_target("footnote-10")
     assert not is_valid_wiki_link_target("endnote-3")
+
+
+def test_cite_prefix_patterns_rejected():
+    _assert_cite_ref_fn_rejected()
+    _assert_note_footnote_rejected()
 
 
 def test_cite_prefixes_are_case_insensitive():

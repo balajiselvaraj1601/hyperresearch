@@ -203,12 +203,28 @@ def _to_web_result(item: Mapping[str, Any]) -> WebResult:
     if not isinstance(url, str) or not url:
         raise RuntimeError("Parallel returned a result without a URL")
 
+    title = _parallel_title(item, url)
+    content = _parallel_content(item, url)
+
+    return WebResult(
+        url=url,
+        title=title,
+        content=content,
+        fetched_at=datetime.now(UTC),
+        metadata=_parallel_metadata(item),
+    )
+
+
+def _parallel_title(item: Mapping[str, Any], url: str) -> str:
     title = item.get("title")
     if title is None:
-        title = ""
+        return ""
     if not isinstance(title, str):
         raise RuntimeError(f"Parallel returned an invalid title for {url}")
+    return title
 
+
+def _parallel_content(item: Mapping[str, Any], url: str) -> str:
     full_content = item.get("full_content")
     excerpts = item.get("excerpts")
     if isinstance(full_content, str) and full_content.strip():
@@ -219,16 +235,12 @@ def _to_web_result(item: Mapping[str, Any]) -> WebResult:
         raise RuntimeError(f"Parallel returned invalid content for {url}")
     if not content.strip():
         raise RuntimeError(f"Parallel returned no content for {url}")
+    return content
 
+
+def _parallel_metadata(item: Mapping[str, Any]) -> dict:
     metadata: dict[str, Any] = {}
     publish_date = item.get("publish_date")
     if isinstance(publish_date, str) and publish_date:
         metadata["published_date"] = publish_date
-
-    return WebResult(
-        url=url,
-        title=title,
-        content=content,
-        fetched_at=datetime.now(UTC),
-        metadata=metadata,
-    )
+    return metadata

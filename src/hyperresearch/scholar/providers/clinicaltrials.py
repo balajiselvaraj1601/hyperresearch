@@ -75,6 +75,49 @@ def _strings(mapping: dict[str, Any], key: str) -> list[str]:
     return [item.strip() for item in value if isinstance(item, str) and item.strip()]
 
 
+def _trial_identity(study: Any):
+    """(nct_id, title, section), or None when the record is not citable."""
+    if not isinstance(study, dict):
+        return None
+    section = study.get("protocolSection")
+    identification = _module(section, "identificationModule")
+    nct_id = _text(identification, "nctId")
+    # briefTitle is the registry's display title; officialTitle is the
+    # protocol title, which is longer and present on some records where
+    # briefTitle is not.
+    title = _text(identification, "briefTitle") or _text(identification, "officialTitle")
+    if not nct_id or not title:
+        return None
+    return nct_id, title, section
+
+
+def _trial_extra(nct_id: str, status, design, conditions, start_date, lead_sponsor) -> dict:
+    """Provenance extras for one trial record."""
+    extra: dict[str, str] = {"nct_id": nct_id}
+    overall_status = _text(status, "overallStatus")
+    if overall_status:
+        extra["status"] = overall_status
+    # Phase is a list because a single study can span two, as in the very
+    # common "Phase 1/Phase 2" dose-escalation-then-expansion design.
+    phases = _strings(design, "phases")
+    if phases:
+        extra["phase"] = "/".join(phases)
+    study_type = _text(design, "studyType")
+    if study_type:
+        extra["study_type"] = study_type
+    enrollment = design.get("enrollmentInfo")
+    if isinstance(enrollment, dict) and isinstance(enrollment.get("count"), int):
+        extra["enrollment"] = str(enrollment["count"])
+    condition_names = _strings(conditions, "conditions")[:_MAX_CONDITIONS]
+    if condition_names:
+        extra["conditions"] = "; ".join(condition_names)
+    if start_date:
+        extra["start_date"] = start_date
+    if lead_sponsor:
+        extra["lead_sponsor"] = lead_sponsor
+    return extra
+
+
 class ClinicalTrialsProvider(SearchProvider):
     """Interventional and observational study registrations."""
 
@@ -120,17 +163,10 @@ class ClinicalTrialsProvider(SearchProvider):
 
     def _to_paper(self, study: Any) -> Paper | None:
         """One study record, or None when it carries nothing citable."""
-        if not isinstance(study, dict):
+        identity = _trial_identity(study)
+        if identity is None:
             return None
-        section = study.get("protocolSection")
-        identification = _module(section, "identificationModule")
-        nct_id = _text(identification, "nctId")
-        # briefTitle is the registry's display title; officialTitle is the
-        # protocol title, which is longer and present on some records where
-        # briefTitle is not.
-        title = _text(identification, "briefTitle") or _text(identification, "officialTitle")
-        if not nct_id or not title:
-            return None
+        nct_id, title, section = identity
 
         status = _module(section, "statusModule")
         design = _module(section, "designModule")
@@ -144,28 +180,7 @@ class ClinicalTrialsProvider(SearchProvider):
         lead_struct = sponsors.get("leadSponsor")
         lead_sponsor = _text(lead_struct, "name") if isinstance(lead_struct, dict) else None
 
-        extra: dict[str, str] = {"nct_id": nct_id}
-        overall_status = _text(status, "overallStatus")
-        if overall_status:
-            extra["status"] = overall_status
-        # Phase is a list because a single study can span two, as in the very
-        # common "Phase 1/Phase 2" dose-escalation-then-expansion design.
-        phases = _strings(design, "phases")
-        if phases:
-            extra["phase"] = "/".join(phases)
-        study_type = _text(design, "studyType")
-        if study_type:
-            extra["study_type"] = study_type
-        enrollment = design.get("enrollmentInfo")
-        if isinstance(enrollment, dict) and isinstance(enrollment.get("count"), int):
-            extra["enrollment"] = str(enrollment["count"])
-        condition_names = _strings(conditions, "conditions")[:_MAX_CONDITIONS]
-        if condition_names:
-            extra["conditions"] = "; ".join(condition_names)
-        if start_date:
-            extra["start_date"] = start_date
-        if lead_sponsor:
-            extra["lead_sponsor"] = lead_sponsor
+        extra = _trial_extra(nct_id, status, design, conditions, start_date, lead_sponsor)
 
         return Paper(
             title=title,

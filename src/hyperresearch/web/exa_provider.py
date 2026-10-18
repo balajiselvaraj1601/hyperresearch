@@ -107,13 +107,29 @@ def _to_web_result(item: Any) -> WebResult:
     highlights = getattr(item, "highlights", None) or []
     summary = getattr(item, "summary", None) or ""
 
-    if text.strip():
-        content = text
-    elif highlights:
-        content = "\n\n".join(h for h in highlights if h)
-    else:
-        content = summary
+    content = _exa_content(text, highlights, summary)
+    metadata = _exa_metadata(item, highlights, summary, content)
 
+    return WebResult(
+        url=getattr(item, "url", "") or "",
+        title=getattr(item, "title", None) or "",
+        content=content,
+        fetched_at=datetime.now(UTC),
+        metadata=metadata,
+    )
+
+
+def _exa_content(text: str, highlights: list, summary: str) -> str:
+    """Best usable body: text, then highlights, then summary."""
+    if text.strip():
+        return text
+    if highlights:
+        return "\n\n".join(h for h in highlights if h)
+    return summary
+
+
+def _exa_metadata(item: Any, highlights: list, summary: str, content: str) -> dict:
+    """Pass through Exa row fields plus the unused content modes."""
     metadata: dict[str, Any] = {}
     for field in ("author", "published_date", "score", "favicon", "image"):
         value = getattr(item, field, None)
@@ -123,11 +139,4 @@ def _to_web_result(item: Any) -> WebResult:
         metadata["highlights"] = list(highlights)
     if summary and summary != content:
         metadata["summary"] = summary
-
-    return WebResult(
-        url=getattr(item, "url", "") or "",
-        title=getattr(item, "title", None) or "",
-        content=content,
-        fetched_at=datetime.now(UTC),
-        metadata=metadata,
-    )
+    return metadata

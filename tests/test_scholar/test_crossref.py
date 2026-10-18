@@ -86,24 +86,32 @@ def _no_contact_email(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("HYPERRESEARCH_CONTACT_EMAIL", raising=False)
 
 
+def _assert_alphafold_identity(paper) -> None:
+    assert paper.title == "Highly accurate protein structure prediction with AlphaFold"
+    assert paper.source == "crossref"
+    assert paper.doi == "10.1038/s41586-021-03819-2"
+    assert paper.identifier == "10.1038/s41586-021-03819-2"
+    assert paper.year == 2021
+    assert paper.authors == ("John Jumper", "Richard Evans", "AlphaFold Team")
+    assert paper.venue == "Nature"
+
+
+def _assert_alphafold_links(paper) -> None:
+    assert paper.citation_count == 21473
+    assert paper.work_type == "article"
+    assert paper.url == "http://dx.doi.org/10.1038/s41586-021-03819-2"
+    assert paper.pdf_url == "https://www.nature.com/articles/s41586-021-03819-2.pdf"
+    assert paper.extra["publisher"] == "Springer Science and Business Media LLC"
+
+
 class TestParsing:
     def test_maps_every_contract_field(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _stub(monkeypatch, LIVE_SHAPE)
         papers = CrossrefProvider().search(None, "alphafold", 20)
         assert len(papers) == 1
         paper = papers[0]
-        assert paper.title == "Highly accurate protein structure prediction with AlphaFold"
-        assert paper.source == "crossref"
-        assert paper.doi == "10.1038/s41586-021-03819-2"
-        assert paper.identifier == "10.1038/s41586-021-03819-2"
-        assert paper.year == 2021
-        assert paper.authors == ("John Jumper", "Richard Evans", "AlphaFold Team")
-        assert paper.venue == "Nature"
-        assert paper.citation_count == 21473
-        assert paper.work_type == "article"
-        assert paper.url == "http://dx.doi.org/10.1038/s41586-021-03819-2"
-        assert paper.pdf_url == "https://www.nature.com/articles/s41586-021-03819-2.pdf"
-        assert paper.extra["publisher"] == "Springer Science and Business Media LLC"
+        _assert_alphafold_identity(paper)
+        _assert_alphafold_links(paper)
 
     def test_subtitle_is_appended(self, monkeypatch: pytest.MonkeyPatch) -> None:
         _stub(monkeypatch, _wrap({"title": ["Main"], "subtitle": ["A Study"]}))
@@ -117,9 +125,7 @@ class TestParsing:
         (paper,) = CrossrefProvider().search(None, "q", 5)
         assert paper.title == "Main: A Study"
 
-    def test_organizational_author_uses_name_field(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_organizational_author_uses_name_field(self, monkeypatch: pytest.MonkeyPatch) -> None:
         item = {
             "title": ["T"],
             "author": [{"name": "The WHO Collaborating Group"}, {"family": "Solo"}, {}],
@@ -162,9 +168,7 @@ class TestParsing:
             ("", "other"),
         ],
     )
-    def test_type_mapping(
-        self, monkeypatch: pytest.MonkeyPatch, raw: str, expected: str
-    ) -> None:
+    def test_type_mapping(self, monkeypatch: pytest.MonkeyPatch, raw: str, expected: str) -> None:
         _stub(monkeypatch, _wrap({"title": ["T"], "type": raw}))
         (paper,) = CrossrefProvider().search(None, "q", 5)
         assert paper.work_type == expected
@@ -225,9 +229,7 @@ class TestDates:
         (paper,) = CrossrefProvider().search(None, "q", 5)
         assert paper.year == 2022
 
-    def test_last_resort_is_the_deposit_timestamp(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_last_resort_is_the_deposit_timestamp(self, monkeypatch: pytest.MonkeyPatch) -> None:
         item = {"title": ["T"], "created": {"date-time": "2015-11-02T09:00:00Z"}}
         _stub(monkeypatch, _wrap(item))
         (paper,) = CrossrefProvider().search(None, "q", 5)
@@ -285,9 +287,7 @@ class TestRequestShape:
         assert "query=protein%20folding" in calls[0]
         assert "rows=30" in calls[0]
 
-    def test_rows_clamped_to_crossref_page_ceiling(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_rows_clamped_to_crossref_page_ceiling(self, monkeypatch: pytest.MonkeyPatch) -> None:
         calls: list[str] = []
         _stub(monkeypatch, LIVE_SHAPE, calls)
         CrossrefProvider().search(None, "q", 9999)
@@ -323,9 +323,7 @@ class TestRequestShape:
         with pytest.raises(ProviderError):
             CrossrefProvider().search(None, "q", 5, work_type="trial")
 
-    def test_mailto_appended_only_when_configured(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_mailto_appended_only_when_configured(self, monkeypatch: pytest.MonkeyPatch) -> None:
         calls: list[str] = []
         _stub(monkeypatch, LIVE_SHAPE, calls)
         CrossrefProvider().search(None, "q", 5)

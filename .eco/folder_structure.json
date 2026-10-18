@@ -1,0 +1,39 @@
+{
+  "required_files": [
+    "AGENTS.md",
+    "README.md"
+  ],
+  "allowed_files": [
+    ".gitignore",
+    "CHANGELOG.md",
+    "CONTINUITY.md",
+    "CONTRIBUTING.md",
+    "LICENSE",
+    "pyproject.toml",
+    "uv.lock"
+  ],
+  "required_dirs": [
+    ".eco"
+  ],
+  "allowed_dirs": [
+    ".agents",
+    ".claude",
+    ".git",
+    ".github",
+    ".hyperresearch",
+    ".pytest_cache",
+    "active",
+    "assets",
+    "config",
+    "deprecated",
+    "docs",
+    "example-reports",
+    "orchestrator",
+    "output",
+    "scripts",
+    "src",
+    "standby",
+    "tests",
+    "utils"
+  ]
+}

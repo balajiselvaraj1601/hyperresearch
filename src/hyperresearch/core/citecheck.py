@@ -43,6 +43,13 @@ def _split_sentences(text: str) -> list[str]:
 def parse_sources_section(report_text: str, conn) -> dict[str, str | None]:
     """Map `[N]` -> note_id by matching Sources-section URLs/titles to the vault."""
     mapping: dict[str, str | None] = {}
+    for num, rest in _source_entries(report_text):
+        mapping[num] = _resolve_source_entry(rest, conn)
+    return mapping
+
+
+def _source_entries(report_text: str):
+    """Yield (num, rest) entries from the report's Sources/References section."""
     in_sources = False
     for line in report_text.splitlines():
         if re.match(r"^##\s+(Sources|References)\b", line, re.IGNORECASE):
@@ -55,24 +62,36 @@ def parse_sources_section(report_text: str, conn) -> dict[str, str | None]:
         m = _SOURCES_ENTRY_RE.match(line)
         if not m:
             continue
-        num, rest = m.group(1), m.group(2)
-        note_id = None
-        url_m = re.search(r"https?://\S+", rest)
-        if url_m:
-            url = url_m.group(0).rstrip(".,)")
-            row = conn.execute("SELECT note_id FROM sources WHERE url = ?", (url,)).fetchone()
-            if row:
-                note_id = row["note_id"]
-        if note_id is None:
-            title = rest.split("http")[0].strip(" .–-")
-            if title:
-                row = conn.execute(
-                    "SELECT id FROM notes WHERE title = ? COLLATE NOCASE", (title,)
-                ).fetchone()
-                if row:
-                    note_id = row["id"]
-        mapping[num] = note_id
-    return mapping
+        yield m.group(1), m.group(2)
+
+
+def _resolve_source_entry(rest: str, conn) -> str | None:
+    """Match one Sources entry to a vault note, by URL then title."""
+    note_id = _source_note_by_url(rest, conn)
+    if note_id is not None:
+        return note_id
+    return _source_note_by_title(rest, conn)
+
+
+def _source_note_by_url(rest: str, conn) -> str | None:
+    url_m = re.search(r"https?://\S+", rest)
+    if not url_m:
+        return None
+    url = url_m.group(0).rstrip(".,)")
+    row = conn.execute("SELECT note_id FROM sources WHERE url = ?", (url,)).fetchone()
+    if row:
+        return row["note_id"]
+    return None
+
+
+def _source_note_by_title(rest: str, conn) -> str | None:
+    title = rest.split("http")[0].strip(" .–-")
+    if not title:
+        return None
+    row = conn.execute("SELECT id FROM notes WHERE title = ? COLLATE NOCASE", (title,)).fetchone()
+    if row:
+        return row["id"]
+    return None
 
 
 def extract_pairs(report_text: str, conn) -> list[dict]:
@@ -91,25 +110,32 @@ def extract_pairs(report_text: str, conn) -> list[dict]:
 
     pairs: list[dict] = []
     for sentence in _split_sentences(body):
-        cited: list[str | None] = []
-        for m in _NUMBERED_CITE_RE.finditer(sentence):
-            for num in re.split(r"\s*,\s*", m.group(1)):
-                if num in numbered_map:
-                    cited.append(numbered_map[num])
-        for m in WIKI_LINK_RE.finditer(sentence):
-            target = m.group(1).strip()
-            cited.append(target if target in known_ids else None)
-        for note_id in cited:
-            pairs.append(
-                {
-                    "sentence": sentence,
-                    "note_id": note_id,
-                    "numbers": _NUMBER_RE.findall(sentence),
-                    "strong": any(k in sentence.lower() for k in _STRONG_MARKERS)
-                    or bool(_NUMBER_RE.search(sentence)),
-                }
-            )
+        for note_id in _cited_in_sentence(sentence, numbered_map, known_ids):
+            pairs.append(_pair_dict(sentence, note_id))
     return pairs
+
+
+def _cited_in_sentence(sentence: str, numbered_map: dict, known_ids: set) -> list[str | None]:
+    """All citation targets bound in one sentence."""
+    cited: list[str | None] = []
+    for m in _NUMBERED_CITE_RE.finditer(sentence):
+        for num in re.split(r"\s*,\s*", m.group(1)):
+            if num in numbered_map:
+                cited.append(numbered_map[num])
+    for m in WIKI_LINK_RE.finditer(sentence):
+        target = m.group(1).strip()
+        cited.append(target if target in known_ids else None)
+    return cited
+
+
+def _pair_dict(sentence: str, note_id: str | None) -> dict:
+    return {
+        "sentence": sentence,
+        "note_id": note_id,
+        "numbers": _NUMBER_RE.findall(sentence),
+        "strong": any(k in sentence.lower() for k in _STRONG_MARKERS)
+        or bool(_NUMBER_RE.search(sentence)),
+    }
 
 
 def _norm(text: str) -> str:
@@ -127,15 +153,6 @@ def triage_pairs(pairs: list[dict], conn) -> dict:
     """
     claims_by_note: dict[str, list[dict]] = {}
 
-    def _claims(note_id: str) -> list[dict]:
-        if note_id not in claims_by_note:
-            rows = conn.execute(
-                "SELECT claim, quoted_support, numbers FROM claims WHERE note_id = ?",
-                (note_id,),
-            ).fetchall()
-            claims_by_note[note_id] = [dict(r) for r in rows]
-        return claims_by_note[note_id]
-
     supported = 0
     dangling = 0
     needs_llm = []
@@ -144,27 +161,8 @@ def triage_pairs(pairs: list[dict], conn) -> dict:
             pair["verdict"] = "dangling"
             dangling += 1
             continue
-        matched = False
-        note_claims = _claims(pair["note_id"])
-        blob = _norm(
-            " ".join(
-                (c["claim"] or "") + " " + (c["quoted_support"] or "") + " " + (c["numbers"] or "")
-                for c in note_claims
-            )
-        )
-        if blob:
-            nums = [n for n in pair["numbers"] if len(n.replace(",", "")) >= 2]
-            if nums and all(n.replace(",", "") in blob.replace(",", "") for n in nums):
-                matched = True
-            elif not nums:
-                # Long word-overlap window: any 6-consecutive-word shingle of the
-                # sentence found in the claims blob
-                words = _norm(pair["sentence"]).split()
-                for i in range(len(words) - 5):
-                    if " ".join(words[i : i + 6]) in blob:
-                        matched = True
-                        break
-        if matched:
+        blob = _claims_blob(conn, pair["note_id"], claims_by_note)
+        if _pair_supported(pair, blob):
             pair["verdict"] = "supported-mechanical"
             supported += 1
         else:
@@ -178,6 +176,35 @@ def triage_pairs(pairs: list[dict], conn) -> dict:
         "needs_llm": len(needs_llm),
         "pairs": pairs,
     }
+
+
+def _claims_blob(conn, note_id: str, cache: dict) -> str:
+    """Normalized concatenation of a note's claims (memoized per call)."""
+    if note_id not in cache:
+        rows = conn.execute(
+            "SELECT claim, quoted_support, numbers FROM claims WHERE note_id = ?",
+            (note_id,),
+        ).fetchall()
+        cache[note_id] = [dict(r) for r in rows]
+    return _norm(
+        " ".join(
+            (c["claim"] or "") + " " + (c["quoted_support"] or "") + " " + (c["numbers"] or "")
+            for c in cache[note_id]
+        )
+    )
+
+
+def _pair_supported(pair: dict, blob: str) -> bool:
+    """True when the pair's numbers or a 6-word shingle appear in the blob."""
+    if not blob:
+        return False
+    nums = [n for n in pair["numbers"] if len(n.replace(",", "")) >= 2]
+    if nums:
+        return all(n.replace(",", "") in blob.replace(",", "") for n in nums)
+    # Long word-overlap window: any 6-consecutive-word shingle of the
+    # sentence found in the claims blob
+    words = _norm(pair["sentence"]).split()
+    return any(" ".join(words[i : i + 6]) in blob for i in range(len(words) - 5))
 
 
 def sample_needs_llm(pairs: list[dict], sample_rate: float = 0.6) -> list[dict]:

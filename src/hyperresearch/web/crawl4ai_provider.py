@@ -142,6 +142,147 @@ def _check_final_url(entry_url: str, final_url: str | None, settings: FetchSetti
         ) from exc
 
 
+def _extract_markdown(md) -> str:
+    # result.markdown is a MarkdownGenerationResult with .raw_markdown,
+    # .fit_markdown, .markdown_with_citations, etc.
+    # Prefer fit_markdown (main content, no nav/footer chrome) over raw_markdown.
+    if md and hasattr(md, "fit_markdown"):
+        return md.fit_markdown or md.raw_markdown or ""
+    if md and hasattr(md, "raw_markdown"):
+        return md.raw_markdown or ""
+    if isinstance(md, str):
+        return md
+    return ""
+
+
+def _extract_media(result) -> list:
+    media_raw = result.media or {}
+    return media_raw.get("images", []) if isinstance(media_raw, dict) else []
+
+
+def _extract_links(links_raw) -> list:
+    links = []
+    if isinstance(links_raw, dict):
+        for link in links_raw.get("internal", []):
+            links.append({**link, "type": "internal"})
+        for link in links_raw.get("external", []):
+            links.append({**link, "type": "external"})
+    return links
+
+
+def _decode_screenshot(screenshot):
+    if not screenshot:
+        return None
+    import base64
+
+    try:
+        return base64.b64decode(screenshot)
+    except Exception:
+        return None
+
+
+def _make_web_result(
+    url: str, metadata: dict, content: str, html, media: list, screenshot, links: list | None = None
+) -> WebResult:
+    return WebResult(
+        url=url,
+        title=metadata.get("title", ""),
+        content=content,
+        raw_html=html,
+        fetched_at=datetime.now(UTC),
+        metadata=metadata,
+        media=media,
+        links=links or [],
+        screenshot=screenshot,
+    )
+
+
+def _gate_batch_urls(urls: list, settings, log) -> list:
+    # SSRF gate: same entry-point check as fetch(). Refused URLs are
+    # skipped (logged), not fatal — one hostile URL must not kill the
+    # whole batch.
+    from hyperresearch.web.safe_http import SafeHTTPError, check_url
+
+    allowed_urls = []
+    for url in urls:
+        try:
+            check_url(url, settings.allow_private_hosts)
+            allowed_urls.append(url)
+        except SafeHTTPError as exc:
+            log.warning("refused batch fetch for %s: %s", url, exc)
+    return allowed_urls
+
+
+def _fetch_batch_pdfs(pdf_urls: list, settings, log) -> tuple:
+    # Fetch PDFs directly (no browser needed). When _fetch_pdf returns
+    # None (parser failure, non-PDF body served at a .pdf URL) we fall
+    # back to the browser path — mirrors the single-fetch behaviour in
+    # fetch() so batch callers don't silently lose academic PDFs that
+    # need JS-rendered landing pages. Cert refusals are the exception:
+    # the browser lane ignores TLS errors, so falling back would be an
+    # automatic unverified retry. A batch has no per-URL failure
+    # channel, so the skip is logged loudly instead.
+    from hyperresearch.web.safe_http import CertVerificationError
+
+    web_results = []
+    failed_pdf_urls = []
+    for url in pdf_urls:
+        try:
+            pdf_result = _fetch_pdf(url, settings)
+        except CertVerificationError as exc:
+            log.warning(
+                "SKIPPED (TLS certificate invalid): %s -- a potentially "
+                "valuable source was not fetched. To include it, set "
+                "pdf_verify_tls = false under [fetch] in config.toml. (%s)",
+                url,
+                exc,
+            )
+            continue
+        if pdf_result is not None:
+            web_results.append(pdf_result)
+        else:
+            failed_pdf_urls.append(url)
+    return web_results, failed_pdf_urls
+
+
+def _fetch_binary_pdf(url: str, settings, log):
+    # Post-fetch binary check fallback — browser may have fetched a PDF inline.
+    from hyperresearch.web.safe_http import CertVerificationError
+
+    try:
+        return _fetch_pdf(url, settings)
+    except CertVerificationError as exc:
+        # Keep the batch alive, but don't store the binary
+        # garbage the browser got either.
+        log.warning("SKIPPED (TLS certificate invalid): %s (%s)", url, exc)
+        return None
+
+
+def _convert_batch_result(cr, url: str, settings, gates, log):
+    """Convert one browser result. Returns (WebResult|None, want_pdf)."""
+    from hyperresearch.web.safe_http import SafeHTTPError
+
+    if not cr.success:
+        return None, False
+    try:
+        _check_final_url(url, getattr(cr, "redirected_url", None) or cr.url, settings)
+    except SafeHTTPError as exc:
+        log.warning("dropping batch result for %s: %s", url, exc)
+        return None, False
+    content = _extract_markdown(cr.markdown)
+    metadata = cr.metadata or {}
+    converted = _make_web_result(
+        cr.url or url,
+        metadata,
+        content,
+        cr.html,
+        _extract_media(cr),
+        _decode_screenshot(cr.screenshot),
+    )
+    # Post-fetch binary check — browser may have fetched a PDF inline
+    return converted, bool(content and _looks_like_binary(content, gates))
+
+
 class Crawl4AIProvider:
     name = "crawl4ai"
 
@@ -310,52 +451,14 @@ class Crawl4AIProvider:
                 url, getattr(result, "redirected_url", None) or result.url, self._settings
             )
             metadata = result.metadata or {}
-
-            # result.markdown is a MarkdownGenerationResult with .raw_markdown,
-            # .fit_markdown, .markdown_with_citations, etc.
-            # Prefer fit_markdown (main content, no nav/footer chrome) over raw_markdown.
-            md = result.markdown
-            if md and hasattr(md, "fit_markdown"):
-                content = md.fit_markdown or md.raw_markdown or ""
-            elif md and hasattr(md, "raw_markdown"):
-                content = md.raw_markdown or ""
-            elif isinstance(md, str):
-                content = md
-            else:
-                content = ""
-
-            # Extract media (images) — crawl4ai returns dict with 'images' key
-            media_raw = result.media or {}
-            media = media_raw.get("images", []) if isinstance(media_raw, dict) else []
-
-            # Extract links — crawl4ai returns dict with 'internal'/'external' keys
-            links_raw = result.links or {}
-            links = []
-            if isinstance(links_raw, dict):
-                for link in links_raw.get("internal", []):
-                    links.append({**link, "type": "internal"})
-                for link in links_raw.get("external", []):
-                    links.append({**link, "type": "external"})
-
-            screenshot_bytes = None
-            if result.screenshot:
-                import base64
-
-                try:
-                    screenshot_bytes = base64.b64decode(result.screenshot)
-                except Exception:
-                    pass
-
-            return WebResult(
-                url=result.url or url,
-                title=metadata.get("title", ""),
-                content=content,
-                raw_html=result.html,
-                fetched_at=datetime.now(UTC),
-                metadata=metadata,
-                media=media,
-                links=links,
-                screenshot=screenshot_bytes,
+            return _make_web_result(
+                result.url or url,
+                metadata,
+                _extract_markdown(result.markdown),
+                result.html,
+                _extract_media(result),
+                _decode_screenshot(result.screenshot),
+                _extract_links(result.links or {}),
             )
 
     def fetch_many(self, urls: list[str]) -> list[WebResult]:
@@ -363,115 +466,31 @@ class Crawl4AIProvider:
         return _run_coro(self._fetch_many_async(urls))
 
     async def _fetch_many_async(self, urls: list[str]) -> list[WebResult]:
-        # SSRF gate: same entry-point check as fetch(). Refused URLs are
-        # skipped (logged), not fatal — one hostile URL must not kill the
-        # whole batch.
-        from hyperresearch.web.safe_http import CertVerificationError, SafeHTTPError, check_url
-
         log = logging.getLogger("hyperresearch.web")
-        allowed_urls = []
-        for url in urls:
-            try:
-                check_url(url, self._settings.allow_private_hosts)
-                allowed_urls.append(url)
-            except SafeHTTPError as exc:
-                log.warning("refused batch fetch for %s: %s", url, exc)
+        allowed_urls = _gate_batch_urls(urls, self._settings, log)
 
         # Split: PDFs go direct, rest go through browser
         pdf_urls = [u for u in allowed_urls if _is_pdf_url(u)]
         html_urls = [u for u in allowed_urls if not _is_pdf_url(u)]
 
-        web_results = []
-
-        # Fetch PDFs directly (no browser needed). When _fetch_pdf returns
-        # None (parser failure, non-PDF body served at a .pdf URL) we fall
-        # back to the browser path — mirrors the single-fetch behaviour in
-        # fetch() so batch callers don't silently lose academic PDFs that
-        # need JS-rendered landing pages. Cert refusals are the exception:
-        # the browser lane ignores TLS errors, so falling back would be an
-        # automatic unverified retry. A batch has no per-URL failure
-        # channel, so the skip is logged loudly instead.
-        failed_pdf_urls = []
-        for url in pdf_urls:
-            try:
-                pdf_result = _fetch_pdf(url, self._settings)
-            except CertVerificationError as exc:
-                log.warning(
-                    "SKIPPED (TLS certificate invalid): %s -- a potentially "
-                    "valuable source was not fetched. To include it, set "
-                    "pdf_verify_tls = false under [fetch] in config.toml. (%s)",
-                    url,
-                    exc,
-                )
-                continue
-            if pdf_result is not None:
-                web_results.append(pdf_result)
-            else:
-                failed_pdf_urls.append(url)
-
+        web_results, failed_pdf_urls = _fetch_batch_pdfs(pdf_urls, self._settings, log)
         browser_urls = html_urls + failed_pdf_urls
 
         if browser_urls:
             async with self._make_crawler() as crawler:
                 results = await crawler.arun_many(urls=browser_urls, config=self._run_config)
                 for cr, url in zip(results, browser_urls, strict=False):  # type: ignore[arg-type]
-                    if not cr.success:
+                    converted, want_pdf = _convert_batch_result(
+                        cr, url, self._settings, self._gates, log
+                    )
+                    if converted is None:
                         continue
-                    try:
-                        _check_final_url(
-                            url, getattr(cr, "redirected_url", None) or cr.url, self._settings
-                        )
-                    except SafeHTTPError as exc:
-                        log.warning("dropping batch result for %s: %s", url, exc)
-                        continue
-                    metadata = cr.metadata or {}
-                    md = cr.markdown
-                    if md and hasattr(md, "fit_markdown"):
-                        content = md.fit_markdown or md.raw_markdown or ""
-                    elif md and hasattr(md, "raw_markdown"):
-                        content = md.raw_markdown or ""
-                    elif isinstance(md, str):
-                        content = md
-                    else:
-                        content = ""
-
-                    # Post-fetch binary check — browser may have fetched a PDF inline
-                    if content and _looks_like_binary(content, self._gates):
-                        try:
-                            pdf_result = _fetch_pdf(url, self._settings)
-                        except CertVerificationError as exc:
-                            # Keep the batch alive, but don't store the binary
-                            # garbage the browser got either.
-                            log.warning("SKIPPED (TLS certificate invalid): %s (%s)", url, exc)
-                            continue
+                    if want_pdf:
+                        pdf_result = _fetch_binary_pdf(url, self._settings, log)
                         if pdf_result is not None:
                             web_results.append(pdf_result)
                             continue
-
-                    media_raw = cr.media or {}
-                    media = media_raw.get("images", []) if isinstance(media_raw, dict) else []
-
-                    screenshot_bytes = None
-                    if cr.screenshot:
-                        import base64
-
-                        try:
-                            screenshot_bytes = base64.b64decode(cr.screenshot)
-                        except Exception:
-                            pass
-
-                    web_results.append(
-                        WebResult(
-                            url=cr.url or url,
-                            title=metadata.get("title", ""),
-                            content=content,
-                            raw_html=cr.html,
-                            fetched_at=datetime.now(UTC),
-                            metadata=metadata,
-                            media=media,
-                            screenshot=screenshot_bytes,
-                        )
-                    )
+                    web_results.append(converted)
         return web_results
 
     def search(self, query: str, max_results: int = 5) -> list[WebResult]:

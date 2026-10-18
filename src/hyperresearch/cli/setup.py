@@ -16,36 +16,20 @@ from rich.table import Table
 console = Console()
 
 
-def setup(
-    path: str = typer.Argument(".", help="Path to set up"),
-    json_output: bool = typer.Option(False, "--json", "-j", help="JSON output (non-interactive)"),
-) -> None:
-    """Interactive setup — configure hyperresearch step by step."""
-    if json_output or not sys.stdin.isatty():
-        import subprocess
+def _delegate_to_install(path: str, json_output: bool) -> None:
+    """Non-interactive mode delegates to `install`. Exits when delegating."""
+    import subprocess
 
-        cmd = [sys.executable, "-m", "hyperresearch", "install", path]
-        if json_output:
-            cmd.append("--json")
-        raise typer.Exit(subprocess.call(cmd))
+    if not (json_output or not sys.stdin.isatty()):
+        return
+    cmd = [sys.executable, "-m", "hyperresearch", "install", path]
+    if json_output:
+        cmd.append("--json")
+    raise typer.Exit(subprocess.call(cmd))
 
-    root = Path(path).resolve()
 
-    console.print()
-    console.print(
-        Panel(
-            "[bold cyan]hyperresearch[/]\n"
-            "[dim]Agent-driven research knowledge base[/]\n\n"
-            "[dim]Your AI agents will collect, search, and synthesize\n"
-            "web research into a persistent, searchable wiki.[/]",
-            border_style="cyan",
-            padding=(1, 4),
-        )
-    )
-
-    vault_name = "Research Base"
-
-    # ── Step 1: Web Provider ──────────────────────────────────────
+def _choose_provider() -> tuple:
+    """Step 1: pick the web provider. Returns (provider, use_crawl4ai)."""
     console.print()
     console.print(Rule("[bold]Step 1[/]  Web Provider", style="cyan"))
     console.print()
@@ -67,59 +51,78 @@ def setup(
         console.print("  Your agent's built-in WebFetch will be used instead.")
         console.print("  [dim]For headless browser support: pip install hyperresearch[crawl4ai][/]")
         use_crawl4ai = False
+    return ("crawl4ai" if use_crawl4ai else "builtin"), use_crawl4ai
 
-    provider = "crawl4ai" if use_crawl4ai else "builtin"
 
-    # ── Step 2: Browser Profile ───────────────────────────────────
-    profile = ""
-    if use_crawl4ai:
-        console.print()
-        console.print(Rule("[bold]Step 2[/]  Browser Profile", style="cyan"))
-        console.print()
-        console.print("  A login profile lets hyperresearch access sites you're")
-        console.print("  logged into — LinkedIn, Twitter, paywalled news, etc.")
-        console.print()
+def _build_profile_menu(existing_profiles: list) -> tuple:
+    table = Table(show_header=False, box=None, padding=(0, 2, 0, 4))
+    table.add_column(style="bold cyan", width=3)
+    table.add_column()
 
-        existing_profiles = _list_profiles()
-
-        table = Table(show_header=False, box=None, padding=(0, 2, 0, 4))
-        table.add_column(style="bold cyan", width=3)
-        table.add_column()
-
-        opt_num = 1
-        use_existing_opt = None
-        if existing_profiles:
-            use_existing_opt = str(opt_num)
-            table.add_row(use_existing_opt, "Use an existing profile")
-            opt_num += 1
-        create_opt = str(opt_num)
-        table.add_row(create_opt, "Create a new profile [dim]— opens browser, ~2 min[/]")
+    opt_num = 1
+    use_existing_opt = None
+    if existing_profiles:
+        use_existing_opt = str(opt_num)
+        table.add_row(use_existing_opt, "Use an existing profile")
         opt_num += 1
-        skip_opt = str(opt_num)
-        table.add_row(skip_opt, "Skip [dim]— public pages only[/]")
-        console.print(table)
-        console.print()
-
-        valid = [create_opt, skip_opt]
-        if use_existing_opt:
-            valid.insert(0, use_existing_opt)
-        default = use_existing_opt if existing_profiles else skip_opt
-
-        choice = Prompt.ask("  Choose", choices=valid, default=default)
-
-        if choice == use_existing_opt and existing_profiles:
-            profile = _pick_existing_profile(existing_profiles)
-        elif choice == create_opt:
-            profile = _create_profile_interactive()
-        # else: skip, profile stays ""
-
-    # ── Execute ───────────────────────────────────────────────────
-    console.print()
-    console.print(Rule("[bold]Setting up", style="green"))
+    create_opt = str(opt_num)
+    table.add_row(create_opt, "Create a new profile [dim]— opens browser, ~2 min[/]")
+    opt_num += 1
+    skip_opt = str(opt_num)
+    table.add_row(skip_opt, "Skip [dim]— public pages only[/]")
+    console.print(table)
     console.print()
 
-    from hyperresearch.core.agent_docs import _resolve_executable, inject_agent_docs
+    valid = [create_opt, skip_opt]
+    if use_existing_opt:
+        valid.insert(0, use_existing_opt)
+    default = use_existing_opt if existing_profiles else skip_opt
+    return Prompt.ask("  Choose", choices=valid, default=default), use_existing_opt, create_opt
+
+
+def _choose_profile(use_crawl4ai: bool) -> str:
+    """Step 2: pick the browser profile. Returns the profile name or ''."""
+    if not use_crawl4ai:
+        return ""
+    console.print()
+    console.print(Rule("[bold]Step 2[/]  Browser Profile", style="cyan"))
+    console.print()
+    console.print("  A login profile lets hyperresearch access sites you're")
+    console.print("  logged into — LinkedIn, Twitter, paywalled news, etc.")
+    console.print()
+
+    existing_profiles = _list_profiles()
+    choice, use_existing_opt, create_opt = _build_profile_menu(existing_profiles)
+    if choice == use_existing_opt and existing_profiles:
+        return _pick_existing_profile(existing_profiles)
+    if choice == create_opt:
+        return _create_profile_interactive()
+    # else: skip, profile stays ""
+    return ""
+
+
+def _install_setup_parts(root, hpr_path: str, profile_name: str) -> None:
+    from hyperresearch.core.agent_docs import inject_agent_docs
     from hyperresearch.core.hooks import install_hooks
+
+    # Inject CLAUDE.md
+    doc_actions = inject_agent_docs(root)
+    for action in doc_actions:
+        console.print(f"  [green]Docs:[/] {action}")
+
+    # Install Claude Code hook + skills + subagents (rendered from the
+    # persisted scale gear, if one was chosen via `hpr profile use`)
+    hook_actions = install_hooks(root, hpr_path=hpr_path, profile=profile_name)
+    for action in hook_actions:
+        console.print(f"  [green]Hook:[/] {action}")
+    if not hook_actions:
+        console.print("  [dim]Hooks already installed[/]")
+
+
+def _execute_setup(
+    root, vault_name: str, provider: str, profile: str, magic: bool, use_crawl4ai: bool
+):
+    from hyperresearch.core.agent_docs import _resolve_executable
     from hyperresearch.core.vault import Vault, VaultError
 
     # Init vault
@@ -131,32 +134,21 @@ def setup(
         console.print(f"  [green]Vault created:[/] {vault.root}")
 
     # Write config — magic always on when crawl4ai is used
-    magic = use_crawl4ai
     vault.config.web_provider = provider
     vault.config.web_profile = profile
     vault.config.web_magic = magic
     vault.config.name = vault_name
     vault.config.save(vault.config_path)
 
-    # Inject CLAUDE.md
-    hpr_path = _resolve_executable()
-    doc_actions = inject_agent_docs(root)
-    for action in doc_actions:
-        console.print(f"  [green]Docs:[/] {action}")
-
-    # Install Claude Code hook + skills + subagents (rendered from the
-    # persisted scale gear, if one was chosen via `hpr profile use`)
-    hook_actions = install_hooks(root, hpr_path=hpr_path, profile=vault.config.pipeline_profile)
-    for action in hook_actions:
-        console.print(f"  [green]Hook:[/] {action}")
-    if not hook_actions:
-        console.print("  [dim]Hooks already installed[/]")
+    _install_setup_parts(root, _resolve_executable(), vault.config.pipeline_profile)
 
     # Install browser if needed
     if use_crawl4ai:
         _ensure_browser()
+    return vault
 
-    # ── Summary ───────────────────────────────────────────────────
+
+def _print_setup_summary(provider: str, profile: str, magic: bool, hpr_path: str) -> None:
     console.print()
     profile_desc = profile or "none (public pages only)"
 
@@ -182,6 +174,49 @@ def setup(
     console.print("  [dim]Change settings:[/]    hyperresearch config show")
     console.print("  [dim]Re-run setup:[/]       hyperresearch setup")
     console.print()
+
+
+def setup(
+    path: str = typer.Argument(".", help="Path to set up"),
+    json_output: bool = typer.Option(False, "--json", "-j", help="JSON output (non-interactive)"),
+) -> None:
+    """Interactive setup — configure hyperresearch step by step."""
+    from hyperresearch.core.agent_docs import _resolve_executable
+
+    _delegate_to_install(path, json_output)
+    root = Path(path).resolve()
+
+    console.print()
+    console.print(
+        Panel(
+            "[bold cyan]hyperresearch[/]\n"
+            "[dim]Agent-driven research knowledge base[/]\n\n"
+            "[dim]Your AI agents will collect, search, and synthesize\n"
+            "web research into a persistent, searchable wiki.[/]",
+            border_style="cyan",
+            padding=(1, 4),
+        )
+    )
+
+    vault_name = "Research Base"
+
+    # ── Step 1: Web Provider ──────────────────────────────────────
+    provider, use_crawl4ai = _choose_provider()
+
+    # ── Step 2: Browser Profile ───────────────────────────────────
+    profile = _choose_profile(use_crawl4ai)
+
+    # ── Execute ───────────────────────────────────────────────────
+    console.print()
+    console.print(Rule("[bold]Setting up", style="green"))
+    console.print()
+
+    # Write config — magic always on when crawl4ai is used
+    magic = use_crawl4ai
+    _execute_setup(root, vault_name, provider, profile, magic, use_crawl4ai)
+
+    # ── Summary ───────────────────────────────────────────────────
+    _print_setup_summary(provider, profile, magic, _resolve_executable())
 
 
 # ── Helpers ─────────────────────────────────────────────────────

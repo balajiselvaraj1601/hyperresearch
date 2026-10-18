@@ -175,6 +175,53 @@ def _is_pdf_url(url: str) -> bool:
     return path.lower().endswith(".pdf")
 
 
+_DOAB_EXTRA_FIELDS = (
+    ("dc.language", "language"),
+    ("dc.relation.ispartofseries", "series"),
+    ("dc.identifier.isbn", "isbn"),
+)
+
+
+def _doab_authors_extra(meta: dict, raw_type: str) -> tuple:
+    authors = tuple(meta.get("dc.contributor.author", []))
+    editors = tuple(meta.get("dc.contributor.editor", []))
+    extra: dict[str, str] = {}
+    if editors:
+        extra["editors"] = "; ".join(editors)
+    if not authors and editors:
+        authors = editors
+        extra["authors_are_editors"] = "true"
+    if raw_type:
+        extra["doab_type"] = raw_type
+    for key, out in _DOAB_EXTRA_FIELDS:
+        value = _first(meta, key)
+        if value:
+            extra[out] = value
+    oapen_url = _oapen_url(meta)
+    if oapen_url:
+        extra["oapen_url"] = oapen_url
+    return authors, extra
+
+
+def _doab_url(meta: dict, handle) -> str | None:
+    url = _first(meta, "dc.identifier.uri")
+    if url is None and handle:
+        url = f"{_HANDLE_BASE}{handle}"
+    return url
+
+
+def _doab_pdf_url(meta: dict, extra: dict) -> str | None:
+    download = _first(meta, "oapen.identifier.downloadUrl")
+    if not download:
+        return None
+    if _is_pdf_url(download):
+        return download
+    # A DOI or publisher page: full text is there, but a consumer
+    # expecting bytes from `pdf_url` would be misled.
+    extra["fulltext_url"] = download
+    return None
+
+
 class DoabProvider(SearchProvider):
     """Keyword search over the Directory of Open Access Books."""
 
@@ -222,43 +269,10 @@ class DoabProvider(SearchProvider):
         doi = _doi(meta)
         raw_type = (_first(meta, "dc.type") or "").lower()
 
-        authors = tuple(meta.get("dc.contributor.author", []))
-        editors = tuple(meta.get("dc.contributor.editor", []))
-        extra: dict[str, str] = {}
-        if editors:
-            extra["editors"] = "; ".join(editors)
-        if not authors and editors:
-            authors = editors
-            extra["authors_are_editors"] = "true"
-        if raw_type:
-            extra["doab_type"] = raw_type
+        authors, extra = _doab_authors_extra(meta, raw_type)
+        pdf_url = _doab_pdf_url(meta, extra)
 
-        language = _first(meta, "dc.language")
-        if language:
-            extra["language"] = language
-        series = _first(meta, "dc.relation.ispartofseries")
-        if series:
-            extra["series"] = series
-        isbn = _first(meta, "dc.identifier.isbn")
-        if isbn:
-            extra["isbn"] = isbn
-        oapen_url = _oapen_url(meta)
-        if oapen_url:
-            extra["oapen_url"] = oapen_url
-
-        pdf_url: str | None = None
-        download = _first(meta, "oapen.identifier.downloadUrl")
-        if download:
-            if _is_pdf_url(download):
-                pdf_url = download
-            else:
-                # A DOI or publisher page: full text is there, but a consumer
-                # expecting bytes from `pdf_url` would be misled.
-                extra["fulltext_url"] = download
-
-        url = _first(meta, "dc.identifier.uri")
-        if url is None and handle:
-            url = f"{_HANDLE_BASE}{handle}"
+        url = _doab_url(meta, handle)
 
         abstract = _first(meta, "dc.description.abstract")
         return Paper(

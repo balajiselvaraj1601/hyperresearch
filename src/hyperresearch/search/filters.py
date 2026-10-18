@@ -4,6 +4,32 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+# (attribute, clause template, keep): "truthy" skips empties, "present"
+# keeps any non-None value. Order is the SQL order.
+_FIELD_CLAUSES = (
+    ("status", "{a}.status = ?", "truthy"),
+    ("note_type", "{a}.type = ?", "truthy"),
+    ("tier", "{a}.tier = ?", "truthy"),
+    ("content_type", "{a}.content_type = ?", "truthy"),
+    ("after", "{a}.created >= ?", "truthy"),
+    ("before", "{a}.created <= ?", "truthy"),
+    ("path_glob", "{a}.path GLOB ?", "truthy"),
+    ("parent", "{a}.parent = ?", "truthy"),
+    ("min_words", "{a}.word_count >= ?", "present"),
+    ("max_words", "{a}.word_count <= ?", "present"),
+    (
+        "linked_from",
+        "{a}.id IN (SELECT target_id FROM links WHERE source_id = ? AND target_id IS NOT NULL)",
+        "truthy",
+    ),
+    ("linked_to", "{a}.id IN (SELECT source_id FROM links WHERE target_id = ?)", "truthy"),
+    (
+        "min_inbound",
+        "{a}.id IN (SELECT target_id FROM links WHERE target_id IS NOT NULL GROUP BY target_id HAVING COUNT(*) >= ?)",
+        "present",
+    ),
+)
+
 
 @dataclass
 class SearchFilters:
@@ -29,68 +55,15 @@ class SearchFilters:
         clauses: list[str] = []
         params: list = []
 
-        if self.tags:
-            for tag in self.tags:
-                clauses.append(f"{table_alias}.id IN (SELECT note_id FROM tags WHERE tag = ?)")
-                params.append(tag.lower())
+        for tag in self.tags or []:
+            clauses.append(f"{table_alias}.id IN (SELECT note_id FROM tags WHERE tag = ?)")
+            params.append(tag.lower())
 
-        if self.status:
-            clauses.append(f"{table_alias}.status = ?")
-            params.append(self.status)
-
-        if self.note_type:
-            clauses.append(f"{table_alias}.type = ?")
-            params.append(self.note_type)
-
-        if self.tier:
-            clauses.append(f"{table_alias}.tier = ?")
-            params.append(self.tier)
-
-        if self.content_type:
-            clauses.append(f"{table_alias}.content_type = ?")
-            params.append(self.content_type)
-
-        if self.after:
-            clauses.append(f"{table_alias}.created >= ?")
-            params.append(self.after)
-
-        if self.before:
-            clauses.append(f"{table_alias}.created <= ?")
-            params.append(self.before)
-
-        if self.path_glob:
-            clauses.append(f"{table_alias}.path GLOB ?")
-            params.append(self.path_glob)
-
-        if self.parent:
-            clauses.append(f"{table_alias}.parent = ?")
-            params.append(self.parent)
-
-        if self.min_words is not None:
-            clauses.append(f"{table_alias}.word_count >= ?")
-            params.append(self.min_words)
-
-        if self.max_words is not None:
-            clauses.append(f"{table_alias}.word_count <= ?")
-            params.append(self.max_words)
-
-        # Graph-aware filters
-        if self.linked_from:
-            clauses.append(
-                f"{table_alias}.id IN (SELECT target_id FROM links WHERE source_id = ? AND target_id IS NOT NULL)"
-            )
-            params.append(self.linked_from)
-
-        if self.linked_to:
-            clauses.append(f"{table_alias}.id IN (SELECT source_id FROM links WHERE target_id = ?)")
-            params.append(self.linked_to)
-
-        if self.min_inbound is not None:
-            clauses.append(
-                f"{table_alias}.id IN (SELECT target_id FROM links WHERE target_id IS NOT NULL "
-                f"GROUP BY target_id HAVING COUNT(*) >= ?)"
-            )
-            params.append(self.min_inbound)
+        for attr, template, keep in _FIELD_CLAUSES:
+            value = getattr(self, attr)
+            if (value is not None) if keep == "present" else value:
+                clauses.append(template.format(a=table_alias))
+                params.append(value)
 
         if self.has_backlinks is True:
             clauses.append(

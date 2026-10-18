@@ -382,34 +382,50 @@ def _prune_retired_agents(vault_root: Path) -> str | None:
 
     agents_dir = vault_root / ".claude" / "agents"
     if agents_dir.exists():
-        for name in _RETIRED_AGENT_FILES:
-            p = agents_dir / name
-            if p.exists():
-                p.unlink()
-                pruned.append(f"agent {name}")
+        _prune_retired_agent_files(agents_dir, pruned)
 
     skills_dir = vault_root / ".claude" / "skills"
     if skills_dir.exists():
-        for name in _RETIRED_SKILL_DIRS:
-            p = skills_dir / name
-            if not p.is_dir():
-                continue
-            if not _is_our_skill_dir(p):
-                kept.append(name)
-                continue
-            _remove_skill_dir(p)
-            pruned.append(f"skill dir {name}")
+        _prune_retired_skill_dirs(skills_dir, pruned, kept)
+        _prune_hpr_files(skills_dir, pruned)
 
-        # V1 modality files (SKILL-collect.md etc.) left inside the
-        # /hyperresearch skill dir from the old multi-file install layout.
-        hpr_dir = skills_dir / "hyperresearch"
-        if hpr_dir.is_dir():
-            for name in _RETIRED_HYPERRESEARCH_FILES:
-                p = hpr_dir / name
-                if p.exists():
-                    p.unlink()
-                    pruned.append(f"file hyperresearch/{name}")
+    return _prune_summary(pruned, kept)
 
+
+def _prune_retired_agent_files(agents_dir: Path, pruned: list) -> None:
+    for name in _RETIRED_AGENT_FILES:
+        p = agents_dir / name
+        if p.exists():
+            p.unlink()
+            pruned.append(f"agent {name}")
+
+
+def _prune_retired_skill_dirs(skills_dir: Path, pruned: list, kept: list) -> None:
+    for name in _RETIRED_SKILL_DIRS:
+        p = skills_dir / name
+        if not p.is_dir():
+            continue
+        if not _is_our_skill_dir(p):
+            kept.append(name)
+            continue
+        _remove_skill_dir(p)
+        pruned.append(f"skill dir {name}")
+
+
+def _prune_hpr_files(skills_dir: Path, pruned: list) -> None:
+    # V1 modality files (SKILL-collect.md etc.) left inside the
+    # /hyperresearch skill dir from the old multi-file install layout.
+    hpr_dir = skills_dir / "hyperresearch"
+    if not hpr_dir.is_dir():
+        return
+    for name in _RETIRED_HYPERRESEARCH_FILES:
+        p = hpr_dir / name
+        if p.exists():
+            p.unlink()
+            pruned.append(f"file hyperresearch/{name}")
+
+
+def _prune_summary(pruned: list, kept: list) -> str | None:
     parts: list[str] = []
     if pruned:
         parts.append("Pruned retired: " + ", ".join(pruned))
@@ -530,24 +546,36 @@ def _install_hyperresearch_step_skills_retired_impl(vault_root: Path) -> str | N
     pruned: list[str] = []
 
     for skill_name in _HYPERRESEARCH_STEP_SKILLS:
-        src_name = f"{skill_name}.md"
-        content = _read_skill_source(src_name)
-        if content is None:
-            continue
-        content = _render_installed(content)
-
-        skill_dir = skills_root / skill_name
-        skill_dir.mkdir(parents=True, exist_ok=True)
-        dest_path = skill_dir / "SKILL.md"
-
-        if dest_path.exists() and dest_path.read_text(encoding="utf-8") == content:
-            continue
-
-        dest_path.write_text(content, encoding="utf-8")
-        installed.append(skill_name)
+        if _install_step_skill(skills_root, skill_name):
+            installed.append(skill_name)
 
     # Prune stale skill dirs: any hyperresearch-* not in current roster, plus
     # any leftover layercake-* dirs from the pre-rename install layout.
+    _prune_stale_step_skills(skills_root, expected, pruned)
+
+    return _step_install_summary(installed, pruned)
+
+
+def _install_step_skill(skills_root: Path, skill_name: str) -> bool:
+    """Install one step skill. Returns True when newly written."""
+    src_name = f"{skill_name}.md"
+    content = _read_skill_source(src_name)
+    if content is None:
+        return False
+    content = _render_installed(content)
+
+    skill_dir = skills_root / skill_name
+    skill_dir.mkdir(parents=True, exist_ok=True)
+    dest_path = skill_dir / "SKILL.md"
+
+    if dest_path.exists() and dest_path.read_text(encoding="utf-8") == content:
+        return False
+
+    dest_path.write_text(content, encoding="utf-8")
+    return True
+
+
+def _prune_stale_step_skills(skills_root: Path, expected: set, pruned: list) -> None:
     for child in skills_root.iterdir():
         if not child.is_dir():
             continue
@@ -560,9 +588,10 @@ def _install_hyperresearch_step_skills_retired_impl(vault_root: Path) -> str | N
         _remove_skill_dir(child)
         pruned.append(child.name)
 
+
+def _step_install_summary(installed: list, pruned: list) -> str | None:
     if not installed and not pruned:
         return None
-
     parts: list[str] = []
     if installed:
         parts.append(f"{len(installed)} step skills: {', '.join(installed)}")
