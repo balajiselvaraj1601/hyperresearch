@@ -33,7 +33,7 @@ class Boundary:
         self.calls: list[list[str]] = []
         self.sessions: set[str] = set()
         self.finish_passed = True
-        self.failed_checks: list[str] = []
+        self.failed_check_names: list[str] = []
         self.finish_code = 0
         self.verify_code = 0
 
@@ -59,22 +59,27 @@ class Boundary:
         if "verify" in command:
             return watcher.CommandResult(self.verify_code, "", "")
         if "finish" in command:
-            body = json.dumps(
-                {
-                    "ok": self.finish_passed,
-                    "data": {
-                        "verify": {
-                            "passed": self.finish_passed,
-                            "failed_checks": self.failed_checks,
-                        },
-                        "manifest": {
-                            "status": "done" if self.finish_passed else "blocked",
-                        },
-                    },
-                }
-            )
-            return watcher.CommandResult(self.finish_code, body, "")
+            return watcher.CommandResult(self.finish_code, self._finish_stdout(), "")
         return watcher.CommandResult(0, "", "")
+
+    def _finish_stdout(self) -> str:
+        """Same envelope `run finish -j` writes: success wrapper, names on the manifest and checks."""
+        names = [] if self.finish_passed else list(self.failed_check_names)
+        checks = [{"name": name, "ok": False, "detail": name} for name in names]
+        if self.finish_passed:
+            checks = [{"name": "report-exists", "ok": True, "detail": "present"}]
+        return json.dumps(
+            {
+                "ok": True,
+                "data": {
+                    "manifest": {
+                        "status": "done" if self.finish_passed else "blocked",
+                        "verify": {"passed": self.finish_passed, "failed_checks": names},
+                    },
+                    "verify": {"passed": self.finish_passed, "checks": checks},
+                },
+            }
+        )
 
 
 def _row(**overrides: str) -> dict:
@@ -482,6 +487,7 @@ def test_publish_when_finish_passes_and_checksums_match(
     assert tag in status
     assert "light" in status
     assert "attempts: 1" in status
+    assert f"- finished_at: {done['finished_at']}" in status
     assert str(repo / "output" / "notes" / tag) in status
     assert (topic / "PHASES.md").read_text(encoding="utf-8")
     assert (topic / "run.json").read_bytes() == (
@@ -525,11 +531,12 @@ def test_failed_gate_blocks_with_the_failing_check(
     boundary = Boundary()
     boundary.finish_passed = False
     boundary.finish_code = 1
-    boundary.failed_checks = ["report-exists"]
+    boundary.failed_check_names = ["report-exists", "cite-check-resolved"]
     assert _run(monkeypatch, registry, repo, knowledge, "--once", boundary) == 0
     blocked = _by_slug(registry, "alpha")
     assert blocked["status"] == "blocked"
     assert "report-exists" in blocked["error"]
+    assert "cite-check-resolved" in blocked["error"]
     assert not (knowledge / "alpha" / "PROMPT.md").exists()
     assert not (knowledge / "alpha" / "final_report.md").exists()
 
@@ -554,6 +561,54 @@ def test_republish_of_a_done_row_is_a_noop(
     assert sum(1 for command in boundary.calls if "finish" in command) == finishes
     assert prompt_path.read_text(encoding="utf-8") == "mutated\n"
     assert _by_slug(registry, "alpha")["status"] == "done"
+
+
+def test_finish_outcome_reads_manifest_and_check_names(tmp_path: Path):
+    payload = {
+        "ok": True,
+        "data": {
+            "manifest": {
+                "status": "blocked",
+                "verify": {
+                    "passed": False,
+                    "failed_checks": ["report-exists", "cite-check-resolved"],
+                },
+            },
+            "verify": {
+                "passed": False,
+                "failed_checks": ["not-a-real-field"],
+                "checks": [
+                    {"name": "report-exists", "ok": False, "detail": "missing"},
+                    {"name": "cite-check-resolved", "ok": False, "detail": "open"},
+                    {"name": "report-length", "ok": True, "detail": "in range"},
+                ],
+            },
+        },
+    }
+    passed, failed = watcher.finish_outcome(
+        watcher.CommandResult(1, json.dumps(payload), ""),
+        tmp_path,
+        "alpha-abc123",
+    )
+    assert passed is False
+    assert failed == ["report-exists", "cite-check-resolved"]
+
+    checks_only = {
+        "ok": True,
+        "data": {
+            "manifest": {"status": "blocked", "verify": {"passed": False}},
+            "verify": {
+                "passed": False,
+                "checks": [{"name": "report-exists", "ok": False, "detail": "missing"}],
+            },
+        },
+    }
+    _passed, failed = watcher.finish_outcome(
+        watcher.CommandResult(1, json.dumps(checks_only), ""),
+        tmp_path,
+        "alpha-abc123",
+    )
+    assert failed == ["report-exists"]
 
 
 def test_checksum_helper_reads_the_files(tmp_path: Path):

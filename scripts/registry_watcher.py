@@ -656,19 +656,59 @@ def launch_claimed(
     (topic / ".work" / "worker.marker").write_text(name + "\n", encoding="utf-8")
 
 
+def _names_from_checks(verify: Mapping) -> list[str]:
+    """Check names from `run finish` data.verify.checks where ok is false."""
+    names: list[str] = []
+    for check in verify.get("checks") or []:
+        if not isinstance(check, dict) or check.get("ok") is not False:
+            continue
+        name = str(check.get("name") or "").strip()
+        if name and name not in names:
+            names.append(name)
+    return names
+
+
+def _names_from_manifest_verify(manifest: Mapping) -> list[str]:
+    """Check names from data.manifest.verify.failed_checks."""
+    recorded = manifest.get("verify")
+    if not isinstance(recorded, dict):
+        return []
+    names: list[str] = []
+    for item in recorded.get("failed_checks") or []:
+        name = str(item).strip()
+        if name and name not in names:
+            names.append(name)
+    return names
+
+
+def _merge_names(*groups: Sequence[str]) -> list[str]:
+    names: list[str] = []
+    for group in groups:
+        for name in group:
+            if name not in names:
+                names.append(name)
+    return names
+
+
 def finish_outcome(result: CommandResult, repo: Path, vault_tag: str) -> tuple[bool, list[str]]:
+    """Read a real `run finish -j` envelope.
+
+    Failed check names live on `data.manifest.verify.failed_checks` and on
+    `data.verify.checks[]` entries whose `ok` is false. `data.verify` has no
+    `failed_checks` field.
+    """
     payload = _json_object(result.stdout)
     data = payload.get("data") if isinstance(payload.get("data"), dict) else {}
     verify = data.get("verify") if isinstance(data.get("verify"), dict) else {}
     manifest = data.get("manifest") if isinstance(data.get("manifest"), dict) else {}
     if not manifest:
         manifest = read_manifest(repo, vault_tag) or {}
-    if not verify and isinstance(manifest.get("verify"), dict):
-        verify = manifest["verify"]
-    failed = [str(item) for item in (verify.get("failed_checks") or [])]
-    passed = (
-        result.returncode == 0 and verify.get("passed") is True and manifest.get("status") == "done"
-    )
+    failed = _merge_names(_names_from_manifest_verify(manifest), _names_from_checks(verify))
+    recorded = manifest.get("verify") if isinstance(manifest.get("verify"), dict) else {}
+    passed_flag = verify.get("passed")
+    if passed_flag is None:
+        passed_flag = recorded.get("passed")
+    passed = result.returncode == 0 and passed_flag is True and manifest.get("status") == "done"
     if not passed and not failed:
         failed = ["run finish failed"]
     return passed, failed
@@ -814,6 +854,11 @@ def _publish_files(
     if status != "done":
         _block(row, error)
         return
+    row["status"] = "done"
+    row["error"] = ""
+    row["finished_at"] = now_iso(now)
+    row["final_report"] = str(published)
+    row["output_dir"] = str(topic)
     prompt = resolve_prompt(row, registry)
     (topic / "PROMPT.md").write_text(prompt, encoding="utf-8")
     (topic / "run.json").write_bytes(manifest_path.read_bytes())
@@ -823,11 +868,6 @@ def _publish_files(
         encoding="utf-8",
     )
     (topic / "PHASES.md").write_text(render_phases(row, gates), encoding="utf-8")
-    row["status"] = "done"
-    row["error"] = ""
-    row["finished_at"] = now_iso(now)
-    row["final_report"] = str(published)
-    row["output_dir"] = str(topic)
 
 
 def publish_verifying(
