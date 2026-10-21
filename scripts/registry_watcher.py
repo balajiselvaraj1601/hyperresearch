@@ -2,13 +2,13 @@
 """registry_watcher.py: timed queue driver for hyperresearch topics.
 
 One tick: lock, validate, reconcile, publish any verifying row, claim at most
-one pending row, launch one Muse worker in tmux, save atomically, exit.
+one pending row, launch one worker in tmux, save atomically, exit.
 The watcher is the only writer of registry state columns. Workers never edit
 the registry. Canonical hyperresearch invocation is `uv run hyperresearch`
 from this repo (the bare shim is broken on this host). Tier maps to the vault
-profile of the same name (`light` or `full`); the Muse worker itself drives
-the steps and its subagents inherit the Muse model, since this vault has no
-mimo profile section.
+profile of the same name (`light` or `full`). The worker CLI is `muse` or
+`opencode` (`runner` on the row; blank means muse). That session runs the
+tier end to end. This vault has no mimo profile section.
 """
 
 from __future__ import annotations
@@ -40,6 +40,7 @@ FIELDNAMES = [
     "tier",
     "priority",
     "notes",
+    "runner",
     "status",
     "vault_tag",
     "output_dir",
@@ -61,6 +62,7 @@ INPUT_FIELDS = {
     "tier",
     "priority",
     "notes",
+    "runner",
 }
 STATUSES = {
     "pending",
@@ -74,6 +76,7 @@ STATUSES = {
 }
 ACTIVE = {"claimed", "running", "verifying"}
 TIERS = {"light", "full"}
+RUNNERS = ("muse", "opencode")
 SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,59}$")
 MAX_ATTEMPTS = 2
 CLAIMED_STALE = timedelta(minutes=15)
@@ -133,6 +136,11 @@ def tier_of(row: Mapping[str, str]) -> str:
     return (row.get("tier") or "").strip() or "light"
 
 
+def runner_of(row: Mapping[str, str]) -> str:
+    """Worker CLI for this row. Blank means muse."""
+    return (row.get("runner") or "").strip().lower() or "muse"
+
+
 def priority_of(row: Mapping[str, str]) -> int:
     try:
         return int((row.get("priority") or "0").strip() or 0)
@@ -173,6 +181,11 @@ def _row_errors(index: int, row: Mapping[str, str], seen: dict[str, int]) -> lis
     tier = (row.get("tier") or "").strip()
     if tier and tier not in TIERS:
         errors.append(f"{where}: unknown tier {tier!r}; tier must be light, full, or blank")
+    runner = (row.get("runner") or "").strip().lower()
+    if runner and runner not in RUNNERS:
+        errors.append(
+            f"{where}: unknown runner {runner!r}; runner must be muse, opencode, or blank"
+        )
     status = row_status(row)
     if status not in STATUSES:
         errors.append(f"{where}: unknown status {status!r}")
@@ -400,8 +413,8 @@ def hyperresearch_argv(*args: str) -> list[str]:
     return ["uv", "run", "hyperresearch", *args]
 
 
-def muse_command(brief: Path, repo: Path) -> list[str]:
-    """muse exec argv. Flags match PHASE-MAP A2."""
+def muse_argv(brief: Path, repo: Path, _slug: str) -> list[str]:
+    """muse exec argv. Flags match PHASE-MAP A2. The brief is the whole pipeline."""
     return [
         "muse",
         "exec",
@@ -415,6 +428,45 @@ def muse_command(brief: Path, repo: Path) -> list[str]:
         "--sandbox-network",
         "enabled",
     ]
+
+
+def opencode_argv(brief: Path, _repo: Path, slug: str) -> list[str]:
+    """opencode run argv. The attached brief is the same pipeline Muse receives.
+
+    Workspace is the tmux working directory (the repo). No model flag: the
+    operator config chooses the model. `--standalone` avoids the shared server.
+    """
+    return [
+        "opencode",
+        "run",
+        "--standalone",
+        "--auto",
+        "--format",
+        "json",
+        "--title",
+        f"hyperresearch-{slug}",
+        "--file",
+        str(brief),
+        "Execute the attached hyperresearch brief end to end. "
+        "You are the only orchestrator. "
+        "Follow every tier step, then run verify and run finish. "
+        "Do not ask for approval. "
+        f"Final line: DONE {slug}",
+    ]
+
+
+WORKER_ARGV = {
+    "muse": muse_argv,
+    "opencode": opencode_argv,
+}
+
+
+def worker_argv(runner: str, brief: Path, repo: Path, slug: str) -> list[str]:
+    """Build the headless argv for one of the two supported workers."""
+    build = WORKER_ARGV.get(runner)
+    if build is None:
+        raise ValueError(f"unknown runner {runner!r}")
+    return build(brief, repo, slug)
 
 
 def read_registry(path: Path) -> tuple[list[dict], list[str]]:
@@ -510,7 +562,12 @@ def render_brief(
             f"slug: {slug}",
             f"vault_tag: {tag}",
             f"tier: {tier}",
+            f"runner: {runner_of(row)}",
             f"Tier steps: {step_list(tier)}",
+            "You run this topic end to end: every tier step in order, then "
+            f"`uv run hyperresearch run verify {tag}`, then "
+            f"`uv run hyperresearch run finish {tag}`.",
+            "The watcher publishes the accepted report. Do not edit the registry.",
             f"session: {session_name(slug)}",
             f"repo: {repo}",
             f"query: {query}",
@@ -556,9 +613,14 @@ def write_work_files(topic: Path, prompt: str, brief: str) -> Path:
 
 
 def launch_tmux(
-    run: Invoke, *, session: str, repo: Path, brief: Path, log_path: Path
+    run: Invoke,
+    *,
+    session: str,
+    repo: Path,
+    argv: Sequence[str],
+    log_path: Path,
 ) -> CommandResult:
-    shell = " ".join(shlex.quote(part) for part in muse_command(brief, repo))
+    shell = " ".join(shlex.quote(part) for part in argv)
     shell += " 2>&1 | tee -a " + shlex.quote(str(log_path))
     if not session.startswith(SESSION_PREFIX):
         return CommandResult(1, "", "refusing session outside orch-hyperresearch-")
@@ -600,9 +662,13 @@ def launch_claimed(
     run: Invoke,
     now: datetime | None,
 ) -> None:
-    """Scaffold the topic and start one Muse session. Refuses a live name."""
+    """Scaffold the topic and start one muse or opencode session. Refuses a live name."""
     slug = (row.get("slug") or "").strip()
     name = session_name(slug)
+    runner = runner_of(row)
+    if runner not in WORKER_ARGV:
+        _fail_claim(row, f"unknown runner {runner!r}")
+        return
     if name in alive:
         _fail_claim(row, f"live session {name} refused")
         return
@@ -644,7 +710,13 @@ def launch_claimed(
         return
     log_path = topic / ".work" / "worker.log"
     log_path.touch()
-    launched = launch_tmux(run, session=name, repo=repo, brief=brief_path, log_path=log_path)
+    launched = launch_tmux(
+        run,
+        session=name,
+        repo=repo,
+        argv=worker_argv(runner, brief_path, repo, slug),
+        log_path=log_path,
+    )
     if launched.returncode != 0:
         _fail_claim(row, launched.stderr.strip() or "tmux launch failed")
         return
@@ -764,6 +836,7 @@ def render_status(
             "",
             f"- vault_tag: {tag}",
             f"- tier: {tier_of(row)}",
+            f"- runner: {runner_of(row)}",
             f"- attempts: {attempts_of(row)}",
             f"- created_at: {(row.get('created_at') or '').strip()}",
             f"- claimed_at: {(row.get('claimed_at') or '').strip()}",

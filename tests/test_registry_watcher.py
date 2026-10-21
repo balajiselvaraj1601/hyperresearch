@@ -148,6 +148,7 @@ def test_columns_split_input_from_watcher_state():
         "tier",
         "priority",
         "notes",
+        "runner",
         "status",
         "vault_tag",
         "output_dir",
@@ -190,6 +191,21 @@ def test_rejects_duplicate_slugs(tmp_path: Path, capsys: pytest.CaptureFixture[s
     watcher.write_registry(registry, [_row(slug="alpha"), _row(slug="alpha", title="Again")])
     assert watcher.main(["--validate", "--registry", str(registry)]) == 1
     assert "duplicate slug" in capsys.readouterr().err
+
+
+def test_blank_runner_means_muse():
+    assert watcher.runner_of({"runner": ""}) == "muse"
+    assert watcher.runner_of({}) == "muse"
+    assert tuple(watcher.WORKER_ARGV) == ("muse", "opencode")
+
+
+def test_rejects_unknown_runner(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
+    _repo, _knowledge, registry = _layout(tmp_path)
+    watcher.write_registry(registry, [_row(runner="claude")])
+    assert watcher.main(["--validate", "--registry", str(registry)]) == 1
+    error = capsys.readouterr().err
+    assert "unknown runner" in error
+    assert "claude" in error
 
 
 def test_rejects_unknown_tier(tmp_path: Path, capsys: pytest.CaptureFixture[str]):
@@ -406,6 +422,8 @@ def test_once_launches_one_muse_session_and_a_second_tick_launches_nothing(
     assert "run finish" in brief
     assert "sub-orchestrators" in brief
     assert "Tier steps: 1, 2, 10, 15, 16" in brief
+    assert "runner: muse" in brief
+    assert "You run this topic end to end" in brief
     assert (knowledge / "alpha" / ".work" / "query.md").read_text(encoding="utf-8") == (
         "What is the ship gate?\n"
     )
@@ -421,6 +439,33 @@ def test_once_launches_one_muse_session_and_a_second_tick_launches_nothing(
     ] == launched
     assert len(boundary.calls) > calls
     assert registry.read_bytes() == before
+
+
+def test_opencode_row_launches_opencode_with_the_same_brief(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    repo, knowledge, registry = _layout(tmp_path)
+    watcher.write_registry(registry, [_row(slug="beta", runner="opencode", prompt="Cover beta.\n")])
+    boundary = Boundary()
+    assert _run(monkeypatch, registry, repo, knowledge, "--once", boundary) == 0
+    launched = [command for command in boundary.calls if command[:2] == ["tmux", "new-session"]]
+    assert len(launched) == 1
+    shell = " ".join(launched[0])
+    assert "opencode" in shell and "run" in shell
+    assert "--standalone" in shell and "--auto" in shell and "--file" in shell
+    assert "muse" not in shell
+    assert "orch-hyperresearch-beta" in shell
+    assert "UV_CACHE_DIR=/tmp/hyperresearch-uv-cache" in shell
+    brief = (knowledge / "beta" / ".work" / "brief.txt").read_text(encoding="utf-8")
+    assert "Cover beta.\n" in brief
+    assert "runner: opencode" in brief
+    assert "You run this topic end to end" in brief
+    assert "hyperresearch run contract" in brief
+    running = _by_slug(registry, "beta")
+    assert running["status"] == "running"
+    assert running["runner"] == "opencode"
+    assert running["session_name"] == "orch-hyperresearch-beta"
 
 
 def test_live_session_name_is_refused(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
