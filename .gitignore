@@ -1,20 +1,17 @@
-__pycache__/
-*.py[cod]
-*.egg-info/
-dist/
-build/
-.venv/
-.idea/
+# Project-specific output and agent-install artifacts only. Python
+# caches, venvs, packaging, editor, and agent-discovery noise (including
+# graphify-out/) is covered by the host global ignore (gitignore_global,
+# swept 2026-10-22).
+
+# Local run databases and per-app run dirs.
 *.db
 .hyperresearch/
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-*.egg
-.env
 bench/
 codex_bench/
 draco-bench/
+
+# Env files. Belt-and-braces with the global ignore block.
+.env
 
 # Agent install outputs — generated per-user by `hyperresearch install`.
 # These files contain absolute paths resolved to the installing user's
@@ -34,10 +31,4 @@ research/
 orchestrator/logs/
 
 .knack/
-.agents/
-.cursor/
-.mcp.json
 SOUL.md
-
-# Graphify code-graph output (regenerate: graphify extract --code-only --no-viz)
-graphify-out/
