@@ -190,12 +190,37 @@ class Vault:
         return vault
 
     @staticmethod
+    def open_topic(vault_tag: str) -> Vault:
+        """Open the dump vault for this topic, creating it on first use.
+
+        Notes, runs, reports, raw fetches, and the sqlite database for the
+        topic are created under that directory. The repo vault is not used.
+        """
+        from hyperresearch.core.locations import topic_root, topic_slug
+
+        root = topic_root(vault_tag)
+        if not (root / HYPERRESEARCH_DIR / DB_FILE).is_file():
+            root.mkdir(parents=True, exist_ok=True)
+            return Vault.init(root, name=topic_slug(vault_tag), research_dir="output")
+        return Vault(root)
+
+    @staticmethod
     def discover(start: Path | None = None) -> Vault:
-        """Walk up from start (default: cwd) to find a vault root."""
+        """Walk up from start (default: cwd) to find a vault root.
+
+        When that root is this checkout and the command line names a vault
+        tag, the vault is the dump directory for that topic instead.
+        """
+        from hyperresearch.core.locations import installed_repo_root, vault_tag_from_argv
+
         current = (start or Path.cwd()).resolve()
         while True:
             if (current / HYPERRESEARCH_DIR).is_dir():
-                return Vault(current)
+                found = Vault(current)
+                tag = vault_tag_from_argv()
+                if tag and found.root == installed_repo_root():
+                    return Vault.open_topic(tag)
+                return found
             parent = current.parent
             if parent == current:
                 break

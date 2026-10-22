@@ -7,10 +7,15 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
+import subprocess
+import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
+
+from hyperresearch.core.locations import knowledge_dir, topic_report, topic_run_dir
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "registry_watcher.py"
 
@@ -26,6 +31,15 @@ def _load():
 watcher = _load()
 
 
+@pytest.fixture(autouse=True)
+def _topic_dump(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Keep watcher tests off the host dump directory."""
+    root = tmp_path / "dump"
+    root.mkdir()
+    monkeypatch.setenv("HYPERRESEARCH_DUMP_ROOT", str(root))
+    return root
+
+
 class Boundary:
     """Stand-in for tmux and the hyperresearch CLI."""
 
@@ -37,7 +51,7 @@ class Boundary:
         self.finish_code = 0
         self.verify_code = 0
 
-    def __call__(self, argv, cwd=None, env=None):
+    def __call__(self, argv, cwd=None, env=None, timeout=None):
         command = [str(part) for part in argv]
         self.calls.append(command)
         if command[:2] == ["tmux", "list-sessions"]:
@@ -388,7 +402,7 @@ def test_dead_session_at_two_attempts_fails_and_launches_nothing(
 def test_reconcile_moves_a_finished_manifest_to_verifying(tmp_path: Path):
     repo = tmp_path / "repo"
     tag = "alpha-abc123"
-    run = repo / "output" / "runs" / tag
+    run = topic_run_dir(tag)
     run.mkdir(parents=True)
     (run / "run.json").write_text(json.dumps({"status": "done"}), encoding="utf-8")
     row = _row(status="running", vault_tag=tag, session_name="orch-hyperresearch-alpha")
@@ -409,24 +423,25 @@ def test_once_launches_one_muse_session_and_a_second_tick_launches_nothing(
     launched = [command for command in boundary.calls if command[:2] == ["tmux", "new-session"]]
     assert len(launched) == 1
     shell = " ".join(launched[0])
-    assert "muse" in shell and "exec" in shell and "--prompt-file" in shell
-    for flag in ("--workspace", "--trust-workspace", "--disable-approval", "--disable-sandbox"):
-        assert flag in shell
-    assert "--sandbox-network" in shell and "enabled" in shell
+    assert "--drive" in shell and "--slug" in shell and "alpha" in shell
+    assert "registry_watcher.py" in shell
+    assert "--prompt-file" not in shell
+    assert "opencode" not in shell
     assert "UV_CACHE_DIR=/tmp/hyperresearch-uv-cache" in shell
     assert "orch-hyperresearch-alpha" in shell
-    brief = (knowledge / "alpha" / ".work" / "brief.txt").read_text(encoding="utf-8")
+    brief = (topic_run_dir("alpha-abc123") / ".work" / "brief.txt").read_text(encoding="utf-8")
     assert "What is the ship gate?\n" in brief
     assert "hyperresearch run contract" in brief
-    assert "run verify" in brief
-    assert "run finish" in brief
+    assert "phase: B1" in brief
+    assert "Do this phase only. Do not start the next phase." in brief
+    assert "Do not call run finish." in brief
     assert "sub-orchestrators" in brief
-    assert "Tier steps: 1, 2, 10, 15, 16" in brief
     assert "runner: muse" in brief
-    assert "You run this topic end to end" in brief
-    assert (knowledge / "alpha" / ".work" / "query.md").read_text(encoding="utf-8") == (
-        "What is the ship gate?\n"
-    )
+    assert "You run this topic end to end" not in brief
+    assert "Tier steps:" not in brief
+    query = topic_run_dir("alpha-abc123") / ".work" / "query.md"
+    assert query.read_text(encoding="utf-8") == "What is the ship gate?\n"
+    assert query.is_relative_to(tmp_path / "dump" / "alpha")
     running = _by_slug(registry, "alpha")
     assert running["status"] == "running"
     assert running["session_name"] == "orch-hyperresearch-alpha"
@@ -452,15 +467,18 @@ def test_opencode_row_launches_opencode_with_the_same_brief(
     launched = [command for command in boundary.calls if command[:2] == ["tmux", "new-session"]]
     assert len(launched) == 1
     shell = " ".join(launched[0])
-    assert "opencode" in shell and "run" in shell
-    assert "--standalone" in shell and "--auto" in shell and "--file" in shell
-    assert "muse" not in shell
+    assert "--drive" in shell and "--slug" in shell and "beta" in shell
+    assert "opencode run" not in shell
+    assert "--file" not in shell
+    assert "--prompt-file" not in shell
     assert "orch-hyperresearch-beta" in shell
     assert "UV_CACHE_DIR=/tmp/hyperresearch-uv-cache" in shell
-    brief = (knowledge / "beta" / ".work" / "brief.txt").read_text(encoding="utf-8")
+    brief = (topic_run_dir("beta-abc123") / ".work" / "brief.txt").read_text(encoding="utf-8")
     assert "Cover beta.\n" in brief
     assert "runner: opencode" in brief
-    assert "You run this topic end to end" in brief
+    assert "phase: B1" in brief
+    assert "Do not call run finish." in brief
+    assert "You run this topic end to end" not in brief
     assert "hyperresearch run contract" in brief
     running = _by_slug(registry, "beta")
     assert running["status"] == "running"
@@ -484,8 +502,9 @@ def test_live_session_name_is_refused(tmp_path: Path, monkeypatch: pytest.Monkey
 
 
 def _plant_report(repo: Path, tag: str, body: bytes) -> Path:
-    report = repo / "output" / "reports" / tag / f"final_report_{tag}.md"
-    run = repo / "output" / "runs" / tag
+    del repo
+    report = topic_report(tag)
+    run = topic_run_dir(tag)
     report.parent.mkdir(parents=True)
     run.mkdir(parents=True)
     report.write_bytes(body)
@@ -522,25 +541,58 @@ def test_publish_when_finish_passes_and_checksums_match(
     assert _run(monkeypatch, registry, repo, knowledge, "--once", boundary) == 0
     done = _by_slug(registry, "alpha")
     assert done["status"] == "done"
-    assert done["final_report"].endswith("final_report.md")
+    assert done["final_report"].endswith("alpha.md")
+    assert done["output_dir"].endswith("alpha.md")
     assert done["finished_at"]
-    topic = knowledge / "alpha"
-    assert (topic / "final_report.md").read_bytes() == source.read_bytes()
-    assert watcher.hashes_match(source, topic / "final_report.md")
-    assert (topic / "PROMPT.md").read_text(encoding="utf-8") == prompt
-    status = (topic / "STATUS.md").read_text(encoding="utf-8")
-    assert tag in status
-    assert "light" in status
-    assert "attempts: 1" in status
-    assert f"- finished_at: {done['finished_at']}" in status
-    assert str(repo / "output" / "notes" / tag) in status
-    assert (topic / "PHASES.md").read_text(encoding="utf-8")
-    assert (topic / "run.json").read_bytes() == (
-        repo / "output" / "runs" / tag / "run.json"
-    ).read_bytes()
+    published = knowledge / "alpha.md"
+    assert published.read_bytes() == source.read_bytes()
+    assert watcher.hashes_match(source, published)
+    assert source.is_relative_to(tmp_path / "dump" / "alpha")
+    assert not (knowledge / "alpha").exists()
+    for name in ("PROMPT.md", "STATUS.md", "PHASES.md", "run.json", "final_report.md"):
+        assert not (knowledge / name).exists()
     kills = [command for command in boundary.calls if command[:2] == ["tmux", "kill-session"]]
     assert kills == [["tmux", "kill-session", "-t", "orch-hyperresearch-alpha"]]
     assert "editor" in boundary.sessions
+
+
+def test_once_without_knowledge_flag_publishes_into_knowledge_dir(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """The timer runs `--once` with no `--knowledge`. The report is knowledge_dir()/<slug>.md."""
+    registry = tmp_path / "queue" / "hyperresearch_registry.csv"
+    registry.parent.mkdir()
+    tag = "alpha-abc123"
+    body = b"# Report\nPublished by the default knowledge root.\n"
+    source = _plant_report(tmp_path / "repo", tag, body)
+    watcher.write_registry(
+        registry,
+        [
+            _row(
+                slug="alpha",
+                status="verifying",
+                vault_tag=tag,
+                attempts="1",
+                session_name="orch-hyperresearch-alpha",
+            )
+        ],
+    )
+    monkeypatch.setenv("HYPERRESEARCH_KNOWLEDGE_DIR", str(tmp_path / "knowledge-home"))
+    monkeypatch.setattr(watcher, "DEFAULT_REGISTRY", registry)
+    monkeypatch.setattr(watcher, "invoke", Boundary())
+    assert watcher.main(["--once"]) == 0
+    published = knowledge_dir() / "alpha.md"
+    assert published.read_bytes() == source.read_bytes()
+    assert published.is_file()
+    assert list(knowledge_dir().iterdir()) == [published]
+    assert not (registry.parent / "alpha.md").exists()
+    assert not (knowledge_dir() / "alpha").exists()
+    for name in ("PROMPT.md", "STATUS.md", "PHASES.md", "run.json", "final_report.md"):
+        assert not (knowledge_dir() / name).exists()
+    done = _by_slug(registry, "alpha")
+    assert done["status"] == "done"
+    assert done["final_report"] == str(published)
 
 
 def test_bad_checksum_blocks_and_does_not_mark_done(
@@ -582,8 +634,8 @@ def test_failed_gate_blocks_with_the_failing_check(
     assert blocked["status"] == "blocked"
     assert "report-exists" in blocked["error"]
     assert "cite-check-resolved" in blocked["error"]
-    assert not (knowledge / "alpha" / "PROMPT.md").exists()
-    assert not (knowledge / "alpha" / "final_report.md").exists()
+    assert not (knowledge / "alpha.md").exists()
+    assert not (knowledge / "alpha").exists()
 
 
 def test_republish_of_a_done_row_is_a_noop(
@@ -600,11 +652,11 @@ def test_republish_of_a_done_row_is_a_noop(
     boundary = Boundary()
     assert _run(monkeypatch, registry, repo, knowledge, "--once", boundary) == 0
     finishes = sum(1 for command in boundary.calls if "finish" in command)
-    prompt_path = knowledge / "alpha" / "PROMPT.md"
-    prompt_path.write_text("mutated\n", encoding="utf-8")
+    published = knowledge / "alpha.md"
+    published.write_text("mutated\n", encoding="utf-8")
     assert _run(monkeypatch, registry, repo, knowledge, "--once", boundary) == 0
     assert sum(1 for command in boundary.calls if "finish" in command) == finishes
-    assert prompt_path.read_text(encoding="utf-8") == "mutated\n"
+    assert published.read_text(encoding="utf-8") == "mutated\n"
     assert _by_slug(registry, "alpha")["status"] == "done"
 
 
@@ -672,7 +724,259 @@ def test_checksum_helper_reads_the_files(tmp_path: Path):
     assert error == "checksum mismatch"
 
 
-def test_default_registry_lives_under_knowledge_hyperresearch():
-    assert watcher.DEFAULT_REGISTRY.name == "registry.csv"
-    assert watcher.DEFAULT_REGISTRY.parent.name == "hyperresearch"
-    assert watcher.DEFAULT_REGISTRY.parent.parent.name == "knowledge"
+def test_default_registry_lives_in_the_warehouse():
+    assert watcher.DEFAULT_REGISTRY.name == "hyperresearch_registry.csv"
+    assert watcher.DEFAULT_REGISTRY.parent.name == "registry"
+    assert watcher.DEFAULT_REGISTRY.parent.parent.name == "warehouse"
+    assert watcher.DEFAULT_KNOWLEDGE.name == "hyperresearch"
+    assert watcher.DEFAULT_KNOWLEDGE.parent.name == "knowledge"
+
+
+def _repo_output_names() -> set[str]:
+    output = Path(__file__).resolve().parents[1] / "output"
+    if not output.is_dir():
+        return set()
+    return {str(path.relative_to(output)) for path in output.rglob("*")}
+
+
+def _phase_fakes(gate_codes: list[int]):
+    """Record one worker argv per phase. Gate codes are consumed in call order."""
+    calls: list[list[str]] = []
+    phases: list[str] = []
+    codes = list(gate_codes)
+
+    def run(argv, cwd=None, env=None, timeout=None):
+        command = [str(part) for part in argv]
+        calls.append(command)
+        if command[0] in {"muse", "opencode"}:
+            flag = "--prompt-file" if command[0] == "muse" else "--file"
+            brief = Path(command[command.index(flag) + 1]).read_text(encoding="utf-8")
+            phase = next(line for line in brief.splitlines() if line.startswith("phase: "))
+            phases.append(phase.split(": ", 1)[1])
+            assert "Do not call run finish." in brief
+            assert "You run this topic end to end" not in brief
+            return watcher.CommandResult(0, "", "")
+        return watcher.CommandResult(0, "", "")
+
+    def contract(_tag: str, step: str) -> str:
+        return f"rendered contract for step {step}\n"
+
+    def gate(_tag: str, phase: str, _tier: str, _root: Path):
+        code = codes.pop(0)
+        decisions = {0: "Pass", 2: "Conditional pass"}
+        body = json.dumps({"phase": phase, "decision": decisions.get(code, "Hold")})
+        return watcher.CommandResult(code, body, "")
+
+    return calls, phases, run, contract, gate
+
+
+def test_hold_does_not_launch_the_next_phase(tmp_path: Path):
+    before = _repo_output_names()
+    repo, _knowledge, registry = _layout(tmp_path)
+    row = _row(status="running", vault_tag="alpha-abc123", tier="light")
+    calls, phases, run, contract, gate = _phase_fakes([0, 1])
+    error = watcher.run_phase_loop(
+        row,
+        repo=repo,
+        registry=registry,
+        run=run,
+        contract_text=contract,
+        gate_exit=gate,
+    )
+    assert error == "B2: Hold"
+    assert phases == ["B1", "B2"]
+    assert [command[0] for command in calls] == ["muse", "muse"]
+    gates = topic_run_dir("alpha-abc123") / ".work" / "gates.jsonl"
+    lines = [json.loads(line) for line in gates.read_text(encoding="utf-8").splitlines()]
+    assert [line["phase"] for line in lines] == ["B1"]
+    assert lines[0]["decision"] == "Pass"
+    assert _repo_output_names() == before
+
+
+def test_light_and_full_phase_order(tmp_path: Path):
+    before = _repo_output_names()
+    repo, _knowledge, registry = _layout(tmp_path)
+    light = _row(status="running", vault_tag="alpha-abc123", tier="light")
+    calls, phases, run, contract, gate = _phase_fakes([0, 2, 0, 0, 0])
+    assert (
+        watcher.run_phase_loop(
+            light,
+            repo=repo,
+            registry=registry,
+            run=run,
+            contract_text=contract,
+            gate_exit=gate,
+        )
+        == ""
+    )
+    assert phases == ["B1", "B2", "B10", "B15", "B16"]
+    recorded = [
+        json.loads(line)
+        for line in (topic_run_dir("alpha-abc123") / ".work" / "gates.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+    ]
+    assert [line["phase"] for line in recorded] == phases
+    assert recorded[1]["decision"] == "Conditional pass"
+    assert [command[0] for command in calls] == ["muse"] * 5
+    brief = (topic_run_dir("alpha-abc123") / ".work" / "brief.txt").read_text(encoding="utf-8")
+    assert "phase: B16" in brief
+    assert "phase: B1\n" not in brief
+
+    full = _row(
+        slug="beta", status="running", vault_tag="beta-abc123", tier="full", runner="opencode"
+    )
+    expected = [f"B{step}" for step in watcher.FULL_STEPS]
+    calls, phases, run, contract, gate = _phase_fakes([0] * len(expected))
+    assert (
+        watcher.run_phase_loop(
+            full,
+            repo=repo,
+            registry=registry,
+            run=run,
+            contract_text=contract,
+            gate_exit=gate,
+        )
+        == ""
+    )
+    assert phases == expected
+    assert "B14.5" in phases
+    assert phases[phases.index("B14") + 1] == "B14.5"
+    assert phases[phases.index("B14.5") + 1] == "B15"
+    assert calls[0][0] == "opencode"
+    assert "--standalone" in calls[0] and "--file" in calls[0]
+    assert "Do not call run finish." in calls[0][-1]
+    assert "end to end" not in calls[0][-1]
+    assert _repo_output_names() == before
+
+
+def test_resume_skips_a_phase_whose_last_gate_passed(tmp_path: Path):
+    repo, _knowledge, registry = _layout(tmp_path)
+    work = topic_run_dir("alpha-abc123") / ".work"
+    work.mkdir(parents=True)
+    work.joinpath("gates.jsonl").write_text(
+        "\n".join(
+            [
+                json.dumps({"phase": "B1", "decision": "Pass", "exit": 0}),
+                json.dumps({"phase": "B1", "decision": "Hold", "exit": 1}),
+                json.dumps({"phase": "B1", "decision": "Pass", "exit": 0}),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    row = _row(status="running", vault_tag="alpha-abc123", tier="light")
+    _calls, phases, run, contract, gate = _phase_fakes([0, 0, 0, 0])
+    assert (
+        watcher.run_phase_loop(
+            row,
+            repo=repo,
+            registry=registry,
+            run=run,
+            contract_text=contract,
+            gate_exit=gate,
+        )
+        == ""
+    )
+    assert phases == ["B2", "B10", "B15", "B16"]
+
+
+def test_empty_contract_does_not_launch_a_worker(tmp_path: Path):
+    repo, _knowledge, registry = _layout(tmp_path)
+    row = _row(status="running", vault_tag="alpha-abc123")
+    calls: list[list[str]] = []
+
+    def run(argv, cwd=None, env=None, timeout=None):
+        calls.append([str(part) for part in argv])
+        return watcher.CommandResult(0, "", "")
+
+    error = watcher.run_phase_loop(
+        row,
+        repo=repo,
+        registry=registry,
+        run=run,
+        contract_text=lambda _tag, _step: "  ",
+        gate_exit=lambda *_args: watcher.CommandResult(0, "", ""),
+    )
+    assert error == "B1: empty contract"
+    assert calls == []
+
+
+def test_drive_flag_blocks_the_row_when_the_contract_is_empty(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    repo, knowledge, registry = _layout(tmp_path)
+    watcher.write_registry(
+        registry,
+        [_row(status="running", vault_tag="alpha-abc123")],
+    )
+    boundary = Boundary()
+    monkeypatch.setattr(watcher, "invoke", boundary)
+    code = watcher.main(
+        ["--drive", "--registry", str(registry), "--repo", str(repo), "--slug", "alpha"]
+    )
+    assert code == 1
+    blocked = _by_slug(registry, "alpha")
+    assert blocked["status"] == "blocked"
+    assert "empty contract" in blocked["error"]
+    assert not any(command[0] in {"muse", "opencode"} for command in boundary.calls)
+    assert not (knowledge / "alpha.md").exists()
+
+
+def test_drive_flag_runs_finish_after_the_phases_pass(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    repo, _knowledge, registry = _layout(tmp_path)
+    watcher.write_registry(
+        registry,
+        [_row(status="running", vault_tag="alpha-abc123")],
+    )
+    boundary = Boundary()
+    monkeypatch.setattr(watcher, "invoke", boundary)
+    monkeypatch.setattr(watcher, "run_phase_loop", lambda *args, **kwargs: "")
+    assert (
+        watcher.main(
+            ["--drive", "--registry", str(registry), "--repo", str(repo), "--slug", "alpha"]
+        )
+        == 0
+    )
+    assert _by_slug(registry, "alpha")["status"] == "running"
+    assert any("verify" in command for command in boundary.calls)
+    assert any("finish" in command for command in boundary.calls)
+
+
+def test_gate_check_reads_the_dump_topic_without_hpr_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    before = _repo_output_names()
+    tag = "alpha-abc123"
+    monkeypatch.delenv("HPR_ROOT", raising=False)
+    run = topic_run_dir(tag)
+    run.mkdir(parents=True)
+    (run / "run.json").write_text(
+        json.dumps({"status": "running", "profile": "light"}),
+        encoding="utf-8",
+    )
+    (run / "query.md").write_text("What is the ship gate?\n", encoding="utf-8")
+    script = Path(__file__).resolve().parents[1] / "queue" / "phases" / "gate_check.py"
+    env = os.environ.copy()
+    env["TAG"] = tag
+    env["PHASE"] = "B1"
+    env.pop("HPR_ROOT", None)
+    proc = subprocess.run(
+        [sys.executable, str(script)],
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert proc.returncode == 1
+    payload = json.loads(proc.stdout)
+    assert payload["decision"] == "Hold"
+    evidence = json.dumps(payload)
+    assert str(run / "prompt-decomposition.json") in evidence
+    assert "apps/hyperresearch/output" not in evidence
+    assert _repo_output_names() == before
