@@ -95,6 +95,13 @@ class TestRoleBrief:
         assert "claims-<note-id>.json" in text
         assert "quoted_support" in text
 
+    def test_fetcher_brief_tags_notes_with_the_vault_tag(self, run_vault):
+        """2026-10-23 opencode lane: `--tag <topic>` stayed unrendered, the
+        worker used the slug, and B2 counted one note under the vault_tag."""
+        text = render_contract(run_vault, TAG, role="fetcher", hpr_path="/bin/hpr")
+        assert "<topic>" not in text
+        assert f"--tag {TAG}" in text
+
     def test_every_spawn_site_names_a_shipped_role(self, run_vault):
         """Each ROLE BRIEF line in a step contract must point at a role that
         renders (the <critic-name> placeholder expands to the four critics)."""

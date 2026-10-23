@@ -84,7 +84,7 @@ If you get a browser crash or "failed to launch" error:
 On Windows, ALWAYS prefix commands with `PYTHONIOENCODING=utf-8`:
 
 ```bash
-PYTHONIOENCODING=utf-8 $HPR fetch "<url>" --tag <topic> -j
+PYTHONIOENCODING=utf-8 $HPR fetch "<url>" --tag <vault_tag> -j
 ```
 
 ### Utility flag — `--utility-score`
@@ -94,7 +94,7 @@ When your assigned batch carries a utility score next to a URL (e.g.
 frontmatter and feeds the vault's composite quality ranking:
 
 ```bash
-PYTHONIOENCODING=utf-8 $HPR fetch "<url>" --tag <topic> --utility-score 14 -j
+PYTHONIOENCODING=utf-8 $HPR fetch "<url>" --tag <vault_tag> --utility-score 14 -j
 ```
 
 DOIs and arXiv ids are captured automatically during fetch — you do not
@@ -107,7 +107,7 @@ pass `--suggested-by <note-id>` to create the citation chain in the vault:
 
 ```bash
 PYTHONIOENCODING=utf-8 $HPR fetch "<url>" \\
-  --tag <topic> \\
+  --tag <vault_tag> \\
   --suggested-by <source-note-id> \\
   --suggested-by-reason "<one-line reason>" \\
   -j
@@ -124,7 +124,7 @@ For each URL the parent agent gave you:
    `PYTHONIOENCODING=utf-8 $HPR sources check "<url>" -j`
 
 2. If not already fetched, fetch it:
-   `PYTHONIOENCODING=utf-8 $HPR fetch "<url>" --tag <topic> -j`
+   `PYTHONIOENCODING=utf-8 $HPR fetch "<url>" --tag <vault_tag> -j`
 
 3. After fetching, read the note content:
    `PYTHONIOENCODING=utf-8 $HPR note show <note-id> -j`
@@ -216,7 +216,7 @@ those primaries gives the pipeline higher-authority sources to cite.
      hyperresearch CLI (same commands as Phase 1):
      ```
      PYTHONIOENCODING=utf-8 $HPR sources check "<url>" -j
-     PYTHONIOENCODING=utf-8 $HPR fetch "<url>" --tag <topic> --suggested-by <note-id-that-cited-it> --suggested-by-reason "cited as primary source" -j
+     PYTHONIOENCODING=utf-8 $HPR fetch "<url>" --tag <vault_tag> --suggested-by <note-id-that-cited-it> --suggested-by-reason "cited as primary source" -j
      ```
    - If you only have author + title (no URL), locate it:
      - Prefer WebSearch when the tool is present.
