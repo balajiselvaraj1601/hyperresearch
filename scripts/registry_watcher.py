@@ -23,6 +23,7 @@ import json
 import os
 import re
 import shlex
+import signal
 import subprocess
 import sys
 import tempfile
@@ -106,6 +107,9 @@ FULL_STEPS = (
 UV_CACHE_DIR = "/tmp/hyperresearch-uv-cache"
 INVOKE_TIMEOUT_S = 120
 GATE_TIMEOUT_S = 240
+PHASE_TIMEOUT_S = 4 * 60 * 60
+HEARTBEAT_S = 600
+ACCOUNT_SWITCH_LOCK = "opencode-account-switch.lock"
 DRIVE_READY_TRIES = 30
 DRIVE_READY_WAIT_S = 0.2
 PASS_DECISIONS = ("Pass", "Conditional pass")
@@ -449,6 +453,75 @@ def invoke(
     return CommandResult(completed.returncode, completed.stdout, completed.stderr)
 
 
+def streaming_worker(heartbeat: Callable[[], None], *, interval: float = HEARTBEAT_S) -> Invoke:
+    """Invoke for phase workers. Output goes to the tmux log, not to memory.
+
+    ``heartbeat`` runs every ``interval`` seconds while the worker is alive, so
+    the manifest does not read as stalled during a long phase. Past ``timeout``
+    seconds the worker's process group is killed and the result is exit 124.
+    """
+
+    def run(
+        argv: Sequence[str],
+        *,
+        cwd: Path | None = None,
+        env: Mapping[str, str] | None = None,
+        timeout: float | None = None,
+    ) -> CommandResult:
+        try:
+            proc = subprocess.Popen(
+                list(argv),
+                cwd=cwd,
+                env=None if env is None else dict(env),
+                start_new_session=True,
+            )
+        except OSError as exc:
+            return CommandResult(127, "", str(exc))
+        deadline = None if timeout is None else time.monotonic() + timeout
+        while proc.poll() is None:
+            wait = interval if deadline is None else min(interval, deadline - time.monotonic())
+            try:
+                proc.wait(timeout=max(wait, 0))
+                break
+            except subprocess.TimeoutExpired:
+                pass
+            if deadline is not None and time.monotonic() >= deadline:
+                os.killpg(proc.pid, signal.SIGKILL)
+                proc.wait()
+                return CommandResult(124, "", "phase timeout")
+            heartbeat()
+        return CommandResult(proc.returncode, "", "")
+
+    return run
+
+
+def worker_env() -> dict[str, str]:
+    """Worker environment with this interpreter's bin dir first on PATH.
+
+    The uv-tool `hyperresearch` on PATH is a stale snapshot. A worker that calls
+    bare `hyperresearch` must reach the install this driver runs from.
+    """
+    env = dict(os.environ)
+    env["PATH"] = os.pathsep.join([str(Path(sys.executable).parent), env.get("PATH", "")])
+    return env
+
+
+@contextmanager
+def account_switch_hold(runner: str):
+    """Hold the OpenCode account-switch lock (shared) while an opencode drive runs.
+
+    The 5-hourly switch restarts the OpenCode service; it takes this lock
+    exclusive and non-blocking, so it skips a cycle instead of interrupting a run.
+    """
+    if runner != "opencode":
+        yield
+        return
+    path = Path(os.environ.get("XDG_RUNTIME_DIR") or "/tmp") / ACCOUNT_SWITCH_LOCK
+    with path.open("a+") as handle:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_SH)
+        yield
+
+
 def list_sessions(run: Invoke) -> set[str]:
     result = run(["tmux", "list-sessions", "-F", "#{session_name}"])
     if result.returncode != 0:
@@ -762,7 +835,12 @@ def run_phase_loop(
                 contract=contract,
             ),
         )
-        worker = run(worker_argv(runner_name, brief_path, repo, slug), cwd=repo, timeout=None)
+        worker = run(
+            worker_argv(runner_name, brief_path, repo, slug),
+            cwd=repo,
+            env=worker_env(),
+            timeout=PHASE_TIMEOUT_S,
+        )
         if worker.returncode != 0:
             return f"{phase}: worker exited {worker.returncode}"
         gate = gate_exit(tag, phase, tier, root)
@@ -834,21 +912,34 @@ def drive(registry: Path, *, slug: str, repo: Path, run: Invoke | None = None) -
     if row is None:
         print(f"{slug}: registry row not ready", file=sys.stderr)
         return 1
-    error = run_phase_loop(
-        row,
-        repo=repo,
-        registry=registry,
-        run=runner,
-        contract_text=lambda tag, step: _contract_text(run=runner, repo=repo, tag=tag, step=step),
-        gate_exit=lambda tag, phase, tier, root: _gate_exit(
-            run=runner,
-            repo=repo,
-            tag=tag,
-            phase=phase,
-            tier=tier,
-            root=root,
-        ),
+    tag = (row.get("vault_tag") or "").strip()
+    worker = (
+        run
+        if run is not None
+        else streaming_worker(
+            lambda: runner(
+                hyperresearch_argv("run", "event", tag, "--type", "heartbeat", "-j"), cwd=repo
+            )
+        )
     )
+    with account_switch_hold(runner_of(row)):
+        error = run_phase_loop(
+            row,
+            repo=repo,
+            registry=registry,
+            run=worker,
+            contract_text=lambda tag, step: _contract_text(
+                run=runner, repo=repo, tag=tag, step=step
+            ),
+            gate_exit=lambda tag, phase, tier, root: _gate_exit(
+                run=runner,
+                repo=repo,
+                tag=tag,
+                phase=phase,
+                tier=tier,
+                root=root,
+            ),
+        )
     if error:
         _mark_blocked(registry, slug, error)
         print(error, file=sys.stderr)

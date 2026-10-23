@@ -947,6 +947,87 @@ def test_drive_flag_runs_finish_after_the_phases_pass(
     assert any("finish" in command for command in boundary.calls)
 
 
+def test_worker_reaches_the_driver_install_and_has_a_phase_ceiling(tmp_path: Path):
+    """2026-10-23: a worker on the stale uv-tool `hyperresearch` rendered the
+    fetcher brief from old code, and the worker call had no time limit."""
+    repo, _knowledge, registry = _layout(tmp_path)
+    row = _row(status="running", vault_tag="alpha-abc123", tier="light", runner="opencode")
+    seen: list[tuple[dict, float | None]] = []
+    _calls, _phases, fake, contract, gate = _phase_fakes([1])
+
+    def run(argv, cwd=None, env=None, timeout=None):
+        seen.append((env, timeout))
+        return fake(argv, cwd=cwd, env=env, timeout=timeout)
+
+    watcher.run_phase_loop(
+        row,
+        repo=repo,
+        registry=registry,
+        run=run,
+        contract_text=contract,
+        gate_exit=gate,
+    )
+    env, timeout = seen[0]
+    assert env["PATH"].split(os.pathsep)[0] == str(Path(sys.executable).parent)
+    assert timeout == watcher.PHASE_TIMEOUT_S
+
+
+def test_streaming_worker_heartbeats_while_the_phase_runs():
+    beats: list[int] = []
+    run = watcher.streaming_worker(lambda: beats.append(1), interval=0.05)
+    result = run([sys.executable, "-c", "import time; time.sleep(0.4)"], timeout=30)
+    assert result.returncode == 0
+    assert len(beats) >= 2
+
+
+def test_streaming_worker_stops_a_phase_past_its_ceiling():
+    beats: list[int] = []
+    run = watcher.streaming_worker(lambda: beats.append(1), interval=0.05)
+    started = datetime.now(UTC)
+    result = run([sys.executable, "-c", "import time; time.sleep(60)"], timeout=0.3)
+    assert result.returncode == 124
+    assert datetime.now(UTC) - started < timedelta(seconds=10)
+
+
+def _drive_and_probe_switch_lock(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, runner: str
+) -> list[bool]:
+    """Drive one row and report whether an account switch could lock during phases."""
+    import fcntl
+
+    monkeypatch.setenv("XDG_RUNTIME_DIR", str(tmp_path))
+    lock = tmp_path / watcher.ACCOUNT_SWITCH_LOCK
+    repo, _knowledge, registry = _layout(tmp_path)
+    watcher.write_registry(
+        registry, [_row(status="running", vault_tag="alpha-abc123", runner=runner)]
+    )
+    monkeypatch.setattr(watcher, "invoke", Boundary())
+    switch_could_lock: list[bool] = []
+
+    def phases(*_args, **_kwargs) -> str:
+        with lock.open("a+") as handle:
+            try:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                switch_could_lock.append(False)
+            else:
+                switch_could_lock.append(True)
+        return ""
+
+    monkeypatch.setattr(watcher, "run_phase_loop", phases)
+    argv = ["--drive", "--registry", str(registry), "--repo", str(repo), "--slug", "alpha"]
+    assert watcher.main(argv) == 0
+    return switch_could_lock
+
+
+def test_opencode_drive_defers_the_account_switch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    assert _drive_and_probe_switch_lock(tmp_path, monkeypatch, "opencode") == [False]
+
+
+def test_muse_drive_leaves_the_account_switch_free(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    assert _drive_and_probe_switch_lock(tmp_path, monkeypatch, "muse") == [True]
+
+
 def test_gate_check_reads_the_dump_topic_without_hpr_root(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

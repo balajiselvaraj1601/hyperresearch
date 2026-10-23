@@ -110,6 +110,24 @@ tail -f dump/apps/hyperresearch/<slug>/output/runs/<vault_tag>/.work/worker.log
 
 `tmux ls` shows `orch-hyperresearch-<slug>` while that topic is running.
 
+Phase gates are in `.work/gates.jsonl` beside the log, one line per phase.
+The driver streams each worker's output into `worker.log`, records a
+`heartbeat` event every 10 minutes while a phase runs, and kills a phase
+after 4 hours (the row is blocked with `worker exited 124`).
+
+## OpenCode lane
+
+- Do not run a non-standalone `opencode` command (`opencode session list`,
+  `export`, `service`) while a topic runs. It starts the background service,
+  and the running worker receives "The server restarted" and loses its
+  in-flight subagents. Watch the files above instead.
+- An opencode drive holds `$XDG_RUNTIME_DIR/opencode-account-switch.lock`
+  shared. The 5-hourly account switch then skips that cycle instead of
+  restarting the service mid-run.
+- Workers get the driver's interpreter directory first on `PATH`. The uv-tool
+  `hyperresearch` and `hpr` in `~/.local/bin` are a stale snapshot of this repo.
+- The model is OpenCode's configured default. No model flag is passed.
+
 ## Pause, resume, disable
 
 The timer unit is a recorded copy under
