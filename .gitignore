@@ -32,3 +32,6 @@ orchestrator/logs/
 
 .knack/
 SOUL.md
+
+# Serena language-server index. Machine-local.
+.serena/
